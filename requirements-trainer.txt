@@ -1,0 +1,7 @@
+numpy
+torch
+wandb
+torchvision
+accelerate
+transformers
+sentence_transformers

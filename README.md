@@ -16,7 +16,7 @@ relacji semantycznych, analizy komentarzy oraz eksportu danych do różnych form
 
 PLWordNet Handler to zaawansowana biblioteka umożliwiająca łatwy dostęp do danych 
 z polskiej Słowosieci (PLWordNet). Biblioteka oferuje bogaty zestaw narzędzi do 
-pracy z jednostkami leksykalnymi, relacjami semantycznymi, syzetami oraz dodatkowymi 
+pracy z jednostkami leksykalnymi, relacjami semantycznymi, synsetami oraz dodatkowymi 
 informacjami takimi jak komentarze z anotacjami sentymentalnymi i przykłady użycia.
 
 ### Główne cechy:
@@ -125,7 +125,7 @@ with connector as api:
     # Pobieranie jednostek leksykalnych 
     lexical_units = api.get_lexical_units(limit=10)
     
-    # Pobieranie syzetów
+    # Pobieranie synsetów
     synsets = api.get_synsets(limit=5)
     
     # Pobieranie relacji leksykalnych
@@ -169,16 +169,16 @@ with PolishWordnet(db_config_path="db-config.json") as pwn:
     # Utworzenie mappera grafów 
     mapper = GraphMapper(polish_wordnet=pwn)
 
-    # Konwersja do grafu syzetów
+    # Konwersja do grafu synsetów
     synset_graph = mapper.convert_to_synset_graph(limit=100)
 
     # Konwersja do grafu jednostek leksykalnych
     lexical_graph = mapper.convert_to_lexical_unit_graph(limit=100)
 
-    # Kombinowany graf syzetów i jednostek
+    # Kombinowany graf synsetów i jednostek
     combined_graph = mapper.convert_to_synset_with_units_graph(limit=100)
 
-    print(f"Graf syzetów: {synset_graph.number_of_nodes()} węzłów, {synset_graph.number_of_edges()} krawędzi")
+    print(f"Graf synsetów: {synset_graph.number_of_nodes()} węzłów, {synset_graph.number_of_edges()} krawędzi")
 ```
 
 ### Integracja z Wikipedią
@@ -308,7 +308,7 @@ unit.comment # sparsowany komentarz
 unit.status # status jednostki
 ``` 
 
-### Syzet (Synset)
+### Synset (Synset)
 
 ``` python
 # Główne atrybuty synsetu
@@ -339,7 +339,7 @@ comment.external_url_description # opisy z zewnętrznych URL
 
 with connector as api:
     # Pobieranie typów relacji relation_types = api.get_relation_types()
-    # Pobieranie relacji między syzetami
+    # Pobieranie relacji między synsetami
     synset_relations = api.get_synset_relations(limit=100)
     
     # Analiza relacji

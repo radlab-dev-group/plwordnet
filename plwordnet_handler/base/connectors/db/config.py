@@ -34,7 +34,7 @@ class DbSQLConfig:
         """
         config_file = Path(config_path)
         if not config_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+            raise FileNotFoundError(f"File not found: {config_path}")
 
         with open(config_file, "r", encoding="utf-8") as f:
             config_data = json.load(f)

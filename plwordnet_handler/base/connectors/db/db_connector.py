@@ -123,11 +123,11 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         try:
             self.config = DbSQLConfig.from_json_file(config_path=self.db_config_path)
             self.logger.info(
-                f"Configuration loaded successfully "
+                f"Database configuration loaded successfully "
                 f"for database: {self.config.database}"
             )
         except Exception as e:
-            self.logger.error(f"Failed to load configuration: {e}")
+            self.logger.error(f"Failed to load database configuration: {e}")
             raise
 
     def __initialize_connection(self) -> None:

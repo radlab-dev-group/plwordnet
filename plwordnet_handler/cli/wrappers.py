@@ -49,6 +49,24 @@ class CLIWrappers:
         if args is None:
             raise TypeError("No arguments to check are provided")
 
+        # If --test-api, Then no converters may be used
+        if args.test_api:
+            # no: --dump-embedder-dataset-to-filE
+            if args.dump_embedder_dataset_to_file:
+                raise TypeError(
+                    "--test-api cannot be used with --dump-embedder-dataset-to-file"
+                )
+            # no: --convert-to-nx-graph
+            if args.convert_to_nx:
+                raise TypeError(
+                    "--test-api cannot be used with --convert-to-nx-graph"
+                )
+            # no: --dump-relation-types-to-file
+            if args.dump_relation_types_to_file:
+                raise TypeError(
+                    "--test-api cannot be used with --dump-relation-types-to-file"
+                )
+
         # Check if --convert-to-nx-graph
         if args.convert_to_nx:
             # check --db-config

@@ -31,7 +31,7 @@ def main(argv=None):
         description="plWordnet semantic embeddings Trainer",
     ).parse_args()
 
-    train_batch_size = 4
+    train_batch_size = 8
     training_handler = TrainingHandler(
         train_dataset_file_path=args.train_file,
         eval_dataset_file_path=args.valid_file,
@@ -45,27 +45,30 @@ def main(argv=None):
 
     training_arguments = SentenceTransformerTrainingArguments(
         output_dir=args.output_dir,
-        num_train_epochs=10,
+        num_train_epochs=3,
         per_device_train_batch_size=train_batch_size,
         per_device_eval_batch_size=train_batch_size,
-        # warmup_ratio=0.1,
-        warmup_steps=1000,
-        # weight_decay=0.001, # 0.0
+        gradient_accumulation_steps=2,
+        learning_rate=1e-6,
+        warmup_ratio=0.1,
+        weight_decay=0.01,
+        adam_epsilon=1e-6,
+        max_grad_norm=5.0,
+        warmup_steps=5000,
         load_best_model_at_end=True,
         logging_steps=5,
         evaluation_strategy="steps",
         eval_steps=5000,
         disable_tqdm=False,
         logging_first_step=False,
-        learning_rate=0.0000001,  # 5e-1,
         fp16=True,
         bf16=False,
         report_to=report_to,
         save_total_limit=5,
         save_strategy="steps",
-        save_steps=10000,
+        save_steps=5000,
         logging_strategy="steps",
-        optim="adamw_torch_fused",
+        optim="adamw_torch",  # adamw_torch_fused <- problem z gradient clippingiem?
     )
 
     run_conf_dict = {
@@ -88,7 +91,7 @@ def main(argv=None):
             "model_max_length": 256,
             "truncation": True,
             "padding": True,
-            "max_length": 256
+            "max_length": 256,
         },
         trust_remote_code=True,
     )

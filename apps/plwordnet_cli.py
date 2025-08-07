@@ -46,14 +46,31 @@ def main(argv=None):
         connector=connector, use_memory_cache=True
     )
     if wordnet is None:
+        logger.error("Could not connect to plwordnet with actual connector!")
+        logger.error("Try to change connector parameters and try again.")
+        logger.error("Exiting wit status code 1...")
         return 1
 
     # Test api if --test-api passed
     if args.test_api:
-        cli_wrapper.test_plwordnet()
+        _status = cli_wrapper.test_plwordnet()
+        if not _status:
+            logger.error("Error while testing plwordnet")
+            return 1
 
+    # Dump rels to file if --dump-relation-types-to-file is given
     if args.dump_relation_types_to_file:
-        cli_wrapper.dump_relation_types_to_file()
+        _status = cli_wrapper.dump_relation_types_to_file()
+        if not _status:
+            logger.error("Could not dump relation types to file!")
+            return 1
+
+    # Dump embedder dataset if --dump-embedder-dataset-to-file is given
+    if args.dump_embedder_dataset_to_file:
+        _status = cli_wrapper.dump_embedder_dataset_to_file()
+        if not _status:
+            logger.error("Could not dump embedder dataset!")
+            return 1
 
     return 0
 

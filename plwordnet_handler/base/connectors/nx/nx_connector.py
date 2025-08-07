@@ -41,6 +41,9 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         Args:
             nx_graph_dir: Path to a directory containing NetworkX graph files
             autoconnect: If true, automatically connect to MySQL database
+
+        Raises:
+            Any exception raised if autoconnect failed
         """
         self.nx_graph_dir = Path(nx_graph_dir)
         self.graphs = {}
@@ -48,7 +51,10 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         self._connected = False
 
         if autoconnect:
-            self.connect()
+            try:
+                self.connect()
+            except Exception as e:
+                raise e
 
     def connect(self) -> bool:
         """

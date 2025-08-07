@@ -11,6 +11,7 @@ Constants:
                           with fallback if resource path utility returns None
     DEFAULT_DB_CFG_PATH: Default path to MySQL database configuration file,
                         with fallback if resource path utility returns None
+    DEFAULT_OUTPUT_FILE: Default output file name for embedder dataset
     DEFAULT_REL_TYPE_OUTPUT_FILE: Default output file name for relation types
 """
 
@@ -28,4 +29,5 @@ DEFAULT_DB_CFG_PATH = (
     or f"{DEFAULT_RESOURCES_DIR}/plwordnet-mysql-db.json"
 )
 
+DEFAULT_OUTPUT_FILE = "embedder_dataset.jsonl"
 DEFAULT_REL_TYPE_OUTPUT_FILE = "relation_types_export.xlsx"

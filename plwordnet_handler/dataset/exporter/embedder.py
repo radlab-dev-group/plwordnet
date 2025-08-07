@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Iterator, List, Tuple
 
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
-from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
+from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 
 
 @dataclass
@@ -46,41 +46,41 @@ class NodeTextData:
 
 class WordnetToEmbedderConverter:
     """
-    Class for converting Polish Wordnet (Słowosieć) to dataset for bi-encoder training.
-    This class processes NetworkX graphs containing synsets and lexical units,
-    extracts textual information from comments, and applies relation weights
-    from an Excel file to prepare training data for bi-encoders.
+    Class for converting Polish Wordnet (Słowosieć) to dataset
+    for bi-encoder training. This class processes data using a given connector.
+    Based on synsets and lexical units, extracts textual information from
+    comments and applies relation weights from an Excel file to prepare
+    training data for bi-encoders.
     """
 
     EXCEL_REL_WEIGHTS_COLUMNS = ["ID", "name", "embedder_weight_coarse"]
 
     def __init__(
-        self, xlsx_path: str, graph_path: str, init_converter: bool = False
+        self,
+        xlsx_path: str,
+        connector: PlWordnetConnectorInterface,
+        init_converter: bool = False,
     ):
         """
         Initialize converter with paths and connector.
 
         Args:
             xlsx_path: Path to an Excel file with relation weights
-            graph_path: Path to graphs to load
+            connector: Path to graphs to load
             init_converter: If true, auto initialization will be performed
         """
-        self.logger = logging.getLogger(__name__)
-
+        self.connector = connector
         self.xlsx_path = Path(xlsx_path)
-        self.graph_path = Path(graph_path)
-        self.__check_paths()
 
-        self.wordnet_connector = PlWordnetAPINxConnector(
-            nx_graph_dir=graph_path, autoconnect=True
-        )
+        self.__check_paths_and_raise_when_error()
 
-        # Mappings
-        #   rel.id -> rel.name (comes from Excel file)
+        # Mapping rel.id -> rel.name (comes from an Excel file)
         self.relation_names: Dict[int, str] = {}
-        #   rel.id -> rel.weight (comes from Excel file)
+
+        #  Mapping rel.id -> rel.weight (comes from an Excel file)
         self.relation_weights: Dict[int, float] = {}
 
+        self.logger = logging.getLogger(__name__)
         if init_converter:
             self.initialize()
 
@@ -116,24 +116,25 @@ class WordnetToEmbedderConverter:
         self.__load_relation_weights(df=df)
         self.__load_relation_names(df=df)
 
-    def extract_comments_from_edges(self) -> Iterator[EmbedderSample]:
+    def extract_comments_from_relations(self) -> Iterator[EmbedderSample]:
         """
-        Extract textual information from graph edges with relation weights.
-        This method iterates through all edges in both synset and lexical graphs,
-        extracts textual information from node comments (usage examples,
-        external URL descriptions), and applies relation weights based on
-        the relation ID of each edge. Creates samples with text from
-        both sides of the relation.
+        Extracts and yields embedder samples from
+        both lexical unit and synset relations.
+
+        This generator method processes relation data from two graph types:
+        lexical unit relations and synset relations, yielding EmbedderSample objects
+        that contain comment data suitable for embedding processing.
 
         Yields:
-            EmbedderSample: Individual samples for bi-encoder training
-            with parent and child texts
+            EmbedderSample: Sample objects containing relation comment data from
+            both lexical unit and synset relation graphs
         """
-        for g_type, g in self.wordnet_connector.graphs.items():
-            if g_type in [GraphMapperData.G_UAS]:
-                self.logger.debug(f"Skipping {g_type} graph while extracting")
-                continue
-            yield from self._process_graph_edges(graph=g, graph_type=g_type)
+        yield from self._process_comments_based_on_relations(
+            rel_type=GraphMapperData.G_LU
+        )
+        yield from self._process_comments_based_on_relations(
+            rel_type=GraphMapperData.G_SYN
+        )
 
     def export(
         self,
@@ -147,7 +148,7 @@ class WordnetToEmbedderConverter:
 
         Args:
             output_file: Path to output JSONL file
-            limit: Optional limit on number of samples to export
+            limit: Optional limit on the number of samples to export
             out_type: Optional output type
             low_high_ratio: Ratio between low and high-weighted samples
 
@@ -168,8 +169,10 @@ class WordnetToEmbedderConverter:
 
         self.logger.info("Starting sample extraction and export...")
 
-        w2examples, weights_relations = self.__positive_samples_from_g(limit=limit)
-        w2examples, weights_relations = self.__align_samples_to_low(
+        w2examples, weights_relations = self.__positive_samples_from_connector(
+            limit=limit
+        )
+        w2examples, weights_relations = self.__align_negatives_samples_to_low(
             w2examples=w2examples,
             weights_relations=weights_relations,
             low_high_ratio=low_high_ratio,
@@ -180,67 +183,37 @@ class WordnetToEmbedderConverter:
             if len(examples):
                 all_examples.extend(examples)
 
-        try:
-            sample_count = 0
-            output_path = Path(output_file)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, "w", encoding="utf-8") as f:
-                for sample in all_examples:
-                    sample_dict = {
-                        "text_parent": sample.text_parent,
-                        "text_child": sample.text_child,
-                        "relation_id": sample.relation_id,
-                        "relation_name": sample.relation_name,
-                        "relation_weight": sample.relation_weight,
-                        "source_type_parent": sample.source_type_parent,
-                        "source_type_child": sample.source_type_child,
-                        "node_id_parent": sample.node_id_parent,
-                        "node_id_child": sample.node_id_child,
-                        "parent_id": sample.parent_id,
-                        "child_id": sample.child_id,
-                    }
-                    f.write(json.dumps(sample_dict, ensure_ascii=False) + "\n")
-                    sample_count += 1
+        return self.__export_to_out_file(
+            output_file=output_file, all_examples=all_examples
+        )
 
-                self.logger.info(
-                    f"Successfully exported {sample_count} samples to "
-                    f"{output_file} without alignment"
-                )
-            return True
-        except Exception as e:
-            self.logger.error(f"Error exporting samples to JSONL: {e}")
-            return False
-
-    def _process_graph_edges(
-        self, graph: nx.MultiDiGraph, graph_type: str
+    def _process_comments_based_on_relations(
+        self, rel_type: str
     ) -> Iterator[EmbedderSample]:
-        """
-        Process edges of a single graph and extract
-        textual information from both nodes.
+        if rel_type == GraphMapperData.G_SYN:
+            all_relations = self.connector.get_synset_relations()
+        elif rel_type == GraphMapperData.G_LU:
+            all_relations = self.connector.get_lexical_relations()
+        else:
+            return
 
-        Args:
-            graph: NetworkX MultiDiGraph to process
-            graph_type: Type of graph ("synset" or "lexical")
-
-        Yields:
-            EmbedderSample: Individual samples extracted from
-            graph edges with parent and child texts
-        """
-        for parent_id, child_id, edge_data in graph.edges(data=True):
-            relation_id = edge_data.get("relation_id")
-
+        for relation in all_relations:
+            relation_id = relation.relation_id
             if relation_id is None or relation_id not in self.relation_weights:
                 self.logger.warning(
-                    f"Relation ID {relation_id} not found in {graph_type} graph"
+                    f"Relation ID {relation_id} not found in {rel_type} graph"
                 )
                 continue
 
+            parent_id = relation.parent_id
+            child_id = relation.child_id
             relation_weight = self.relation_weights[relation_id]
+
             parent_texts = list(
-                self._extract_all_node_texts(graph=graph, node_id=parent_id)
+                self.__extract_all_texts_from(elem_type=rel_type, elem_id=parent_id)
             )
             child_texts = list(
-                self._extract_all_node_texts(graph=graph, node_id=child_id)
+                self.__extract_all_texts_from(elem_type=rel_type, elem_id=child_id)
             )
 
             yield from self._create_embedder_samples(
@@ -252,31 +225,29 @@ class WordnetToEmbedderConverter:
                 child_id=child_id,
             )
 
-    def _extract_all_node_texts(
-        self, graph: nx.MultiDiGraph, node_id: int
+    def __extract_all_texts_from(
+        self, elem_type: str, elem_id: int
     ) -> Iterator[NodeTextData]:
-        """
-        Extract all textual data from a single node.
-
-        Args:
-            graph: NetworkX graph containing the node
-            node_id: ID of the node to process
-
-        Yields:
-            NodeTextData: All text samples extracted from node data
-        """
-        if node_id not in graph.nodes:
-            return
-
-        node_data = graph.nodes[node_id].get("data", {})
-        comment = node_data.get("comment", {})
-
-        if comment and len(comment):
-            yield from self._extract_definition_text(
-                comment=comment, node_id=node_id
-            )
-
-            yield from self._extract_comment_texts(comment=comment, node_id=node_id)
+        # if elem_type == GraphMapperData.G_SYN:
+        #     all_relations = self.connector.get_synset_relations()
+        # elif elem_type == GraphMapperData.G_LU:
+        #     all_relations = self.connector.get_lexical_relations()
+        # else:
+        #     return
+        #
+        # if elem_id not in elem_type.nodes:
+        #     return
+        #
+        # node_data = elem_type.nodes[elem_id].get("data", {})
+        # comment = node_data.get("comment", {})
+        #
+        # if comment and len(comment):
+        #     yield from self._extract_definition_text(
+        #         comment=comment, node_id=elem_id
+        #     )
+        #
+        #     yield from self._extract_comment_texts(comment=comment, node_id=elem_id)
+        pass
 
     def _create_embedder_samples(
         self,
@@ -376,7 +347,7 @@ class WordnetToEmbedderConverter:
 
     @staticmethod
     def _extract_usage_examples_texts(
-        usage_examples: list[dict] or None, node_id: int
+        usage_examples: Optional[list[dict]], node_id: int
     ) -> Iterator[NodeTextData]:
         """
         Extract text from usage examples.
@@ -404,7 +375,7 @@ class WordnetToEmbedderConverter:
 
     @staticmethod
     def _extract_external_url_description_texts(
-        external_url_description: dict or None, node_id: int
+        external_url_description: Optional[dict], node_id: int
     ) -> Iterator[NodeTextData]:
         """
         Extract text from external URL description.
@@ -429,7 +400,7 @@ class WordnetToEmbedderConverter:
 
     @staticmethod
     def _extract_sentiment_annotations_texts(
-        sentiment_annotations: list[dict] or None, node_id: int
+        sentiment_annotations: Optional[list[dict]], node_id: int
     ) -> Iterator[NodeTextData]:
         """
         Extract text from sentiment annotation examples.
@@ -453,16 +424,12 @@ class WordnetToEmbedderConverter:
                     node_id=node_id,
                 )
 
-    def __check_paths(self):
+    def __check_paths_and_raise_when_error(self):
         if not self.xlsx_path.exists():
             self.logger.error(f"Excel weights file not found: {self.xlsx_path}")
             raise FileNotFoundError(
                 f"Excel weights file not found: {self.xlsx_path}"
             )
-
-        if not self.graph_path.exists():
-            self.logger.error(f"Graph directory not found: {self.graph_path}")
-            raise FileNotFoundError(f"Graph directory not found: {self.graph_path}")
 
     def __load_relation_weights(self, df: pd.DataFrame) -> None:
         """
@@ -499,7 +466,38 @@ class WordnetToEmbedderConverter:
         w2examples: Dict[float, List[EmbedderSample]],
         cut_weight: float = 0.5,
         low_to_high_ratio: float = 2.0,
-    ) -> None or List[EmbedderSample]:
+    ) -> Optional[List[EmbedderSample]]:
+        """
+        Aligns low-weighted relation examples with high-weighted ones
+        to create balanced training data.
+
+        This private method balances the dataset by pairing low-weighted examples
+        with randomly selected high-weighted examples to generate new training
+        samples. The goal is to create a more balanced representation where
+        low-weighted relationships are contrasted against high-weighted
+        ones with a specified ratio.
+
+        Args:
+            w2s (Dict[float, int]): Dictionary mapping weights to sample counts
+            w2examples (Dict[float, List[EmbedderSample]]): Dictionary mapping
+            weights to example lists
+            cut_weight (float, optional): Threshold weight separating low from
+             high examples. Defaults to 0.5.
+            low_to_high_ratio (float, optional): Ratio of high-weighted examples
+            to pair with each low-weighted example. Defaults to 2.0.
+
+        Returns:
+            Optional[List[EmbedderSample]]: List of new aligned training samples,
+            or None if alignment conditions are not met (insufficient ratios
+            or empty example sets).
+
+        Note:
+            The method shuffles examples randomly and creates negative
+            samples by pairing low-weighted examples with high-weighted ones,
+            helping to improve model training through better class balance
+            and contrastive learning.
+        """
+
         self.logger.info(
             f"Aligning low-weighted examples with ratio "
             f"{low_to_high_ratio} to high-weighted examples..."
@@ -554,6 +552,36 @@ class WordnetToEmbedderConverter:
         negatives: List[EmbedderSample],
         low_value: float = 0.05,
     ) -> List[EmbedderSample]:
+        """
+        Merges a positive example with negative samples to create
+        low-weighted training samples.
+
+        This private method takes a positive embedder sample and combines
+        it with a list of negative samples to generate new training examples.
+        The resulting samples inherit the parent information from the positive
+        example while using the child information from each negative sample.
+        All generated samples are assigned a low-related weight to indicate
+        they represent negative or weak relationships.
+
+        Args:
+            example (EmbedderSample): The positive example that
+            provides parent context
+            negatives (List[EmbedderSample]): List of negative samples that
+            provide child context
+            low_value (float, optional): The low weight value assigned
+            to negative relationships. Defaults to 0.05.
+
+        Returns:
+            List[EmbedderSample]: A list of new embedder samples where each
+            combines the parent from the positive example with a child from
+            the negative samples, all assigned the specified low weight value.
+
+        Note:
+            This method is typically used in contrastive learning
+            scenarios where positive examples need to be contrasted
+            with negative examples during model training.
+        """
+
         examples = []
         self.logger.debug(
             f"Preparing negative low-weighted embedder "
@@ -657,14 +685,38 @@ class WordnetToEmbedderConverter:
 
         return l_h_ratio, add_examples, l_examples, h_examples
 
-    def __positive_samples_from_g(
+    def __positive_samples_from_connector(
         self, limit: Optional[int] = None
     ) -> Tuple[Dict, Dict]:
+        """
+        Extracts positive training samples from relation data via the connector.
+
+        This method processes relation comments to create positive examples
+        for training, organizing them by relation weight and tracking unique
+        relation IDs. Progress is displayed via a progress bar
+        during sample extraction.
+
+        Args:
+            limit (Optional[int]): Maximum number of samples
+            to extract (None for no limit)
+
+        Returns:
+            Tuple[Dict, Dict]: A tuple containing:
+                - w2examples: Dictionary mapping relation weights
+                to lists of samples
+                - weights_relations: Dictionary mapping relation weight
+                to sets of relation IDs
+
+        Note:
+            Samples are grouped by relation weight to facilitate balanced training
+            and prevent duplicate relation processing within each weight category.
+        """
         self.logger.debug("Preparing samples from 'positives'")
+
         sample_count = 0
         w2examples = {}
         weights_relations = {}
-        samples_from_edges = list(self.extract_comments_from_edges())
+        samples_from_edges = list(self.extract_comments_from_relations())
         with tqdm.tqdm(
             total=len(samples_from_edges), desc="Preparing positives"
         ) as pbar:
@@ -675,7 +727,6 @@ class WordnetToEmbedderConverter:
                 if sample.relation_weight not in w2examples:
                     w2examples[sample.relation_weight] = []
                     weights_relations[sample.relation_weight] = set()
-
                 w2examples[sample.relation_weight].append(sample)
                 weights_relations[sample.relation_weight].add(sample.relation_id)
                 sample_count += 1
@@ -683,12 +734,37 @@ class WordnetToEmbedderConverter:
                 pbar.update(1)
         return w2examples, weights_relations
 
-    def __align_samples_to_low(
+    def __align_negatives_samples_to_low(
         self,
         w2examples,
         weights_relations,
         low_high_ratio,
     ) -> Tuple[Dict, Dict]:
+        """
+        Balances negative samples by generating additional
+        low-weight examples to match the ratio.
+
+        This method addresses class imbalance in relation to weight distribution
+        by creating negative samples for underrepresented low-weight categories.
+        It logs the distribution before and after alignment to track
+        the balancing process.
+
+        Args:
+            w2examples: Dictionary mapping relation weights to example lists
+            weights_relations: Dictionary mapping weights to sets of relation IDs
+            low_high_ratio: Target ratio of low-weight to high-weight samples
+
+        Returns:
+            Tuple[Dict, Dict]: Updated `w2examples` and weights_relations
+            dictionaries containing the newly balanced sample distributions
+
+        Note:
+            Uses a cut_weight threshold of 0.5 to determine what constitutes
+            low-weight relations. Generated samples are added to existing
+            collections and logged for verification.
+        """
+        self.logger.debug("Preparing 'negative' samples based on the 'positives'")
+
         w2s = {w: len(rels) for w, rels in w2examples.items()}
         self.logger.info(
             f"Weights counts before alignment: "
@@ -721,3 +797,61 @@ class WordnetToEmbedderConverter:
             f"{json.dumps(w2s, ensure_ascii=False)}"
         )
         return w2examples, weights_relations
+
+    def __export_to_out_file(
+        self, output_file: str, all_examples: List[EmbedderSample]
+    ):
+        """
+        Exports embedder samples to a JSONL output file.
+
+        This private method serializes a list of EmbedderSample objects and
+        writes them to a specified output file in JSON Lines format.
+        Each sample is converted to a dictionary containing all its attributes
+        and written as a separate JSON object on each line. The method ensures
+        the output directory exists and handles encoding properly
+        for non-ASCII characters.
+
+        Args:
+            output_file (str): Path to the output file where samples will be exported
+            all_examples (List[EmbedderSample]): List of embedder samples to export
+
+        Returns:
+            bool: True if export was successful, False if an error occurred
+            during export
+
+        Note:
+            The method creates parent directories if they don't exist
+            and uses UTF-8 encoding with ensure_ascii=False to preserve
+            non-ASCII characters in the exported data. Each sample is written
+            as one JSON object per line (JSONL format).
+        """
+        try:
+            sample_count = 0
+            output_path = Path(output_file)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, "w", encoding="utf-8") as f:
+                for sample in all_examples:
+                    sample_dict = {
+                        "text_parent": sample.text_parent,
+                        "text_child": sample.text_child,
+                        "relation_id": sample.relation_id,
+                        "relation_name": sample.relation_name,
+                        "relation_weight": sample.relation_weight,
+                        "source_type_parent": sample.source_type_parent,
+                        "source_type_child": sample.source_type_child,
+                        "node_id_parent": sample.node_id_parent,
+                        "node_id_child": sample.node_id_child,
+                        "parent_id": sample.parent_id,
+                        "child_id": sample.child_id,
+                    }
+                    f.write(json.dumps(sample_dict, ensure_ascii=False) + "\n")
+                    sample_count += 1
+
+                self.logger.info(
+                    f"Successfully exported {sample_count} samples to "
+                    f"{output_file} without alignment"
+                )
+            return True
+        except Exception as e:
+            self.logger.error(f"Error exporting samples to JSONL: {e}")
+            return False

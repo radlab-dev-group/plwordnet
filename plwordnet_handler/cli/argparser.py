@@ -28,6 +28,8 @@ def prepare_parser() -> argparse.ArgumentParser:
         epilog=EXAMPLE_USAGE,
     )
 
+    # -------------------------------------------------------------------------
+    # General connection options
     parser.add_argument(
         "--db-config",
         dest="db_config",
@@ -36,7 +38,13 @@ def prepare_parser() -> argparse.ArgumentParser:
         help="Path to JSON file with database configuration "
         "(used for --convert-to-nx-graph or --use-database)",
     )
-
+    parser.add_argument(
+        "--use-database",
+        dest="use_database",
+        action="store_true",
+        help="Use MySQL database directly instead of "
+        "NetworkX graphs (requires --db-config)",
+    )
     parser.add_argument(
         "--nx-graph-dir",
         dest="nx_graph_dir",
@@ -47,13 +55,8 @@ def prepare_parser() -> argparse.ArgumentParser:
         f"For loading graphs, this should point to the graphs subdirectory.",
     )
 
-    parser.add_argument(
-        "--extract-wikipedia-articles",
-        dest="extract_wikipedia_articles",
-        action="store_true",
-        help="Extract Wikipedia articles as additional LU description",
-    )
-
+    # -------------------------------------------------------------------------
+    # Converting database to NetworkX graphs
     parser.add_argument(
         "--convert-to-nx-graph",
         dest="convert_to_nx",
@@ -61,22 +64,8 @@ def prepare_parser() -> argparse.ArgumentParser:
         help="Convert from database to NetworkX graphs (requires --db-config)",
     )
 
-    parser.add_argument(
-        "--use-database",
-        dest="use_database",
-        action="store_true",
-        help="Use MySQL database directly instead of "
-        "NetworkX graphs (requires --db-config)",
-    )
-
-    parser.add_argument(
-        "--limit",
-        dest="limit",
-        type=int,
-        required=False,
-        help="Limit the number of results to check app is proper working.",
-    )
-
+    # -------------------------------------------------------------------------
+    # Relation types export
     parser.add_argument(
         "--dump-relation-types-to-file",
         dest="dump_relation_types_to_file",
@@ -86,6 +75,42 @@ def prepare_parser() -> argparse.ArgumentParser:
         "will be dumped to file with given filepath.",
     )
 
+    # -------------------------------------------------------------------------
+    # Embedder export
+    parser.add_argument(
+        "--dump-embedder-dataset-to-file",
+        dest="dump_embedder_dataset_to_file",
+        type=str,
+        required=False,
+        help=f"Output JSONL file path where embedder dataset will be stored.",
+    )
+    parser.add_argument(
+        "--xlsx-relations-weights",
+        dest="xlsx_relations_weights",
+        type=str,
+        required=False,
+        help=f"Path to Excel file with relation weights. If you dont have this file, "
+        f"you can generate schema to prepare relations with option "
+        f"--dump-relation-types-to-file=./relations.xlsx",
+    )
+    parser.add_argument(
+        "--embedder-low-high-ratio",
+        type=float,
+        dest="embedder_low_high_ratio",
+        required=False,
+        default=2.0,
+        help="Ratio between low and high-weighted relations "
+        "count during dumping embedder dataset.",
+    )
+    parser.add_argument(
+        "--extract-wikipedia-articles",
+        dest="extract_wikipedia_articles",
+        action="store_true",
+        help="Extract Wikipedia articles as additional LU description",
+    )
+
+    # -------------------------------------------------------------------------
+    # General, debug options
     parser.add_argument(
         "--log-level",
         dest="log_level",
@@ -94,14 +119,22 @@ def prepare_parser() -> argparse.ArgumentParser:
         default=DEFAULT_LOG_LEVEL,
         help="Set the logging level",
     )
-
     parser.add_argument(
         "--show-progress-bar",
         dest="show_progress_bar",
         action="store_true",
         help="Show progress bar",
     )
+    parser.add_argument(
+        "--limit",
+        dest="limit",
+        type=int,
+        required=False,
+        help="Limit the number of results to check app is proper working.",
+    )
 
+    # -------------------------------------------------------------------------
+    # Test connection
     parser.add_argument(
         "--test-api",
         dest="test_api",
@@ -109,5 +142,7 @@ def prepare_parser() -> argparse.ArgumentParser:
         help="Test api connection. When --use-database is passed the connection "
         "to database will be tested, otherwise connection to NetworkX.",
     )
+
+    # -------------------------------------------------------------------------
 
     return parser

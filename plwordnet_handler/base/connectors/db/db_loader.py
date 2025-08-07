@@ -35,8 +35,12 @@ def connect_to_mysql_database(
     try:
         connector = PlWordnetAPIMySQLDbConnector(db_config_path=db_config_path)
         if connect:
-            connector.connect()
+            if not connector.connect():
+                if logger:
+                    logger.error("Connection failed")
+                return None
+        return connector
     except Exception as e:
-        logger.error(f"Error loading from MySQL database: {e}")
+        if logger:
+            logger.error(f"Error loading from MySQL database: {e}")
         return None
-    return connector

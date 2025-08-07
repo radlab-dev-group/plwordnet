@@ -39,12 +39,8 @@ class CLIWrappers:
         Args:
             args: Optional arguments to validate (uses self.args if None)
 
-        Returns:
-            bool: True if arguments are valid, False otherwise
-
-        Note:
-            Currently returns True as validation
-            logic is not yet implemented (TODO).
+        Raises:
+            TypeError: If any errors occur
         """
 
         _args = self.args if args is None else args
@@ -221,6 +217,22 @@ class CLIWrappers:
                 self.logger.error(f"Error while testing plwordnet: {e}")
 
     def dump_relation_types_to_file(self) -> bool:
+        """
+        Exports relation types data to an Excel file using the active connector.
+
+        This method creates a RelationTypesExporter instance and exports wordnet
+        relation types to an XLSX file. The export uses the output file path
+        specified in arguments and respects the configured data limit.
+
+        Returns:
+            bool: True if export is completed successfully, False if no connector
+            is available, or export operation fails
+
+        Note:
+            Requires an active connector (self.last_connector) to be established
+            before calling this method.
+        """
+
         if self.last_connector is None:
             if self.logger:
                 self.logger.error(

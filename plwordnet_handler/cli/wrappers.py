@@ -2,6 +2,7 @@ from typing import Optional
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.dataset.exporter.rel_types import RelationTypesExporter
 from plwordnet_handler.base.connectors.db.db_to_nx import dump_to_networkx_file
+from plwordnet_handler.dataset.exporter.embedder import WordnetToEmbedderConverter
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
 from plwordnet_handler.base.connectors.nx.nx_loader import connect_to_networkx_graphs
@@ -183,7 +184,7 @@ class CLIWrappers:
             self.logger.debug("Polish Wordnet connection established")
         return self.pl_wn
 
-    def test_plwordnet(self):
+    def test_plwordnet(self) -> bool:
         """
         Performs a comprehensive test of the PolishWordnet API functionality.
 
@@ -193,7 +194,15 @@ class CLIWrappers:
         or defaults to 5 items per test.
 
         The test results are logged for verification and debugging purposes.
+
+        Returns:
+            bool: True if the test passes, False otherwise
         """
+        if not self._connection_ok():
+            self.logger.error(
+                "Testing is not possible because no connection is established!"
+            )
+            return False
 
         limit = self.args.limit
         if limit is None:
@@ -236,10 +245,11 @@ class CLIWrappers:
                 self.logger.info(f"Number of relation types: {len(rel_types)}")
                 for rel_t in rel_types:
                     self.logger.info(f"   - Rel type: {rel_t}")
-
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error while testing plwordnet: {e}")
+            return False
+        return True
 
     def dump_relation_types_to_file(self) -> bool:
         """
@@ -257,13 +267,8 @@ class CLIWrappers:
             Requires an active connector (self.last_connector) to be established
             before calling this method.
         """
-
-        if self.last_connector is None:
-            if self.logger:
-                self.logger.error(
-                    "Cannot dump relation types to file. "
-                    "No connection was initialized."
-                )
+        if not self._connection_ok():
+            return False
 
         exporter = RelationTypesExporter(connector=self.last_connector)
         success = exporter.export_to_xlsx(
@@ -273,4 +278,66 @@ class CLIWrappers:
             if self.logger:
                 self.logger.error("Failed to dump relation types to file")
                 return False
+        return True
+
+    def dump_embedder_dataset_to_file(self):
+        """
+        Dumps embedder dataset to a file using WordNet relations and weights.
+
+        This method creates a WordNet to embedder converter instance and exports
+        the processed dataset to a specified output file. It first checks if the
+        database connection is available, then initializes a converter with the
+        configured Excel relations weights file and database connector, and finally
+        exports the dataset with the specified parameters.
+
+        Returns:
+            bool: True if the dataset was successfully exported, False if the
+                  database connection failed or export encountered an error
+
+        Note:
+            The method relies on command-line arguments for configuration including
+            the Excel weights file path, output file path, data limit, and low-to-high
+            ratio for dataset balancing.
+        """
+        if not self._connection_ok():
+            return False
+
+        converter = WordnetToEmbedderConverter(
+            xlsx_path=self.args.xlsx_relations_weights,
+            connector=self.last_connector,
+            init_converter=True,
+        )
+
+        return converter.export(
+            output_file=self.args.dump_embedder_dataset_to_file,
+            limit=self.args.limit,
+            low_high_ratio=self.args.embedder_low_high_ratio,
+        )
+
+    def _connection_ok(self):
+        """
+        Checks if the connection is properly initialized and available.
+
+        This private method validates whether the last_connector attribute contains
+        a valid database/networkx connector instance. If no connector
+        is available, it logs an error message indicating that operations
+        requiring database access cannot proceed.
+
+        Returns:
+            bool: True if a valid database connector exists,
+            False if the connector is None or not initialized
+
+        Note:
+            This method serves as a guard clause for connector-dependent
+            operations and provides appropriate error logging when
+            the connection is unavailable.
+        """
+
+        if self.last_connector is None:
+            if self.logger:
+                self.logger.error(
+                    "Cannot dump relation types to file. "
+                    "No connection was initialized."
+                )
+            return False
         return True

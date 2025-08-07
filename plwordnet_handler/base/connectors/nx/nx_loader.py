@@ -29,12 +29,15 @@ def connect_to_networkx_graphs(
     if logger:
         logger.info("Loading data from NetworkX graphs")
 
-    connector = PlWordnetAPINxConnector(nx_graph_dir=nx_graph_dir)
-    if connect:
-        try:
-            connector.connect()
-        except Exception as e:
-            if logger:
-                logger.error(f"Error loading NetworkX graphs: {e}")
+    try:
+        connector = PlWordnetAPINxConnector(nx_graph_dir=nx_graph_dir)
+        if connect:
+            if not connector.connect():
+                if logger:
+                    logger.error("Connection failed")
                 return None
-    return connector
+        return connector
+    except Exception as e:
+        if logger:
+            logger.error(f"Error loading NetworkX graphs: {e}")
+        return None

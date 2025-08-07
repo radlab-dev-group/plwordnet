@@ -8,6 +8,9 @@ from typing import Optional, Dict, List, Any
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
+from plwordnet_handler.base.connectors.db.db_connector import (
+    PlWordnetAPIMySQLDbConnector,
+)
 
 
 class GraphMapper(GraphMapperData):
@@ -212,7 +215,11 @@ class GraphMapper(GraphMapperData):
         Args:
             out_dir_path: Path to the output directory
         """
-        graphs_dir = os.path.join(out_dir_path, self.GRAPH_DIR)
+        graphs_dir = (
+            os.path.join(out_dir_path, self.GRAPH_DIR)
+            if self.GRAPH_DIR not in out_dir_path
+            else out_dir_path
+        )
         os.makedirs(graphs_dir, exist_ok=True)
 
         self.logger.info(f"Storing graphs to directory: {graphs_dir}")
@@ -243,7 +250,7 @@ class GraphMapper(GraphMapperData):
                      Each node object must have an ID attribute and to_dict() method.
             to_edges: Collection of edge/relation objects that define connections
                      between nodes. Each edge must have PARENT_ID, CHILD_ID, REL_ID
-                     attributes and `to_dict()` method.
+                     attributes, and `to_dict()` method.
             graph_type: Identifier for the type of graph being created.
                         Used for logging and internal storage.
             limit: Maximum number of relation types to retrieve for mapping.
@@ -288,3 +295,63 @@ class GraphMapper(GraphMapperData):
 
         self._graphs[graph_type] = graph
         return graph
+
+
+def dump_to_networkx_file(
+    db_config: str,
+    out_dir_path: str,
+    limit: Optional[int] = None,
+    show_progress_bar: Optional[bool] = True,
+    extract_wikipedia_articles: Optional[bool] = False,
+    logger=None,
+) -> bool:
+    """
+    Exports Polish Wordnet data from a MySQL database to NetworkX graph files.
+
+    This function establishes a database connection, extracts wordnet data,
+    converts it to NetworkX MultiDiGraph format, and saves the resulting graph
+    files to the specified output directory.
+
+    Args:
+        db_config (str): Path to the database configuration file
+        out_dir_path (str): Directory path where NetworkX graph files will be stored
+        limit (Optional[int]): Maximum number of records to process (None for no limit)
+        show_progress_bar (Optional[bool]): Whether to display progress
+        indication during processing
+        extract_wikipedia_articles (Optional[bool]): Whether to include
+        Wikipedia article data
+        logger: Logger instance for recording operation progress and errors
+
+    Returns:
+        Boolean: True for successful completion, False for error
+
+    Raises:
+        Exception: Any database connection, data processing, or file I/O
+        errors are caught and logged, with the function returning error code 1
+    """
+
+    if logger:
+        logger.info("Starting NetworkX graph generation from database")
+
+    try:
+        # Use database connector for conversion
+        connector = PlWordnetAPIMySQLDbConnector(db_config_path=db_config)
+
+        with PolishWordnet(
+            connector=connector,
+            extract_wiki_articles=extract_wikipedia_articles,
+            use_memory_cache=True,
+            show_progress_bar=show_progress_bar,
+        ) as pl_wn:
+            if logger:
+                logger.info("Converting to NetworkX MultiDiGraph...")
+            g_mapper = GraphMapper(polish_wordnet=pl_wn)
+            g_mapper.prepare_all_graphs(limit=limit)
+            g_mapper.store_to_dir(out_dir_path=out_dir_path)
+        if logger:
+            logger.info("NetworkX graph generation completed successfully")
+        return True
+    except Exception as e:
+        if logger:
+            logger.error(f"Error during NetworkX graph generation: {e}")
+    return False

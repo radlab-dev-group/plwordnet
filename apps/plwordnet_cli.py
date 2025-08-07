@@ -48,6 +48,9 @@ def main(argv=None):
     if args.test_api:
         cli_wrapper.test_plwordnet()
 
+    if args.dump_relation_types_to_file:
+        cli_wrapper.dump_relation_types_to_file()
+
     return 0
 
 

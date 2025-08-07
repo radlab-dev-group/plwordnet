@@ -42,6 +42,19 @@ class PlWordnetConnectorInterface(ABC):
         pass
 
     @abstractmethod
+    def get_lexical_unit(self, lu_id: int) -> Optional[LexicalUnit]:
+        """
+        Get a lexical unit with a given `lu_id`
+
+        Args:
+            lu_id: Lexical unit id to find
+
+        Returns:
+            LexicalUnit or None if lu_id is not found
+        """
+        pass
+
+    @abstractmethod
     def get_lexical_units(
         self, limit: Optional[int] = None
     ) -> Optional[List[LexicalUnit]]:
@@ -67,7 +80,20 @@ class PlWordnetConnectorInterface(ABC):
             limit: Optional limit for the number of results
 
         Returns:
-            List of lexical relations or None if error
+            List of lexical relations or None if an error occurs
+        """
+        pass
+
+    @abstractmethod
+    def get_synset(self, syn_id: int) -> Optional[Synset]:
+        """
+        Get synset with given synset id
+
+        Args:
+            syn_id: Synset id
+
+        Returns:
+            Synset or None if syn_id is not found
         """
         pass
 

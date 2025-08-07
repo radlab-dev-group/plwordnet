@@ -85,7 +85,7 @@ class CLIWrappers:
         # Check if --dump-embedder-dataset-to-file
         if args.dump_embedder_dataset_to_file:
             # --xlsx-relations-weights <- required
-            if not args.dump_embedder_dataset_to_file:
+            if not args.xlsx_relations_weights:
                 raise TypeError(
                     "--dump-embedder-dataset-to-file requires additional option "
                     "--xlsx-relations-weights (path to relations weights)"

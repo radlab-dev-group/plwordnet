@@ -313,9 +313,9 @@ class CLIWrappers:
                   database connection failed or export encountered an error
 
         Note:
-            The method relies on command-line arguments for configuration including
-            the Excel weights file path, output file path, data limit, and low-to-high
-            ratio for dataset balancing.
+            The method relies on command-line arguments for configuration,
+            including the Excel weights file path, output file path,
+            data limit, and low-to-high ratio for dataset balancing.
         """
         if not self._connection_ok():
             return False

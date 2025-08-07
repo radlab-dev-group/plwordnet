@@ -123,6 +123,9 @@ class RelationTypesExporter:
         Args:
             output_file: Path to the output Excel file
             limit: Optional limit for the number of results
+
+        Returns:
+            Boolean indicating success or failure
         """
         self.logger.info(f"Starting export of relation types to {output_file}")
 

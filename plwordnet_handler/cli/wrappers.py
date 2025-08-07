@@ -1,6 +1,6 @@
 from typing import Optional
-
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
+from plwordnet_handler.dataset.exporter.rel_types import RelationTypesExporter
 from plwordnet_handler.base.connectors.db.db_to_nx import dump_to_networkx_file
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
@@ -219,3 +219,21 @@ class CLIWrappers:
         except Exception as e:
             if self.logger:
                 self.logger.error(f"Error while testing plwordnet: {e}")
+
+    def dump_relation_types_to_file(self) -> bool:
+        if self.last_connector is None:
+            if self.logger:
+                self.logger.error(
+                    "Cannot dump relation types to file. "
+                    "No connection was initialized."
+                )
+
+        exporter = RelationTypesExporter(connector=self.last_connector)
+        success = exporter.export_to_xlsx(
+            output_file=self.args.dump_relation_types_to_file, limit=self.args.limit
+        )
+        if not success:
+            if self.logger:
+                self.logger.error("Failed to dump relation types to file")
+                return False
+        return True

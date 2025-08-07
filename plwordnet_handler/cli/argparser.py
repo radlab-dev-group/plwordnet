@@ -78,6 +78,15 @@ def prepare_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
+        "--dump-relation-types-to-file",
+        dest="dump_relation_types_to_file",
+        type=str,
+        required=False,
+        help="If option is passed, then relation types "
+        "will be dumped to file with given filepath.",
+    )
+
+    parser.add_argument(
         "--log-level",
         dest="log_level",
         type=str,

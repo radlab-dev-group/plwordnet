@@ -232,6 +232,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnit objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU],
             limit=limit,
@@ -252,6 +256,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnitRelation objects or None on error
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_RELS],
             limit=limit,
@@ -270,6 +278,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of Synset objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN],
             limit=limit,
@@ -290,6 +302,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of SynsetRelation objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN_RELATION],
             limit=limit,
@@ -310,6 +326,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnitAndSynset objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_IN_SYN],
             limit=limit,
@@ -330,6 +350,10 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of RelationType objects or None on error
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_REL_TYPES],
             limit=limit,

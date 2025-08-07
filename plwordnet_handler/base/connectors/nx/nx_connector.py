@@ -104,7 +104,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             return None
 
         try:
-            graph = self.graphs["lexical_units"]
+            graph = self.graphs[GraphMapperData.G_LU]
             lu_data_list = []
             for node_id in graph.nodes():
                 node_data = graph.nodes[node_id].get("data", {})
@@ -135,7 +135,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         try:
             return self._relation_mapper(
-                graph=self.graphs["lexical_units"],
+                graph=self.graphs[GraphMapperData.G_LU],
                 mapper_obj=LexicalUnitRelationMapper,
                 limit=limit,
             )
@@ -158,7 +158,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             return None
 
         try:
-            graph = self.graphs["synsets"]
+            graph = self.graphs[GraphMapperData.G_SYN]
             synset_data_list = []
             for node_id in graph.nodes():
                 node_data = graph.nodes[node_id].get("data", {})
@@ -188,7 +188,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         try:
             return self._relation_mapper(
-                graph=self.graphs["synsets"],
+                graph=self.graphs[GraphMapperData.G_SYN],
                 mapper_obj=SynsetRelationMapper,
                 limit=limit,
             )
@@ -214,7 +214,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         try:
             return self._relation_mapper(
-                graph=self.graphs["units_and_synsets"],
+                graph=self.graphs[GraphMapperData.G_UAS],
                 mapper_obj=LexicalUnitAndSynsetMapper,
                 limit=limit,
             )
@@ -241,7 +241,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         try:
             relation_types_data = {}
-            lu_graph = self.graphs["lexical_units"]
+            lu_graph = self.graphs[GraphMapperData.G_LU]
             for _, _, edge_data in lu_graph.edges(data=True):
                 rel_id = edge_data.get("relation_id")
                 if rel_id is not None and rel_id not in relation_types_data:
@@ -263,7 +263,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                         "order": rel_id,  # Use relation ID as order
                     }
 
-            synset_graph = self.graphs["synsets"]
+            synset_graph = self.graphs[GraphMapperData.G_SYN]
             for _, _, edge_data in synset_graph.edges(data=True):
                 rel_id = edge_data.get("relation_id")
                 if rel_id is not None and rel_id not in relation_types_data:

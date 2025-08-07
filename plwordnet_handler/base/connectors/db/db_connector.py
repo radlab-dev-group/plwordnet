@@ -157,9 +157,11 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
     LIMIT_QUERY = "LIMIT"
     # lexical units
     GET_ALL_LU = "LEXICAL_UNITS"
+    GET_LU_WITH_ID = "LEXICAL_UNIT_WITH_ID"
     GET_ALL_LU_RELS = "LEXICAL_UNITS_RELATIONS"
     # synsets
     GET_ALL_SYN = "SYN_SETS"
+    GET_SYN_WITH_ID = "SYNSET_WITH_ID"
     GET_ALL_SYN_RELATION = "SYN_SETS_RELATIONS"
     # lu in synset
     GET_ALL_LU_IN_SYN = "LU_IN_SYNSET"
@@ -168,8 +170,10 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
 
     Q = {
         GET_ALL_LU: "SELECT * FROM lexicalunit",
+        GET_LU_WITH_ID: "SELECT * FROM lexicalunit WHERE ID = %s",
         GET_ALL_LU_RELS: "SELECT * FROM lexicalrelation",
         GET_ALL_SYN: "SELECT * FROM synset",
+        GET_SYN_WITH_ID: "SELECT * FROM synset WHERE ID = %s",
         GET_ALL_SYN_RELATION: "SELECT * FROM synsetrelation",
         GET_ALL_LU_IN_SYN: "SELECT * FROM unitandsynset",
         GET_ALL_REL_TYPES: "SELECT * FROM relationtype",
@@ -220,6 +224,32 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
     relations from a MySQL database.
     """
 
+    def get_lexical_unit(self, lu_id: int) -> Optional[LexicalUnit]:
+        """
+        Retrieves a lexical unit by its unique identifier.
+
+        This method executes a database query to fetch lexical unit data using the
+        provided lexical unit ID and maps the result to a LexicalUnit object using
+        the LexicalUnitMapper.
+
+        Args:
+            lu_id (int): The unique identifier of the lexical unit to retrieve
+
+        Returns:
+            Optional[LexicalUnit]: The lexical unit object if found, None if no
+            lexical unit exists with the given ID or if the query fails
+        """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
+        data_list = self._execute_select_query(
+            query=self.Q[self.GET_LU_WITH_ID], params=(lu_id,)
+        )
+        if not data_list:
+            return None
+        return LexicalUnitMapper.map_from_dict(data=data_list[0])
+
     def get_lexical_units(
         self, limit: Optional[int] = None
     ) -> Optional[List[LexicalUnit]]:
@@ -267,6 +297,32 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         if not data_list:
             return None
         return LexicalUnitRelationMapper.map_from_dict_list(data_list=data_list)
+
+    def get_synset(self, syn_id: int) -> Optional[Synset]:
+        """
+        Retrieves a synset by its unique identifier.
+
+        This method executes a database query to fetch synset data
+        using the provided synset ID and maps the result to
+        a Synset object using the SynsetMapper.
+
+        Args:
+            syn_id (int): The unique identifier of the synset to retrieve
+
+        Returns:
+            Optional[Synset]: The synset object if found, None if
+            no synset exists with the given ID or if the query fails
+        """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
+        data_list = self._execute_select_query(
+            query=self.Q[self.GET_SYN_WITH_ID], params=(syn_id,)
+        )
+        if not data_list:
+            return None
+        return SynsetMapper.map_from_dict(data=data_list[0])
 
     def get_synsets(self, limit: Optional[int] = None) -> Optional[List[Synset]]:
         """

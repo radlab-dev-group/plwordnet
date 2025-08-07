@@ -20,7 +20,7 @@ def main(argv=None):
         cli_wrapper = CLIWrappers(args, verify_args=True, logger=logger)
     except Exception as ex:
         logger.error(ex)
-        sys.exit(1)
+        return 1
 
     logger.info("Starting plwordnet-cli")
     logger.info(f"Arguments: {vars(args)}")

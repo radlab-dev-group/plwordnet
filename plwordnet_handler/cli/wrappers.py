@@ -32,7 +32,7 @@ class CLIWrappers:
         if verify_args:
             self.are_args_correct(args=args)
 
-    def are_args_correct(self, args=None) -> bool:
+    def are_args_correct(self, args=None):
         """
         Validates the correctness of command-line arguments.
 
@@ -42,10 +42,35 @@ class CLIWrappers:
         Raises:
             TypeError: If any errors occur
         """
+        if args is None:
+            args = self.args
 
-        _args = self.args if args is None else args
+        if args is None:
+            raise TypeError("No arguments to check are provided")
 
-        # TODO: Check options are correctly passed
+        # Check if --convert-to-nx-graph
+        if args.convert_to_nx:
+            # check --db-config
+            if not self.args.db_config:
+                raise TypeError(
+                    "No database configuration provided, to prepare graph "
+                    "you have to pass --db-config to proper database."
+                )
+            # check --nx-graph-dir
+            if not self.args.nx_graph_dir:
+                raise TypeError(
+                    "No output directory is provided, to prepare graph you have to "
+                    "pass --nx-graph-dir to store converted NetworkX graphs."
+                )
+
+        # Check if --dump-embedder-dataset-to-file
+        if args.dump_embedder_dataset_to_file:
+            # --xlsx-relations-weights <- required
+            if not args.dump_embedder_dataset_to_file:
+                raise TypeError(
+                    "--dump-embedder-dataset-to-file requires additional option "
+                    "--xlsx-relations-weights (path to relations weights)"
+                )
 
         return True
 

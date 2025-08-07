@@ -1,11 +1,11 @@
 #!/bin/bash
 
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=2
 export NCCL_P2P_DISABLE=1
 export NCCL_IB_DISABLE=1
 
 OUT_DIR="/mnt/local/plwn-semantic-embeddings"
-BASE_MODEL="/mnt/data2/llms/models/community/EuroBERT/EuroBERT-2.1B"
+BASE_MODEL="/mnt/data2/llms/models/community/EuroBERT/EuroBERT-610m"
 BASE_NAME=$(basename "${BASE_MODEL}")
 
 #DATASET_SUBDIR="test_dataset_ratio-2.0"

@@ -116,7 +116,9 @@ class WordnetToEmbedderConverter:
         self.__load_relation_weights(df=df)
         self.__load_relation_names(df=df)
 
-    def extract_comments_from_relations(self) -> Iterator[EmbedderSample]:
+    def extract_comments_from_relations(
+        self, limit: Optional[int] = None
+    ) -> Iterator[EmbedderSample]:
         """
         Extracts and yields embedder samples from
         both lexical unit and synset relations.
@@ -125,15 +127,18 @@ class WordnetToEmbedderConverter:
         lexical unit relations and synset relations, yielding EmbedderSample objects
         that contain comment data suitable for embedding processing.
 
+        Args:
+            limit: If specified, only the first `limit` elems are yielded.
+
         Yields:
             EmbedderSample: Sample objects containing relation comment data from
             both lexical unit and synset relation graphs
         """
-        yield from self._process_comments_based_on_relations(
-            rel_type=GraphMapperData.G_LU
+        yield from self._embedder_samples_from_relations(
+            rel_type=GraphMapperData.G_LU, limit=limit
         )
-        yield from self._process_comments_based_on_relations(
-            rel_type=GraphMapperData.G_SYN
+        yield from self._embedder_samples_from_relations(
+            rel_type=GraphMapperData.G_SYN, limit=limit
         )
 
     def export(
@@ -187,34 +192,70 @@ class WordnetToEmbedderConverter:
             output_file=output_file, all_examples=all_examples
         )
 
-    def _process_comments_based_on_relations(
-        self, rel_type: str
+    def _embedder_samples_from_relations(
+        self, rel_type: str, limit: Optional[int] = None
     ) -> Iterator[EmbedderSample]:
+        """
+        Generates embedder training samples from relations of a specified type.
+
+        This private method retrieves all relations of the given type
+        (synset or lexical unit) from the connector, extracts text data
+        from parent and child elements, and creates embedder samples with appropriate
+         relation weights. It processes each relation by fetching text content from
+        both parent and child nodes and generating training samples that capture
+        the semantic relationship between them.
+
+        Args:
+            rel_type (str): The type of relation (synset or lexical unit)
+            limit: If specified, only the first `limit` elems are yielded.
+
+        Yields:
+            EmbedderSample: Training samples containing parent-child
+            text pairs with relation metadata and weights
+
+        Note:
+            The method skips relations that don't have valid IDs
+            or aren't found in the configured relation weights.
+            It extracts all available text data from both parent
+            and child elements before creating the final embedder samples.
+        """
+
         if rel_type == GraphMapperData.G_SYN:
-            all_relations = self.connector.get_synset_relations()
+            all_relations = self.connector.get_synset_relations(limit=limit)
         elif rel_type == GraphMapperData.G_LU:
-            all_relations = self.connector.get_lexical_relations()
+            all_relations = self.connector.get_lexical_relations(limit=limit)
         else:
             return
 
         for relation in all_relations:
-            relation_id = relation.relation_id
+            self.logger.debug(
+                f"Preparing samples from {rel_type} relations id={relation.REL_ID}"
+            )
+
+            relation_id = relation.REL_ID
             if relation_id is None or relation_id not in self.relation_weights:
                 self.logger.warning(
                     f"Relation ID {relation_id} not found in {rel_type} graph"
                 )
                 continue
 
-            parent_id = relation.parent_id
-            child_id = relation.child_id
+            parent_id = relation.PARENT_ID
+            child_id = relation.CHILD_ID
             relation_weight = self.relation_weights[relation_id]
 
-            parent_texts = list(
-                self.__extract_all_texts_from(elem_type=rel_type, elem_id=parent_id)
+            parent_texts = []
+            p_texts = self.__extract_all_texts_from(
+                elem_type=rel_type, elem_id=parent_id
             )
-            child_texts = list(
-                self.__extract_all_texts_from(elem_type=rel_type, elem_id=child_id)
+            if p_texts is not None:
+                parent_texts = list(p_texts)
+
+            child_texts = []
+            ch_texts = self.__extract_all_texts_from(
+                elem_type=rel_type, elem_id=child_id
             )
+            if ch_texts is not None:
+                child_texts = list(ch_texts)
 
             yield from self._create_embedder_samples(
                 parent_texts=parent_texts,
@@ -228,26 +269,41 @@ class WordnetToEmbedderConverter:
     def __extract_all_texts_from(
         self, elem_type: str, elem_id: int
     ) -> Iterator[NodeTextData]:
-        # if elem_type == GraphMapperData.G_SYN:
-        #     all_relations = self.connector.get_synset_relations()
-        # elif elem_type == GraphMapperData.G_LU:
-        #     all_relations = self.connector.get_lexical_relations()
-        # else:
-        #     return
-        #
-        # if elem_id not in elem_type.nodes:
-        #     return
-        #
-        # node_data = elem_type.nodes[elem_id].get("data", {})
-        # comment = node_data.get("comment", {})
-        #
-        # if comment and len(comment):
-        #     yield from self._extract_definition_text(
-        #         comment=comment, node_id=elem_id
-        #     )
-        #
-        #     yield from self._extract_comment_texts(comment=comment, node_id=elem_id)
-        pass
+        """
+        Extracts all available text data from a specified element.
+
+        This private method retrieves either a synset or lexical unit based on the
+        element type and ID, then extracts various text components (definitions and
+        comments) from the element's comment data. It yields NodeTextData objects
+        for each piece of extracted text.
+
+        Args:
+            elem_type (str): The type of element to extract from (synset
+            or lexical unit)
+            elem_id (int): The unique identifier of the element
+
+        Yields:
+            NodeTextData: Text data objects containing extracted definitions
+            and comments from the specified element
+
+        Note:
+            The method handles both synset and lexical unit types by fetching the
+            appropriate object and processing its comment data to extract meaningful
+            text content for further processing.
+        """
+
+        elem_obj = None
+        if elem_type == GraphMapperData.G_SYN:
+            elem_obj = self.connector.get_synset(syn_id=elem_id)
+        elif elem_type == GraphMapperData.G_LU:
+            elem_obj = self.connector.get_lexical_unit(lu_id=elem_id)
+
+        comment = elem_obj.comment.as_dict()
+        if comment and len(comment):
+            yield from self._extract_definition_text(
+                comment=comment, elem_id=elem_id
+            )
+            yield from self._extract_comment_texts(comment=comment, elem_id=elem_id)
 
     def _create_embedder_samples(
         self,
@@ -296,45 +352,45 @@ class WordnetToEmbedderConverter:
                 )
 
     def _extract_comment_texts(
-        self, comment, node_id: int
+        self, comment, elem_id: int
     ) -> Iterator[NodeTextData]:
         """
-        Extract all textual data from a comment object:
+        Extract all textual data from a comment-as-dict:
             - usage_examples
             - external_url_descriptions
             - sentiment_annotations
 
         Args:
             comment: Comment (dict) from LU or Synset node data
-            node_id: ID of the node
+            elem_id: ID of the elem (SYN/LU)
         """
         if "usage_examples" not in comment:
             return
 
         yield from self._extract_usage_examples_texts(
-            usage_examples=comment.get("usage_examples"), node_id=node_id
+            usage_examples=comment.get("usage_examples"), elem_id=elem_id
         )
 
         yield from self._extract_external_url_description_texts(
             external_url_description=comment.get("external_url_description"),
-            node_id=node_id,
+            elem_id=elem_id,
         )
 
         yield from self._extract_sentiment_annotations_texts(
             sentiment_annotations=comment.get("sentiment_annotations"),
-            node_id=node_id,
+            elem_id=elem_id,
         )
 
     @staticmethod
     def _extract_definition_text(
-        comment: dict, node_id: int
+        comment: dict, elem_id: int
     ) -> Iterator[NodeTextData]:
         """
-        Extract definition text from node data.
+        Extract definition text from comment-as-dict.
 
         Args:
             comment: Comment from LU/Synset node
-            node_id: ID of the node
+            elem_id: ID of the elem (LU/Synset)
 
         Yields:
             NodeTextData: Definition extracted from node data
@@ -342,19 +398,19 @@ class WordnetToEmbedderConverter:
         definition = comment.get("definition", "")
         if definition and len(definition.strip()):
             yield NodeTextData(
-                text=definition.strip(), source_type="definition", node_id=node_id
+                text=definition.strip(), source_type="definition", node_id=elem_id
             )
 
     @staticmethod
     def _extract_usage_examples_texts(
-        usage_examples: Optional[list[dict]], node_id: int
+        usage_examples: Optional[list[dict]], elem_id: int
     ) -> Iterator[NodeTextData]:
         """
         Extract text from usage examples.
 
         Args:
-            usage_examples: Usage examples (dict) extracted from node data
-            node_id: ID of the node
+            usage_examples: Usage examples (dict) extracted from LU/Synset
+            elem_id: ID of the elem (LU/Synset)
 
         Yields:
             NodeTextData: Text samples extracted from usage examples
@@ -370,19 +426,19 @@ class WordnetToEmbedderConverter:
                         text=usage_example_txt.strip(),
                         source_type=f"usage_example_"
                         f"{usage_example.get('source_pattern', '?')}",
-                        node_id=node_id,
+                        node_id=elem_id,
                     )
 
     @staticmethod
     def _extract_external_url_description_texts(
-        external_url_description: Optional[dict], node_id: int
+        external_url_description: Optional[dict], elem_id: int
     ) -> Iterator[NodeTextData]:
         """
-        Extract text from external URL description.
+        Extract text from the external URL description.
 
         Args:
             external_url_description: External URL description
-            node_id: ID of the node
+            elem_id: ID of the elem (LU/Synset)
 
         Yields:
             NodeTextData: Text samples extracted from external URL
@@ -395,19 +451,19 @@ class WordnetToEmbedderConverter:
             yield NodeTextData(
                 text=content.strip(),
                 source_type="external_url_content",
-                node_id=node_id,
+                node_id=elem_id,
             )
 
     @staticmethod
     def _extract_sentiment_annotations_texts(
-        sentiment_annotations: Optional[list[dict]], node_id: int
+        sentiment_annotations: Optional[list[dict]], elem_id: int
     ) -> Iterator[NodeTextData]:
         """
         Extract text from sentiment annotation examples.
 
         Args:
             sentiment_annotations: Sentiment annotation examples
-            node_id: ID of the node
+            elem_id: ID of the elem (LU/Synset)
 
         Yields:
             NodeTextData: Text samples extracted from sentiment annotation examples
@@ -421,7 +477,7 @@ class WordnetToEmbedderConverter:
                 yield NodeTextData(
                     text=example_str.strip(),
                     source_type="sentiment_example",
-                    node_id=node_id,
+                    node_id=elem_id,
                 )
 
     def __check_paths_and_raise_when_error(self):
@@ -716,7 +772,7 @@ class WordnetToEmbedderConverter:
         sample_count = 0
         w2examples = {}
         weights_relations = {}
-        samples_from_edges = list(self.extract_comments_from_relations())
+        samples_from_edges = list(self.extract_comments_from_relations(limit=limit))
         with tqdm.tqdm(
             total=len(samples_from_edges), desc="Preparing positives"
         ) as pbar:

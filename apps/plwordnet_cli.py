@@ -3,8 +3,8 @@ import logging
 import argparse
 from pathlib import Path
 
-from plwordnet_handler.base.connectors.db.db_to_nx import GraphMapper
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
+from plwordnet_handler.base.connectors.db.db_to_nx import dump_to_networkx_file
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
 from plwordnet_handler.base.connectors.db.db_connector import (
     PlWordnetAPIMySQLDbConnector,
@@ -130,29 +130,32 @@ def prepare_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def dump_to_networkx_file(args) -> int:
-    """Convert from database to NetworkX graph files."""
-    logger.info("Starting NetworkX graph generation from database")
-    try:
-        # Use database connector for conversion
-        connector = PlWordnetAPIMySQLDbConnector(db_config_path=args.db_config)
+def _dump_to_networkx_file(args) -> int:
+    """
+    Private wrapper method that extracts database configuration and parameters
+    from args and delegates to the main dump_to_networkx_file function
+    to export graph data to NetworkX format.
 
-        with PolishWordnet(
-            connector=connector,
-            extract_wiki_articles=args.extract_wikipedia_articles,
-            use_memory_cache=True,
+    Args:
+        args: Command line arguments or configuration object containing database
+              settings, output directory path, data limits, progress display options,
+              and extraction flags
+
+    Returns:
+        int: Exit code from the dump operation
+             (typically 0 for success, non-zero for failure)
+    """
+
+    return int(
+        not dump_to_networkx_file(
+            db_config=args.db_config,
+            out_dir_path=args.nx_graph_dir,
+            limit=args.limit,
             show_progress_bar=args.show_progress_bar,
-        ) as pl_wn:
-            g_mapper = GraphMapper(polish_wordnet=pl_wn)
-            logger.info("Converting to NetworkX MultiDiGraph...")
-            g_mapper.prepare_all_graphs(limit=args.limit)
-            g_mapper.store_to_dir(out_dir_path=args.nx_graph_dir)
-
-        logger.info("NetworkX graph generation completed successfully")
-        return 0
-    except Exception as e:
-        logger.error(f"Error during NetworkX graph generation: {e}")
-        return 1
+            extract_wikipedia_articles=args.extract_wikipedia_articles,
+            logger=logger,
+        )
+    )
 
 
 def load_from_networkx_graphs(args) -> int:
@@ -272,7 +275,7 @@ def main(argv=None):
 
     # Priority: convert_to_nx > use_database > default (load from nx graphs)
     if args.convert_to_nx:
-        return dump_to_networkx_file(args=args)
+        return _dump_to_networkx_file(args=args)
     elif args.use_database:
         return load_from_database(args=args)
     else:

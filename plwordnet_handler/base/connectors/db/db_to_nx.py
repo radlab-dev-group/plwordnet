@@ -8,6 +8,7 @@ from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.elems.synset_relation import SynsetRelation
+from plwordnet_handler.base.structure.elems.lu_relations import LexicalUnitRelation
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 from plwordnet_handler.base.connectors.db.db_connector import (
@@ -62,57 +63,14 @@ class GraphMapper(GraphMapperData):
         )
 
         if self.limit is None or self.limit < 1:
-            self.__check_synset_cohesion_no_limit(
-                synsets=synsets, synsets_relations=synset_relations, synset_graph=s_g
+            self.__check_list_graph_cohesion_no_limit(
+                list_elems=synsets,
+                list_relations=synset_relations,
+                graph=s_g,
+                g_type=GraphMapperData.G_SYN,
             )
 
         return s_g
-
-    def __check_synset_cohesion_no_limit(
-        self,
-        synsets: List[Synset],
-        synsets_relations: List[SynsetRelation],
-        synset_graph: nx.MultiDiGraph,
-    ):
-        # Check the number of synsets is equal to the number of nodes
-        s_count = len(synsets)
-        n_count = synset_graph.number_of_nodes()
-        self.logger.info("===============================================")
-        self.logger.info("Report of cohesion of synset graph")
-        self.logger.info(f" - number of synsets (graph): {n_count}")
-        self.logger.info(f" - number of synsets (list): {s_count}")
-        if n_count != s_count:
-            self.logger.error(
-                f" [ERROR] Number of synsets {n_count} (graph) does not match"
-                f" number of synsets (list): {s_count}"
-            )
-
-        s_r_count = len(synsets_relations)
-        n_r_count = synset_graph.number_of_edges()
-        self.logger.info(f" - number of synset relations (graph): {n_r_count}")
-        self.logger.info(f" - number of synset relations (list): {s_r_count}")
-        if s_r_count != n_r_count:
-            self.logger.error(
-                f"[ERROR] Number of the synset relations {n_r_count} (graph) does"
-                f" not match the number of the synset relations (list): {s_r_count}"
-            )
-        self.logger.info(" ~ Verification of synset comments")
-        for s in synsets:
-            try:
-                s_node = synset_graph.nodes[s.ID]
-                node_data = s_node.get("data", {})
-                if not len(node_data):
-                    self.logger.error(
-                        f" [ERROR] No data found for graph synset {s.ID}"
-                    )
-                    continue
-
-                # node_data.get("")
-
-            except KeyError as e:
-                self.logger.error(f"[ERROR] Synset {s.ID} does not exist in graph")
-
-        self.logger.info("===============================================")
 
     def convert_to_lexical_unit_graph(self) -> nx.MultiDiGraph:
         """
@@ -135,9 +93,19 @@ class GraphMapper(GraphMapperData):
         if lu_relations is None:
             raise ValueError("Lexical unit relations data is None")
 
-        return self._prepare_graph(
+        l_g = self._prepare_graph(
             to_nodes=lexical_units, to_edges=lu_relations, graph_type=self.G_LU
         )
+
+        if self.limit is None or self.limit < 1:
+            self.__check_list_graph_cohesion_no_limit(
+                list_elems=lexical_units,
+                list_relations=lu_relations,
+                graph=l_g,
+                g_type=GraphMapperData.G_LU,
+            )
+
+        return l_g
 
     def convert_to_synset_with_units_graph(self) -> nx.MultiDiGraph:
         """
@@ -328,6 +296,72 @@ class GraphMapper(GraphMapperData):
 
         self._graphs[graph_type] = graph
         return graph
+
+    def __check_list_graph_cohesion_no_limit(
+        self,
+        g_type: str,
+        graph: nx.MultiDiGraph,
+        list_elems: List[Synset | LexicalUnit],
+        list_relations: List[LexicalUnitRelation | SynsetRelation],
+    ):
+        """
+        Performs comprehensive cohesion validation between graph data and list data.
+
+        This private method validates the consistency between NetworkX graph
+        representation and corresponding list data structures. It compares node
+        counts, edge counts, and verifies that all list elements exist in the graph
+        with proper data. The method generates detailed logging output, including
+        error reports for any inconsistencies found during validation.
+
+        Args:
+            g_type (str): The graph type identifier being validated
+            graph (nx.MultiDiGraph): The NetworkX graph to validate against
+            list_elems (List[Synset | LexicalUnit]): List of domain objects to verify
+            list_relations (List[LexicalUnitRelation | SynsetRelation]): List of
+            relations to verify
+
+        Note:
+            This method is used for data integrity verification during graph
+            construction or maintenance. It logs detailed reports including
+            counts, mismatches, and missing data, helping identify potential
+            issues in the graph preparing process.
+        """
+
+        list_count = len(list_elems)
+        nodes_count = graph.number_of_nodes()
+        self.logger.info("===============================================")
+        self.logger.info(f"Report of cohesion of {g_type} graph")
+        self.logger.info(f" - number of {g_type} (graph): {nodes_count}")
+        self.logger.info(f" - number of {g_type} (list): {list_count}")
+        if nodes_count != list_count:
+            self.logger.error(
+                f" [ERROR] Number of {g_type} {nodes_count} (graph) does "
+                f"not match number of {g_type} (list): {list_count}!"
+            )
+
+        s_r_count = len(list_relations)
+        n_r_count = graph.number_of_edges()
+        self.logger.info(f" - number of {g_type} relations (graph): {n_r_count}")
+        self.logger.info(f" - number of {g_type} relations (list): {s_r_count}")
+        if s_r_count != n_r_count:
+            self.logger.error(
+                f"[ERROR] Number of the {g_type} relations {n_r_count} "
+                f"(graph) does not match the number of the {g_type} "
+                f"relations (list): {s_r_count}"
+            )
+        self.logger.info(f"~> Verification of {g_type} comments")
+        for s in list_elems:
+            try:
+                s_node = graph.nodes[s.ID]
+                node_data = s_node.get("data", {})
+                if not len(node_data):
+                    self.logger.error(
+                        f" [ERROR] No data found for graph synset {s.ID}"
+                    )
+                    continue
+            except KeyError as e:
+                self.logger.error(f"[ERROR] Synset {s.ID} does not exist in graph")
+        self.logger.info("===============================================")
 
 
 def dump_to_networkx_file(

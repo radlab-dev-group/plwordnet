@@ -1,20 +1,27 @@
 import logging
 
 from abc import ABC
+from typing import Optional
 
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 
 
 class PlWordnetAPIBase(ABC):
-    def __init__(self, connector: PlWordnetConnectorInterface):
+    def __init__(
+        self,
+        connector: PlWordnetConnectorInterface,
+        logger: Optional[logging.Logger] = None,
+    ):
         """
         Initialize plWordnetAPI with a given connector.
 
         Args:
             connector: connector to plwordnet (PlWordnetConnectorInterface)
+            logger: logger to use for logging, if not given,
+            then a new one will be created.
         """
         self.connector = connector
-        self.logger = logging.getLogger(__name__)
+        self.logger = logger if logger is not None else logging.getLogger(__name__)
 
     def connect(self) -> bool:
         """

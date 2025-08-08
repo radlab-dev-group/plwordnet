@@ -24,6 +24,7 @@ from plwordnet_handler.base.structure.elems.lu_in_synset import (
 from plwordnet_handler.base.connectors.db.config import DbSQLConfig
 from plwordnet_handler.base.connectors.db.mysql import MySQLDbConnection
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
+from plwordnet_handler.utils.logger import prepare_logger
 
 
 class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
@@ -31,12 +32,13 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
     Database connector implementation for plWordnet API using MySQL.
     """
 
-    def __init__(self, db_config_path: str):
+    def __init__(self, db_config_path: str, log_level: Optional[str] = "INFO"):
         """
         Initialize plWordnet database connector.
 
         Args:
             db_config_path: Path to JSON file with database configuration
+            log_level: Log level to use (INFO as default)
 
         Raises:
             FileNotFoundError: If the configuration file doesn't exist
@@ -46,7 +48,9 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         self.db_config_path = db_config_path
         self.config: Optional[DbSQLConfig] = None
         self.connection: Optional[MySQLDbConnection] = None
-        self.logger = logging.getLogger(__name__)
+
+        self.log_level = log_level
+        self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
 
         # Initialize configuration and connection
         self.__load_config()
@@ -59,6 +63,8 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         Returns:
             bool: True if the connection is successful, False otherwise
         """
+        self.logger.debug("Connecting to database...")
+
         if not self.connection:
             self.logger.error("Connection not initialized")
             return False
@@ -73,6 +79,8 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         """
         Close database connection.
         """
+        self.logger.debug("Disconnecting from database...")
+
         if self.connection:
             self.connection.disconnect()
             self.logger.info("Disconnected from plWordnet database")
@@ -120,6 +128,7 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         """
         Load MySQL configuration from a JSON file.
         """
+        self.logger.debug(f"Loading configuration from {self.db_config_path}")
         try:
             self.config = DbSQLConfig.from_json_file(config_path=self.db_config_path)
             self.logger.info(
@@ -134,11 +143,16 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         """
         Initialize database connection.
         """
+        self.logger.debug("Initializing database connection")
+
         if not self.config:
             raise ValueError("Configuration not loaded")
 
         try:
-            self.connection = MySQLDbConnection(**self.config.to_dict())
+            c_dict = self.config.to_dict()
+            if self.log_level is not None and len(self.log_level):
+                c_dict["log_level"] = self.log_level
+            self.connection = MySQLDbConnection(**c_dict)
             self.logger.info("Database connection initialized")
         except Exception as e:
             self.logger.error(f"Failed to initialize connection: {e}")

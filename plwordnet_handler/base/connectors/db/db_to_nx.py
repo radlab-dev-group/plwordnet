@@ -233,12 +233,12 @@ class GraphMapper(GraphMapperData):
             if g_type not in self._graphs:
                 if g_type == self.G_SYN:
                     self.convert_to_synset_graph()
-                # elif g_type == self.G_LU:
-                #     self.convert_to_lexical_unit_graph()
-                # elif g_type == self.G_UAS:
-                #     self.convert_to_synset_with_units_graph()
-                # else:
-                #     raise ValueError(f"Unknown graph type: {g_type}")
+                elif g_type == self.G_LU:
+                    self.convert_to_lexical_unit_graph()
+                elif g_type == self.G_UAS:
+                    self.convert_to_synset_with_units_graph()
+                else:
+                    raise ValueError(f"Unknown graph type: {g_type}")
 
     def store_to_dir(self, out_dir_path: str):
         """

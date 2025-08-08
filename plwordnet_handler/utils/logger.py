@@ -3,12 +3,14 @@ import logging
 
 from typing import Optional
 
+DEFAULT_LOGGER_FILE = "plwordnet_cli.log"
+
 
 def prepare_logger(
     logger_name: Optional[str],
-    logger_file_name: Optional[str],
+    logger_file_name: Optional[str] = DEFAULT_LOGGER_FILE,
     use_default_config: bool = False,
-    log_level: str = "INFO",
+    log_level: Optional[str] = None,
 ) -> logging.Logger:
     """
     Creates and configures a logger instance for the Polish Wordnet application.
@@ -19,7 +21,7 @@ def prepare_logger(
 
     Args:
         logger_name (Optional[str]): Name for the logger instance
-        (defaults to "plwordnet")
+        (defaults to value of DEFAULT_LOGGER_FILE)
         logger_file_name (Optional[str]): Name of the log file
         (defaults to "plwordnet.log")
         use_default_config (bool): Whether to apply basic logging
@@ -50,6 +52,8 @@ def prepare_logger(
     l_name = logger_name if logger_name is not None else "plwordnet"
 
     logger = logging.getLogger(l_name)
-    logger.setLevel(getattr(logging, log_level))
+
+    if log_level is not None and len(log_level):
+        logger.setLevel(getattr(logging, log_level))
 
     return logger

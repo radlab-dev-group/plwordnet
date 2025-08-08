@@ -5,10 +5,18 @@ from abc import ABC
 from mysql.connector import Error
 from typing import Optional, Dict, Any, List, Tuple
 
+from plwordnet_handler.utils.logger import prepare_logger
+
 
 class MySQLConnectionI(ABC):
     def __init__(
-        self, host: str, database: str, user: str, password: str, port: int = 3306
+        self,
+        host: str,
+        database: str,
+        user: str,
+        password: str,
+        port: int = 3306,
+        log_level: Optional[str] = "INFO",
     ):
         """
         Initialize connection to MySQL DBMS.
@@ -28,7 +36,7 @@ class MySQLConnectionI(ABC):
         self.connection: Optional[mysql.connector.MySQLDbConnection] = None
         self.cursor: Optional[mysql.connector.cursor.MySQLCursor] = None
 
-        self.logger = logging.getLogger(__name__)
+        self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
 
     def connect(self) -> bool:
         """

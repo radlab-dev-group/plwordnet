@@ -1,4 +1,3 @@
-import logging
 import pickle
 import networkx as nx
 
@@ -25,6 +24,7 @@ from plwordnet_handler.base.structure.elems.lu_in_synset import (
     LexicalUnitAndSynset,
     LexicalUnitAndSynsetMapper,
 )
+from plwordnet_handler.utils.logger import prepare_logger
 
 
 class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
@@ -34,20 +34,27 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
     instead of connecting to a MySQL database.
     """
 
-    def __init__(self, nx_graph_dir: str, autoconnect: bool = False) -> None:
+    def __init__(
+        self,
+        nx_graph_dir: str,
+        autoconnect: bool = False,
+        log_level: Optional[str] = "INFO",
+    ) -> None:
         """
         Initialize plWordnet NetworkX connector.
 
         Args:
             nx_graph_dir: Path to a directory containing NetworkX graph files
             autoconnect: If true, automatically connect to MySQL database
+            log_level: Logging level (INFO as default)
+            then a new one will be created.
 
         Raises:
             Any exception raised if autoconnect failed
         """
         self.nx_graph_dir = Path(nx_graph_dir)
         self.graphs = {}
-        self.logger = logging.getLogger(__name__)
+        self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
         self._connected = False
 
         if autoconnect:

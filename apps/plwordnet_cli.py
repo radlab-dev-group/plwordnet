@@ -17,7 +17,7 @@ def main(argv=None):
     )
 
     try:
-        cli_wrapper = CLIWrappers(args, verify_args=True, logger=logger)
+        cli_wrapper = CLIWrappers(args, verify_args=True, log_level=args.log_level)
     except Exception as ex:
         logger.error(ex)
         return 1

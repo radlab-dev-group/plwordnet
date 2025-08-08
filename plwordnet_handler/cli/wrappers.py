@@ -1,4 +1,6 @@
 from typing import Optional
+
+from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.dataset.exporter.rel_types import RelationTypesExporter
 from plwordnet_handler.base.connectors.db.db_to_nx import dump_to_networkx_file
@@ -13,7 +15,7 @@ from plwordnet_handler.base.connectors.db.db_loader import connect_to_mysql_data
 
 
 class CLIWrappers:
-    def __init__(self, args, verify_args: bool, logger=None):
+    def __init__(self, args, verify_args: bool, log_level: str = "INFO") -> None:
         """
         Initializes the CLI wrapper with command-line
         arguments and optional verification.
@@ -21,11 +23,12 @@ class CLIWrappers:
         Args:
             args: Parsed command-line arguments containing configuration options
             verify_args (bool): Whether to validate the provided arguments
-            logger: Logger instance for recording operation status and errors
+            log_level: Logger level (INFO default)
         """
 
         self.args = args
-        self.logger = logger
+        self.log_level = log_level
+        self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
 
         self.pl_wn = None
         self.last_connector = None
@@ -108,7 +111,7 @@ class CLIWrappers:
             limit=self.args.limit,
             show_progress_bar=self.args.show_progress_bar,
             extract_wikipedia_articles=self.args.extract_wikipedia_articles,
-            logger=self.logger,
+            log_level=self.log_level,
         )
 
     def connect_to_networkx_graphs(self) -> Optional[PlWordnetAPINxConnector]:

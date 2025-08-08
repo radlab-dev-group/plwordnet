@@ -298,7 +298,7 @@ class WordnetToEmbedderConverter:
         elif elem_type == GraphMapperData.G_LU:
             elem_obj = self.connector.get_lexical_unit(lu_id=elem_id)
 
-        comment = elem_obj.comment.as_dict()
+        comment = elem_obj.comment.as_dict() if elem_obj else None
         if comment and len(comment):
             yield from self._extract_definition_text(
                 comment=comment, elem_id=elem_id

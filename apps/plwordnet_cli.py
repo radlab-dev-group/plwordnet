@@ -23,7 +23,7 @@ def main(argv=None):
         return 1
 
     logger.info("Starting plwordnet-cli")
-    logger.info(f"Arguments: {vars(args)}")
+    logger.debug(f"Arguments: {vars(args)}")
 
     if args.convert_to_nx:
         return cli_wrapper.dump_to_networkx_file()

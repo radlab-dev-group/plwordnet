@@ -180,12 +180,11 @@ class CLIWrappers:
 
         _c = connector if connector is not None else self.last_connector
         if _c is None:
-            if self.logger:
-                self.logger.error(
-                    "Api cannot be prepared because no connectors found "
-                    "in self.last_connector and no `connector` "
-                    "is passed to `prepare_api`"
-                )
+            self.logger.error(
+                "Api cannot be prepared because no connectors found "
+                "in self.last_connector and no `connector` "
+                "is passed to `prepare_api`"
+            )
             return None
         try:
             self.pl_wn = PolishWordnet(
@@ -197,12 +196,10 @@ class CLIWrappers:
                 show_progress_bar=False,
             )
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error while preparing wordnet: {e}")
+            self.logger.error(f"Error while preparing wordnet: {e}")
             return None
 
-        if self.logger:
-            self.logger.debug("Polish Wordnet connection established")
+        self.logger.debug("Polish Wordnet connection established")
         return self.pl_wn
 
     def test_plwordnet(self) -> bool:
@@ -229,46 +226,35 @@ class CLIWrappers:
         if limit is None:
             limit = 5
 
-        if self.logger:
-            self.logger.info(f"Testing plwordnet with limit: {limit}")
+        self.logger.info(f"Testing plwordnet with limit: {limit}")
 
         try:
             sample_lu = self.pl_wn.api.get_lexical_units(limit=limit)
-            if self.logger:
-                self.logger.info(f"Number of lexical units: {len(sample_lu)}")
-                for l in sample_lu:
-                    self.logger.info(f"   - LU: {l}")
+            self.logger.info(f"Number of lexical units: {len(sample_lu)}")
+            for l in sample_lu:
+                self.logger.info(f"   - LU: {l}")
 
             sample_lu_rels = self.pl_wn.api.get_lexical_relations(limit=limit)
-            if self.logger:
-                self.logger.info(
-                    f"Number of lexical relations: {len(sample_lu_rels)}"
-                )
-                for rel_lu in sample_lu_rels:
-                    self.logger.info(f"   - Rel LU: {rel_lu}")
+            self.logger.info(f"Number of lexical relations: {len(sample_lu_rels)}")
+            for rel_lu in sample_lu_rels:
+                self.logger.info(f"   - Rel LU: {rel_lu}")
 
             sample_syn = self.pl_wn.api.get_synsets(limit=limit)
-            if self.logger:
-                self.logger.info(f"Number of synsets: {len(sample_syn)}")
-                for s in sample_syn:
-                    self.logger.info(f"   - Synset: {s}")
+            self.logger.info(f"Number of synsets: {len(sample_syn)}")
+            for s in sample_syn:
+                self.logger.info(f"   - Synset: {s}")
 
             sample_syn_rels = self.pl_wn.api.get_synset_relations(limit=limit)
-            if self.logger:
-                self.logger.info(
-                    f"Number of synset relations: {len(sample_syn_rels)}"
-                )
-                for rel_syn in sample_syn_rels:
-                    self.logger.info(f"   - Rel Synset: {rel_syn}")
+            self.logger.info(f"Number of synset relations: {len(sample_syn_rels)}")
+            for rel_syn in sample_syn_rels:
+                self.logger.info(f"   - Rel Synset: {rel_syn}")
 
             rel_types = self.pl_wn.api.get_relation_types(limit=limit)
-            if self.logger:
-                self.logger.info(f"Number of relation types: {len(rel_types)}")
-                for rel_t in rel_types:
-                    self.logger.info(f"   - Rel type: {rel_t}")
+            self.logger.info(f"Number of relation types: {len(rel_types)}")
+            for rel_t in rel_types:
+                self.logger.info(f"   - Rel type: {rel_t}")
         except Exception as e:
-            if self.logger:
-                self.logger.error(f"Error while testing plwordnet: {e}")
+            self.logger.error(f"Error while testing plwordnet: {e}")
             return False
         return True
 
@@ -296,9 +282,8 @@ class CLIWrappers:
             output_file=self.args.dump_relation_types_to_file, limit=self.args.limit
         )
         if not success:
-            if self.logger:
-                self.logger.error("Failed to dump relation types to file")
-                return False
+            self.logger.error("Failed to dump relation types to file")
+            return False
         return True
 
     def dump_embedder_dataset_to_file(self):
@@ -355,10 +340,9 @@ class CLIWrappers:
         """
 
         if self.last_connector is None:
-            if self.logger:
-                self.logger.error(
-                    "Cannot dump relation types to file. "
-                    "No connection was initialized."
-                )
+            self.logger.error(
+                "Cannot dump relation types to file. "
+                "No connection was initialized."
+            )
             return False
         return True

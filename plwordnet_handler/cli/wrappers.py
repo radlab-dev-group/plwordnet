@@ -131,7 +131,7 @@ class CLIWrappers:
         self.last_connector = connect_to_networkx_graphs(
             nx_graph_dir=self.args.nx_graph_dir,
             connect=True,
-            logger=self.logger,
+            log_level=self.log_level,
         )
         return self.last_connector
 
@@ -150,7 +150,7 @@ class CLIWrappers:
         self.last_connector = connect_to_mysql_database(
             db_config_path=str(self.args.db_config),
             connect=self.args.use_database,
-            logger=self.logger,
+            log_level=self.log_level,
         )
         return self.last_connector
 

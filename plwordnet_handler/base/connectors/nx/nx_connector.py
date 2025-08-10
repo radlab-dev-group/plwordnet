@@ -288,7 +288,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                 if node_data:
                     lu_data_list.append(node_data)
             lu_data_list = self._apply_limit(lu_data_list, limit)
-            return LexicalUnitMapper.map_from_dict_list(lu_data_list)
+            return LexicalUnitMapper().map_from_dict_list(lu_data_list)
 
         except Exception as e:
             self.logger.error(f"Error getting lexical units: {e}")

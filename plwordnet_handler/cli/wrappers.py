@@ -105,6 +105,7 @@ class CLIWrappers:
         Returns:
             Boolean: True for successful completion, False for error
         """
+        self.logger.debug("Starting dump_to_networkx_file")
         return dump_to_networkx_file(
             db_config=self.args.db_config,
             out_dir_path=self.args.nx_graph_dir,
@@ -128,12 +129,24 @@ class CLIWrappers:
             Optional[PlWordnetAPINxConnector]: Connected NetworkX connector
             instance on success, None if a connection establishment fails
         """
-        self.last_connector = connect_to_networkx_graphs(
-            nx_graph_dir=self.args.nx_graph_dir,
-            connect=True,
-            log_level=self.log_level,
-        )
-        return self.last_connector
+        try:
+            self.last_connector = connect_to_networkx_graphs(
+                nx_graph_dir=self.args.nx_graph_dir,
+                connect=True,
+                log_level=self.log_level,
+            )
+            if self.last_connector is None:
+                self.logger.error(
+                    "In case when graphs files do not exist. Run plwordnet-cli "
+                    "with option --convert-to-nx-graph to use plwordnet stored "
+                    "in NetworkX format or pass --use-database in case to use "
+                    "database with default database config or--db-config=PATH "
+                    "to use database specified in the config."
+                )
+            return self.last_connector
+        except Exception as e:
+            self.logger.error(e)
+            return None
 
     def connect_to_database(self) -> Optional[PlWordnetAPIMySQLDbConnector]:
         """
@@ -232,7 +245,7 @@ class CLIWrappers:
             sample_lu = self.pl_wn.api.get_lexical_units(limit=limit)
             self.logger.info(f"Number of lexical units: {len(sample_lu)}")
             for l in sample_lu:
-                self.logger.info(f"   - LU: {l}")
+                self.logger.info(f"   - LU: {l} ({l.comment}")
 
             sample_lu_rels = self.pl_wn.api.get_lexical_relations(limit=limit)
             self.logger.info(f"Number of lexical relations: {len(sample_lu_rels)}")
@@ -242,7 +255,7 @@ class CLIWrappers:
             sample_syn = self.pl_wn.api.get_synsets(limit=limit)
             self.logger.info(f"Number of synsets: {len(sample_syn)}")
             for s in sample_syn:
-                self.logger.info(f"   - Synset: {s}")
+                self.logger.info(f"   - Synset: {s} ({s.comment})")
 
             sample_syn_rels = self.pl_wn.api.get_synset_relations(limit=limit)
             self.logger.info(f"Number of synset relations: {len(sample_syn_rels)}")
@@ -256,6 +269,8 @@ class CLIWrappers:
         except Exception as e:
             self.logger.error(f"Error while testing plwordnet: {e}")
             return False
+
+        self.logger.info("Test passed. All data are correct.")
         return True
 
     def dump_relation_types_to_file(self) -> bool:

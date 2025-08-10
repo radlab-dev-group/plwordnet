@@ -1,8 +1,9 @@
-# plwordnet_handler/utils/resource_paths.py
-import os
 import pkg_resources
+
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional
+
+from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 
 
 class ResourcePaths:
@@ -18,11 +19,12 @@ class ResourcePaths:
     FULL_GRAPHS_SUBDIR = f"{GRAPHS_SUBDIR}/plwordnet_full/nx/graphs"
     TEST_GRAPHS_SUBDIR = f"{GRAPHS_SUBDIR}/plwordnet_test/nx/graphs"
 
-    # Graph file names as installed by setup.py
-    GRAPH_FILES = [
-        "lexical_units.pickle",
-        "synsets.pickle",
-        "units_and_synsets.pickle",
+    # Graph file names/resources names (installed by setup.py)
+    GRAPH_RESOURCES_FILES = [
+        GraphMapperData.GRAPH_TYPES[GraphMapperData.G_LU],
+        GraphMapperData.GRAPH_TYPES[GraphMapperData.G_SYN],
+        GraphMapperData.RELATION_TYPES_FILE,
+        GraphMapperData.LU_IN_SYNSET_FILE,
     ]
 
     @classmethod
@@ -85,9 +87,9 @@ class ResourcePaths:
         return None
 
     @classmethod
-    def get_installed_graph_path(cls, graph_type: str) -> Optional[Path]:
+    def get_installed_graph_resources_path(cls, graph_type: str) -> Optional[Path]:
         """
-        Get a path to a specific installed graph file.
+        Get a path to a specific installed graph (or resource) file.
 
         Args:
             graph_type: Graph type: `full` or `test`
@@ -100,9 +102,10 @@ class ResourcePaths:
         if graphs_dir is None:
             return None
 
-        for g_file in cls.GRAPH_FILES:
+        for g_file in cls.GRAPH_RESOURCES_FILES:
             graph_file = graphs_dir / g_file
             if not graph_file.exists():
+                print(f"Graph/resource file does not exist: {graph_file}")
                 return None
         return graphs_dir
 
@@ -141,9 +144,9 @@ def get_default_graph_path(prefer_full: bool = True) -> Optional[str]:
     graph_type = "test"
     if prefer_full:
         graph_type = "full"
-    _gp = ResourcePaths.get_installed_graph_path(graph_type=graph_type)
+    _gp = ResourcePaths.get_installed_graph_resources_path(graph_type=graph_type)
     if _gp is None and graph_type != "test":
-        _gp = ResourcePaths.get_installed_graph_path(graph_type="test")
+        _gp = ResourcePaths.get_installed_graph_resources_path(graph_type="test")
         if _gp is not None:
             print()
             print("\t.===========================================================.")

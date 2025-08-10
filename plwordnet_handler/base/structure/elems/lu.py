@@ -1,14 +1,11 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List
 
-from plwordnet_handler.base.structure.elems.comment import (
-    parse_plwordnet_comment,
-    ParsedComment,
-)
 from plwordnet_handler.base.structure.elems.general_mapper import (
     GeneralMapper,
     GeneralElem,
 )
+from plwordnet_handler.base.structure.elems.comment import parse_plwordnet_comment
 
 
 @dataclass
@@ -42,6 +39,10 @@ class LexicalUnit(GeneralElem):
             TypeError: If data types don't match expected types
         """
         try:
+            comment = data["comment"]
+            if type(comment) is str:
+                comment = parse_plwordnet_comment(comment)
+
             return cls(
                 ID=int(data["ID"]),
                 lemma=str(data["lemma"]),
@@ -50,7 +51,7 @@ class LexicalUnit(GeneralElem):
                 tagcount=int(data["tagcount"]),
                 source=int(data["source"]),
                 status=int(data["status"]),
-                comment=parse_plwordnet_comment(str(data["comment"]).strip()),
+                comment=comment,
                 variant=int(data["variant"]),
                 project=int(data["project"]),
                 owner=str(data["owner"]),
@@ -77,7 +78,7 @@ class LexicalUnit(GeneralElem):
             "tagcount": self.tagcount,
             "source": self.source,
             "status": self.status,
-            "comment": self.comment.as_dict(),
+            "comment": self.comment,
             "variant": self.variant,
             "project": self.project,
             "owner": self.owner,

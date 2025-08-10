@@ -95,7 +95,7 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         return self.connection and self.connection.is_connected()
 
     def _execute_select_query(
-        self, query: str, params: Optional[Tuple] = None
+        self, query: str, params: Optional[Tuple] = None, debug_result: bool = False
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Execute a database query.
@@ -103,6 +103,7 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         Args:
             query: SQL query to execute
             params: Optional parameters for the query
+            debug_result: Debug result if set to True (False by default)
 
         Returns:
             List of dictionaries with query results, or None if error
@@ -115,10 +116,11 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
             results = self.connection.execute_select_query(
                 query=query, params=params
             )
-            self.logger.debug(
-                f"Query executed successfully, returned "
-                f"{len(results) if results else 0} results"
-            )
+            if debug_result:
+                self.logger.debug(
+                    f"Query executed successfully, returned "
+                    f"{len(results) if results else 0} results"
+                )
             return results
         except Exception as e:
             self.logger.error(f"Error executing query: {e}")
@@ -211,7 +213,11 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
         return f"{query} {self.LIMIT_QUERY} {limit}"
 
     def _execute_query_with_limit_opt(
-        self, query: str, params: Optional[Tuple] = None, limit: Optional[int] = None
+        self,
+        query: str,
+        params: Optional[Tuple] = None,
+        limit: Optional[int] = None,
+        debug_result: bool = False,
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Executes a SELECT query with optional result limiting.
@@ -220,13 +226,16 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
             query: SQL query to execute
             params: Optional query parameters
             limit: Optional limit for number of results
+            debug_result: Debug result if set to True (False by default)
 
         Returns:
             List of dictionaries with query results or None on error
         """
         if limit:
             query = self._limit_query(query=query, limit=limit)
-        return self._execute_select_query(query=query, params=params)
+        return self._execute_select_query(
+            query=query, params=params, debug_result=debug_result
+        )
 
 
 class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
@@ -258,7 +267,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
             return None
 
         data_list = self._execute_select_query(
-            query=self.Q[self.GET_LU_WITH_ID], params=(lu_id,)
+            query=self.Q[self.GET_LU_WITH_ID], params=(lu_id,), debug_result=False
         )
         if not data_list:
             return None
@@ -283,6 +292,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
@@ -307,6 +317,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_RELS],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
@@ -332,7 +343,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
             return None
 
         data_list = self._execute_select_query(
-            query=self.Q[self.GET_SYN_WITH_ID], params=(syn_id,)
+            query=self.Q[self.GET_SYN_WITH_ID], params=(syn_id,), debug_result=False
         )
         if not data_list:
             return None
@@ -355,6 +366,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
@@ -379,6 +391,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN_RELATION],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
@@ -403,6 +416,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_IN_SYN],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
@@ -427,6 +441,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_REL_TYPES],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None

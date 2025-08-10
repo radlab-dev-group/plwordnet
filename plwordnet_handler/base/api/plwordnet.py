@@ -273,6 +273,37 @@ class PlWordnetAPI(PlWordnetAPIBase):
     def __add_wiki_context(
         self, lu_list: List[LexicalUnit], force_download_content: bool = False
     ):
+        """
+        Enriches lexical units with Wikipedia content descriptions.
+
+        This private method processes a list of lexical units and adds Wikipedia
+        content to their external URL descriptions when available. It extracts
+        the main description from Wikipedia pages linked to each lexical unit.
+
+        Args:
+            lu_list (List[LexicalUnit]): List of lexical units
+            to enrich with Wiki content
+            force_download_content (bool): If True, downloads content even
+            if it already exists; if False, skips units that already have content
+
+        Returns:
+            List[LexicalUnit]: The same list of lexical units with
+            added Wikipedia content
+
+        Side effects:
+            - Modifies the content field of external_url_description
+            for each lexical unit
+            - Shows a progress bar if show_progress_bar is enabled
+            - Logs processing information for each lexical unit
+            when a progress bar is disabled
+
+        Processing logic:
+            - Skips lexical units without external URL descriptions
+            - Skips lexical units with empty or whitespace-only URLs
+            - Skips lexical units that already have content
+            (unless force_download_content is True)
+            - Uses WikipediaExtractor to fetch content with a sentence limit
+        """
         pbar = None
         if self.show_progress_bar:
             pbar = tqdm(total=len(lu_list), desc="Adding Wiki context")

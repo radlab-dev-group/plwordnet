@@ -12,8 +12,6 @@ from typing import Dict, Optional, Iterator, List, Tuple
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 
-# from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
-
 
 @dataclass
 class EmbedderSample:
@@ -236,14 +234,13 @@ class WordnetToEmbedderConverter:
             relation_id = relation.REL_ID
             if relation_id is None or relation_id not in self.relation_weights:
                 self.logger.warning(
-                    f"Relation ID {relation_id} not found in {rel_type} graph"
+                    f"Relation ID {relation_id} not found in {rel_type}"
                 )
                 continue
 
             parent_id = relation.PARENT_ID
             child_id = relation.CHILD_ID
             relation_weight = self.relation_weights[relation_id]
-
             parent_texts = []
             p_texts = self.__extract_all_texts_from(
                 elem_type=rel_type, elem_id=parent_id
@@ -299,7 +296,11 @@ class WordnetToEmbedderConverter:
         elif elem_type == GraphMapperData.G_LU:
             elem_obj = self.pl_wordnet.get_lexical_unit(lu_id=elem_id)
 
-        comment = elem_obj.comment.as_dict() if elem_obj else None
+        comment = (
+            elem_obj.comment.as_dict()
+            if elem_obj is not None and elem_obj.comment is not None
+            else None
+        )
         if comment and len(comment):
             yield from self._extract_definition_text(
                 comment=comment, elem_id=elem_id
@@ -832,6 +833,7 @@ class WordnetToEmbedderConverter:
         self.logger.info(
             f"Num of relations in weights: " f"{json.dumps(w2r, ensure_ascii=False)}"
         )
+        self.logger.info(weights_relations)
 
         low_examples = self.__align_relations__low(
             w2s=w2s,

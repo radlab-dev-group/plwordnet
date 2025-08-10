@@ -262,7 +262,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return LexicalUnitMapper.map_from_dict(data=data_list[0])
+        return LexicalUnitMapper().map_from_dict(data=data_list[0])
 
     def get_lexical_units(
         self, limit: Optional[int] = None
@@ -336,7 +336,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return SynsetMapper.map_from_dict(data=data_list[0])
+        return SynsetMapper().map_from_dict(data=data_list[0])
 
     def get_synsets(self, limit: Optional[int] = None) -> Optional[List[Synset]]:
         """

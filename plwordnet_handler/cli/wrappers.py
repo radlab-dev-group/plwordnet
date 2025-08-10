@@ -325,7 +325,7 @@ class CLIWrappers:
 
         converter = WordnetToEmbedderConverter(
             xlsx_path=self.args.xlsx_relations_weights,
-            connector=self.last_connector,
+            pl_wordnet=self.pl_wn,
             init_converter=True,
         )
 

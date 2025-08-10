@@ -2,16 +2,15 @@ import pickle
 import networkx as nx
 
 from pathlib import Path
-from typing import Optional, List, Any, Dict
+from typing import Optional, List, Any
 
-from plwordnet_handler.base.structure.elems.synset import Synset, SynsetMapper
+from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
+from plwordnet_handler.base.structure.elems.synset import Synset, SynsetMapper
+from plwordnet_handler.base.structure.elems.lu_in_synset import LexicalUnitAndSynset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit, LexicalUnitMapper
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
-from plwordnet_handler.base.structure.elems.rel_type import (
-    RelationType,
-    RelationTypeMapper,
-)
+from plwordnet_handler.base.structure.elems.rel_type import RelationType
 from plwordnet_handler.base.structure.elems.synset_relation import (
     SynsetRelation,
     SynsetRelationMapper,
@@ -20,11 +19,6 @@ from plwordnet_handler.base.structure.elems.lu_relations import (
     LexicalUnitRelation,
     LexicalUnitRelationMapper,
 )
-from plwordnet_handler.base.structure.elems.lu_in_synset import (
-    LexicalUnitAndSynset,
-    LexicalUnitAndSynsetMapper,
-)
-from plwordnet_handler.utils.logger import prepare_logger
 
 
 class PlWordnetAPINxConnector(PlWordnetConnectorInterface):

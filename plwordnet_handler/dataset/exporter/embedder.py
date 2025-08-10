@@ -832,6 +832,7 @@ class WordnetToEmbedderConverter:
         self.logger.info(
             f"Num of relations in weights: " f"{json.dumps(w2r, ensure_ascii=False)}"
         )
+        self.logger.info(weights_relations)
 
         low_examples = self.__align_relations__low(
             w2s=w2s,

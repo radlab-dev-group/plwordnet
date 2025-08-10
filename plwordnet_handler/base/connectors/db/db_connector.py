@@ -24,6 +24,7 @@ from plwordnet_handler.base.structure.elems.lu_in_synset import (
 from plwordnet_handler.base.connectors.db.config import DbSQLConfig
 from plwordnet_handler.base.connectors.db.mysql import MySQLDbConnection
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
+from plwordnet_handler.utils.logger import prepare_logger
 
 
 class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
@@ -31,12 +32,13 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
     Database connector implementation for plWordnet API using MySQL.
     """
 
-    def __init__(self, db_config_path: str):
+    def __init__(self, db_config_path: str, log_level: Optional[str] = "INFO"):
         """
         Initialize plWordnet database connector.
 
         Args:
             db_config_path: Path to JSON file with database configuration
+            log_level: Log level to use (INFO as default)
 
         Raises:
             FileNotFoundError: If the configuration file doesn't exist
@@ -46,7 +48,9 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         self.db_config_path = db_config_path
         self.config: Optional[DbSQLConfig] = None
         self.connection: Optional[MySQLDbConnection] = None
-        self.logger = logging.getLogger(__name__)
+
+        self.log_level = log_level
+        self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
 
         # Initialize configuration and connection
         self.__load_config()
@@ -59,6 +63,8 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         Returns:
             bool: True if the connection is successful, False otherwise
         """
+        self.logger.debug("Connecting to database...")
+
         if not self.connection:
             self.logger.error("Connection not initialized")
             return False
@@ -73,6 +79,8 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         """
         Close database connection.
         """
+        self.logger.debug("Disconnecting from database...")
+
         if self.connection:
             self.connection.disconnect()
             self.logger.info("Disconnected from plWordnet database")
@@ -87,7 +95,7 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         return self.connection and self.connection.is_connected()
 
     def _execute_select_query(
-        self, query: str, params: Optional[Tuple] = None
+        self, query: str, params: Optional[Tuple] = None, debug_result: bool = False
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Execute a database query.
@@ -95,6 +103,7 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         Args:
             query: SQL query to execute
             params: Optional parameters for the query
+            debug_result: Debug result if set to True (False by default)
 
         Returns:
             List of dictionaries with query results, or None if error
@@ -107,10 +116,11 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
             results = self.connection.execute_select_query(
                 query=query, params=params
             )
-            self.logger.debug(
-                f"Query executed successfully, returned "
-                f"{len(results) if results else 0} results"
-            )
+            if debug_result:
+                self.logger.debug(
+                    f"Query executed successfully, returned "
+                    f"{len(results) if results else 0} results"
+                )
             return results
         except Exception as e:
             self.logger.error(f"Error executing query: {e}")
@@ -120,25 +130,31 @@ class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):
         """
         Load MySQL configuration from a JSON file.
         """
+        self.logger.debug(f"Loading configuration from {self.db_config_path}")
         try:
             self.config = DbSQLConfig.from_json_file(config_path=self.db_config_path)
             self.logger.info(
-                f"Configuration loaded successfully "
+                f"Database configuration loaded successfully "
                 f"for database: {self.config.database}"
             )
         except Exception as e:
-            self.logger.error(f"Failed to load configuration: {e}")
+            self.logger.error(f"Failed to load database configuration: {e}")
             raise
 
     def __initialize_connection(self) -> None:
         """
         Initialize database connection.
         """
+        self.logger.debug("Initializing database connection")
+
         if not self.config:
             raise ValueError("Configuration not loaded")
 
         try:
-            self.connection = MySQLDbConnection(**self.config.to_dict())
+            c_dict = self.config.to_dict()
+            if self.log_level is not None and len(self.log_level):
+                c_dict["log_level"] = self.log_level
+            self.connection = MySQLDbConnection(**c_dict)
             self.logger.info("Database connection initialized")
         except Exception as e:
             self.logger.error(f"Failed to initialize connection: {e}")
@@ -157,9 +173,11 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
     LIMIT_QUERY = "LIMIT"
     # lexical units
     GET_ALL_LU = "LEXICAL_UNITS"
+    GET_LU_WITH_ID = "LEXICAL_UNIT_WITH_ID"
     GET_ALL_LU_RELS = "LEXICAL_UNITS_RELATIONS"
     # synsets
     GET_ALL_SYN = "SYN_SETS"
+    GET_SYN_WITH_ID = "SYNSET_WITH_ID"
     GET_ALL_SYN_RELATION = "SYN_SETS_RELATIONS"
     # lu in synset
     GET_ALL_LU_IN_SYN = "LU_IN_SYNSET"
@@ -168,8 +186,10 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
 
     Q = {
         GET_ALL_LU: "SELECT * FROM lexicalunit",
+        GET_LU_WITH_ID: "SELECT * FROM lexicalunit WHERE ID = %s",
         GET_ALL_LU_RELS: "SELECT * FROM lexicalrelation",
         GET_ALL_SYN: "SELECT * FROM synset",
+        GET_SYN_WITH_ID: "SELECT * FROM synset WHERE ID = %s",
         GET_ALL_SYN_RELATION: "SELECT * FROM synsetrelation",
         GET_ALL_LU_IN_SYN: "SELECT * FROM unitandsynset",
         GET_ALL_REL_TYPES: "SELECT * FROM relationtype",
@@ -193,7 +213,11 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
         return f"{query} {self.LIMIT_QUERY} {limit}"
 
     def _execute_query_with_limit_opt(
-        self, query: str, params: Optional[Tuple] = None, limit: Optional[int] = None
+        self,
+        query: str,
+        params: Optional[Tuple] = None,
+        limit: Optional[int] = None,
+        debug_result: bool = False,
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Executes a SELECT query with optional result limiting.
@@ -202,13 +226,16 @@ class _PlWordnetAPIMySQLDbConnectorQueries(_PlWordnetAPIMySQLDbConnectorBase, AB
             query: SQL query to execute
             params: Optional query parameters
             limit: Optional limit for number of results
+            debug_result: Debug result if set to True (False by default)
 
         Returns:
             List of dictionaries with query results or None on error
         """
         if limit:
             query = self._limit_query(query=query, limit=limit)
-        return self._execute_select_query(query=query, params=params)
+        return self._execute_select_query(
+            query=query, params=params, debug_result=debug_result
+        )
 
 
 class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
@@ -219,6 +246,32 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
     concrete methods for retrieving lexical units and lexical
     relations from a MySQL database.
     """
+
+    def get_lexical_unit(self, lu_id: int) -> Optional[LexicalUnit]:
+        """
+        Retrieves a lexical unit by its unique identifier.
+
+        This method executes a database query to fetch lexical unit data using the
+        provided lexical unit ID and maps the result to a LexicalUnit object using
+        the LexicalUnitMapper.
+
+        Args:
+            lu_id (int): The unique identifier of the lexical unit to retrieve
+
+        Returns:
+            Optional[LexicalUnit]: The lexical unit object if found, None if no
+            lexical unit exists with the given ID or if the query fails
+        """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
+        data_list = self._execute_select_query(
+            query=self.Q[self.GET_LU_WITH_ID], params=(lu_id,), debug_result=False
+        )
+        if not data_list:
+            return None
+        return LexicalUnitMapper().map_from_dict(data=data_list[0])
 
     def get_lexical_units(
         self, limit: Optional[int] = None
@@ -232,13 +285,18 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnit objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return LexicalUnitMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitMapper().map_from_dict_list(data_list=data_list)
 
     def get_lexical_relations(
         self, limit: Optional[int] = None
@@ -252,13 +310,44 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnitRelation objects or None on error
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_RELS],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return LexicalUnitRelationMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitRelationMapper().map_from_dict_list(data_list=data_list)
+
+    def get_synset(self, syn_id: int) -> Optional[Synset]:
+        """
+        Retrieves a synset by its unique identifier.
+
+        This method executes a database query to fetch synset data
+        using the provided synset ID and maps the result to
+        a Synset object using the SynsetMapper.
+
+        Args:
+            syn_id (int): The unique identifier of the synset to retrieve
+
+        Returns:
+            Optional[Synset]: The synset object if found, None if
+            no synset exists with the given ID or if the query fails
+        """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
+        data_list = self._execute_select_query(
+            query=self.Q[self.GET_SYN_WITH_ID], params=(syn_id,), debug_result=False
+        )
+        if not data_list:
+            return None
+        return SynsetMapper().map_from_dict(data=data_list[0])
 
     def get_synsets(self, limit: Optional[int] = None) -> Optional[List[Synset]]:
         """
@@ -270,13 +359,18 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of Synset objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return SynsetMapper.map_from_dict_list(data_list=data_list)
+        return SynsetMapper().map_from_dict_list(data_list=data_list)
 
     def get_synset_relations(
         self, limit: Optional[int] = None
@@ -290,13 +384,18 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of SynsetRelation objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_SYN_RELATION],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return SynsetRelationMapper.map_from_dict_list(data_list=data_list)
+        return SynsetRelationMapper().map_from_dict_list(data_list=data_list)
 
     def get_units_and_synsets(
         self, limit: Optional[int] = None
@@ -310,13 +409,18 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of LexicalUnitAndSynset objects or None if no data available
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_LU_IN_SYN],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return LexicalUnitAndSynsetMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitAndSynsetMapper().map_from_dict_list(data_list=data_list)
 
     def get_relation_types(
         self, limit: Optional[int] = None
@@ -330,10 +434,15 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         Returns:
             List of RelationType objects or None on error
         """
+        if not self.is_connected():
+            self.logger.error("Not connected to database")
+            return None
+
         data_list = self._execute_query_with_limit_opt(
             query=self.Q[self.GET_ALL_REL_TYPES],
             limit=limit,
+            debug_result=True,
         )
         if not data_list:
             return None
-        return RelationTypeMapper.map_from_dict_list(data_list=data_list)
+        return RelationTypeMapper().map_from_dict_list(data_list=data_list)

@@ -23,8 +23,10 @@ class PlWordnetAPI(PlWordnetAPIBase):
         "connect",
         "disconnect",
         "is_connected",
+        "get_lexical_unit",
         "get_lexical_units",
         "get_lexical_relations",
+        "get_synset",
         "get_synsets",
         "get_synset_relations",
         "get_units_and_synsets",
@@ -54,12 +56,49 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         self.__mem__cache_ = {}
 
+    def get_lexical_unit(self, lu_id: int) -> Optional[LexicalUnit]:
+        """
+        Retrieves a lexical unit by its ID with optional memory caching.
+
+        This method fetches a lexical unit from the data source, using an
+        in-memory cache system when enabled to improve performance for repeated
+        queries. The cache is organized by method name and then by lexical unit ID.
+
+        Args:
+            lu_id (int): Unique identifier of the lexical unit to retrieve
+
+        Returns:
+            Optional[LexicalUnit]: The requested lexical unit object if found,
+            None if not found, or retrieval fails
+
+        Side effects:
+            - When memory cache is enabled, stores the retrieved lexical unit
+              in the cache for future requests
+            - Note: There appears to be a cache key inconsistency where retrieval
+              uses "get_lexical_unit" but storage uses "get_lexical_units"
+
+        Performance:
+            - First call: Fetches from a data source via connector
+            - Subsequent calls: Returns a cached result when cache is enabled
+        """
+        if self.use_memory_cache:
+            if "get_lexical_unit" in self.__mem__cache_:
+                if lu_id in self.__mem__cache_["get_lexical_unit"]:
+                    return self.__mem__cache_["get_lexical_unit"][lu_id]
+
+        lu = self.connector.get_lexical_unit(lu_id=lu_id)
+        if self.use_memory_cache:
+            if "get_lexical_units" not in self.__mem__cache_:
+                self.__mem__cache_["get_lexical_units"] = {}
+            self.__mem__cache_["get_lexical_units"][lu_id] = lu
+        return lu
+
     def get_lexical_units(
         self, limit: Optional[int] = None
     ) -> Optional[List[LexicalUnit]]:
         """
-        Get lexical units from the wordnet connector.
-        Additional memory caching to better performance is available.
+        Get lexical units from the wordnet connector. Additional memory
+        caching for better performance is available.
 
         Args:
             limit: Optional limit for the number of results
@@ -86,8 +125,8 @@ class PlWordnetAPI(PlWordnetAPIBase):
         self, limit: Optional[int] = None
     ) -> Optional[List[LexicalUnitRelation]]:
         """
-        Get lexical relations from the wordnet connector.
-        Additional memory caching to better performance is available.
+        Get lexical relations from the wordnet connector. Additional memory
+        caching for better performance is available.
 
         Args:
             limit: Optional limit for the number of results
@@ -105,33 +144,46 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         return lu_rels
 
-    def get_relation_types(
-        self, limit: Optional[int] = None
-    ) -> Optional[List[RelationType]]:
+    def get_synset(self, syn_id: int) -> Optional[Synset]:
         """
-        Get relation types from the wordnet connector.
-        Additional memory caching to better performance is available.
+        Retrieves a synset by its ID with optional memory caching.
+
+        This method fetches a synset from the data source, using an in-memory
+        cache system when enabled to improve performance for repeated queries.
+        The cache is organized by method name and then by synset ID.
 
         Args:
-            limit: Optional limit for the number of results
+            syn_id (int): Unique identifier of the synset to retrieve
 
         Returns:
-            List of relation types or None if an error occurred
+            Optional[Synset]: The requested synset object if found,
+            None if not found, or retrieval fails
+
+        Side effects:
+            - When memory cache is enabled, stores the retrieved synset
+              in the cache for future requests
+            - Initializes the cache structure if it doesn't exist
+
+        Performance:
+            - First call: Fetches from a data source via connector
+            - Subsequent calls: Returns a cached result when cache is enabled
         """
         if self.use_memory_cache:
-            if "get_relation_types" in self.__mem__cache_:
-                return self.__mem__cache_["get_relation_types"]
+            if "get_synset" in self.__mem__cache_:
+                if syn_id in self.__mem__cache_["get_synset"]:
+                    return self.__mem__cache_["get_synset"][syn_id]
 
-        rel_types = self.connector.get_relation_types(limit=limit)
+        synset = self.connector.get_synset(syn_id=syn_id)
         if self.use_memory_cache:
-            self.__mem__cache_["get_relation_types"] = rel_types
-
-        return rel_types
+            if "get_synset" not in self.__mem__cache_:
+                self.__mem__cache_["get_synset"] = {}
+            self.__mem__cache_["get_synset"][syn_id] = synset
+        return synset
 
     def get_synsets(self, limit: Optional[int] = None) -> Optional[List[Synset]]:
         """
-        Get synset from the wordnet connector.
-        Additional memory caching to better performance is available.
+        Get synset from the wordnet connector. Additional memory caching
+        for better performance is available.
 
         Args:
             limit: Optional limit for the number of results
@@ -195,9 +247,63 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         return u_a_s
 
+    def get_relation_types(
+        self, limit: Optional[int] = None
+    ) -> Optional[List[RelationType]]:
+        """
+        Get relation types from the wordnet connector.
+        Additional memory caching to better performance is available.
+
+        Args:
+            limit: Optional limit for the number of results
+
+        Returns:
+            List of relation types or None if an error occurred
+        """
+        if self.use_memory_cache:
+            if "get_relation_types" in self.__mem__cache_:
+                return self.__mem__cache_["get_relation_types"]
+
+        rel_types = self.connector.get_relation_types(limit=limit)
+        if self.use_memory_cache:
+            self.__mem__cache_["get_relation_types"] = rel_types
+
+        return rel_types
+
     def __add_wiki_context(
         self, lu_list: List[LexicalUnit], force_download_content: bool = False
     ):
+        """
+        Enriches lexical units with Wikipedia content descriptions.
+
+        This private method processes a list of lexical units and adds Wikipedia
+        content to their external URL descriptions when available. It extracts
+        the main description from Wikipedia pages linked to each lexical unit.
+
+        Args:
+            lu_list (List[LexicalUnit]): List of lexical units
+            to enrich with Wiki content
+            force_download_content (bool): If True, downloads content even
+            if it already exists; if False, skips units that already have content
+
+        Returns:
+            List[LexicalUnit]: The same list of lexical units with
+            added Wikipedia content
+
+        Side effects:
+            - Modifies the content field of external_url_description
+            for each lexical unit
+            - Shows a progress bar if show_progress_bar is enabled
+            - Logs processing information for each lexical unit
+            when a progress bar is disabled
+
+        Processing logic:
+            - Skips lexical units without external URL descriptions
+            - Skips lexical units with empty or whitespace-only URLs
+            - Skips lexical units that already have content
+            (unless force_download_content is True)
+            - Uses WikipediaExtractor to fetch content with a sentence limit
+        """
         pbar = None
         if self.show_progress_bar:
             pbar = tqdm(total=len(lu_list), desc="Adding Wiki context")

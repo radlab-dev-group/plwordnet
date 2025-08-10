@@ -54,9 +54,11 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         """
         self.nx_graph_dir = Path(nx_graph_dir)
         self.graphs = {}
+        self._relation_types: Optional[List[RelationType]] = None
+        self._lexical_units_in_synsets: Optional[List[LexicalUnitAndSynset]] = None
         self.logger = prepare_logger(logger_name=__name__, log_level=log_level)
-        self._connected = False
 
+        self._connected = False
         if autoconnect:
             try:
                 self.connect()
@@ -73,11 +75,23 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         try:
             for g_type, g_file in GraphMapperData.GRAPH_TYPES.items():
                 self.graphs[g_type] = self._load_graph(g_file)
-
-            self._connected = True
             self.logger.info(
                 f"Successfully loaded NetworkX graphs from {self.nx_graph_dir}"
             )
+
+            self._load_relation_types()
+            if self._relation_types is None:
+                self.logger.error("No relation_types loaded!")
+                return False
+            self.logger.info("Successfully loaded relation_types!")
+
+            self._load_lexical_units_and_synsets()
+            if self._lexical_units_in_synsets is None:
+                self.logger.error("No lexical_units_in_synsets loaded!")
+                return False
+            self.logger.info("Successfully loaded lexical_units_in_synsets!")
+
+            self._connected = True
             return True
         except Exception as e:
             self.logger.error(f"Failed to load NetworkX graphs: {e}")
@@ -216,52 +230,39 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         self, limit: Optional[int] = None
     ) -> Optional[List[LexicalUnitAndSynset]]:
         """
-        Get units and synsets data from the units_and_synsets graph.
+        Retrieves lexical units and synsets data with an optional limit.
+
+        This method provides access to the loaded lexical units and synsets data,
+        optionally applying a limit to restrict the number of returned items.
 
         Args:
-            limit: Optional limit for the number of results
+            limit (Optional[int]): Maximum number of items to return.
+            If None, returns all available data
 
         Returns:
-            List of LexicalUnitAndSynset or None if error
+            Optional[List[LexicalUnitAndSynset]]: Limited list of lexical unit
+            and synset objects, or None if no data is available
         """
-        return self._run_relation_mapper(
-            limit=limit,
-            g_type=GraphMapperData.G_UAS,
-            mapper=LexicalUnitAndSynsetMapper,
-        )
+        return self._apply_limit(self._lexical_units_in_synsets, limit)
 
     def get_relation_types(
         self, limit: Optional[int] = None
     ) -> Optional[List[RelationType]]:
         """
-        Get relation types from both lexical units and synsets graphs.
-        Extracts unique relation types from edge data.
+        Retrieves relation types data with optional limit.
+
+        This method provides access to the loaded relation types data,
+        optionally applying a limit to restrict the number of returned items.
 
         Args:
-            limit: Optional limit for the number of results
+            limit (Optional[int]): Maximum number of items to return.
+            If None, returns all available data
 
         Returns:
-            List of relation types or None if error occurred
+            Optional[List[RelationType]]: Limited list of relation type objects,
+            or None if no data is available
         """
-        if not self.is_connected():
-            self.logger.error("Not connected to NetworkX graphs")
-            return None
-
-        try:
-            relation_types_data = self._rel_types_from_g_type(
-                g_type=GraphMapperData.G_LU,
-                relation_types_data={},
-            )
-            relation_types_data = self._rel_types_from_g_type(
-                g_type=GraphMapperData.G_SYN,
-                relation_types_data=relation_types_data,
-            )
-            relation_types_list = list(relation_types_data.values())
-            relation_types_list = self._apply_limit(relation_types_list, limit)
-            return RelationTypeMapper.map_from_dict_list(relation_types_list)
-        except Exception as e:
-            self.logger.error(f"Error getting relation types: {e}")
-            return None
+        return self._apply_limit(self._relation_types, limit)
 
     def get_lexical_units(
         self, limit: Optional[int] = None
@@ -399,7 +400,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                 }
         return relation_types_data
 
-    def _load_graph(self, filename: str) -> nx.MultiDiGraph:
+    def _load_graph(self, filename: str) -> Optional[nx.MultiDiGraph]:
         """
         Load a NetworkX graph from a file.
 
@@ -407,10 +408,14 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             filename: Name of the graph file
 
         Returns:
-            nx.MultiDiGraph: Loaded graph
+            nx.MultiDiGraph: Loaded graph if the file exists None otherwise
         """
         graph_path = self.nx_graph_dir / filename
         self.logger.debug(f"Loading graph from {graph_path}")
+
+        if not graph_path.exists():
+            self.logger.error(f"Graph file {graph_path} does not exist")
+            return None
 
         with open(graph_path, "rb") as f:
             graph = pickle.load(f)
@@ -420,6 +425,102 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             f"nodes and {graph.number_of_edges()} edges"
         )
         return graph
+
+    def _load_relation_types(self) -> Optional[List[RelationType]]:
+        """
+        Loads relation types data and stores it in the instance variable.
+
+        This method uses the generic _load_pickled_data method to load
+        relation types from the designated file. The loaded data is assigned
+        to the _relation_types instance variable for use throughout the class.
+
+        Returns:
+            Optional[List[RelationType]]: List of relation type objects if loading
+            is successful, None if loading fails
+
+        Side effects:
+            - Sets self._relation_types to the loaded data
+            - Logs error message if loading fails
+        """
+        self._relation_types = self._load_pickled_data(
+            filename=GraphMapperData.RELATION_TYPES_FILE,
+            load_type=GraphMapperData.RELATION_TYPES,
+        )
+
+        if self._relation_types is None:
+            self.logger.error("Error while loading relation types")
+            return None
+        return self._relation_types
+
+    def _load_lexical_units_and_synsets(
+        self,
+    ) -> Optional[List[LexicalUnitAndSynset]]:
+        """
+        Loads lexical units and synsets data and stores it in the instance variable.
+
+        This method uses the generic _load_pickled_data method to load
+        lexical units and synsets mapping from the designated file.
+        The loaded data is assigned to the _lexical_units_in_synsets
+        instance variable for use throughout the class.
+
+        Returns:
+            Optional[List[LexicalUnitAndSynset]]: List of lexical unit and synset
+            objects if loading is successful, None if loading fails
+
+        Side effects:
+            - Sets self._lexical_units_in_synsets to the loaded data
+            - Logs an error message if loading fails
+        """
+        self._lexical_units_in_synsets = self._load_pickled_data(
+            filename=GraphMapperData.LU_IN_SYNSET_FILE,
+            load_type=GraphMapperData.UNIT_AND_SYNSET,
+        )
+
+        if self._lexical_units_in_synsets is None:
+            self.logger.error("Error while loading lexical units and synsets")
+            return None
+        return self._lexical_units_in_synsets
+
+    def _load_pickled_data(self, filename: str, load_type: str) -> Optional[Any]:
+        """
+        Generic method for loading pickled data from a file.
+
+        This utility method provides a standardized way to load any type
+        of pickled data from the graph directory. It handles file existence
+        validation, error logging, and the actual unpickling process.
+
+        Args:
+            filename (str): Name of the file to load from the graph directory
+            load_type (str): Descriptive name of the data type being
+            loaded (used for logging)
+
+        Returns:
+            Optional[Any]: The unpickled data if loading is successful,
+            None if the file doesn't exist or loading fails
+
+        Side effects:
+            - Logs debug messages about the loading process start and completion
+            - Logs error message if the specified file doesn't exist
+
+        File dependencies:
+            - File must exist in the nx_graph_dir directory
+            - File must be in valid pickle format
+        """
+        data_file = self.nx_graph_dir / filename
+        self.logger.debug(f"Loading {load_type} from {data_file}")
+
+        if not data_file.exists():
+            self.logger.error(f"{load_type} file {data_file} does not exist")
+            return None
+
+        with open(data_file, "rb") as f:
+            data_file_content = pickle.load(f)
+        if data_file_content is not None:
+            d_size = len(data_file_content)
+            self.logger.debug(f"Loaded {d_size} {load_type} from {data_file}")
+        else:
+            self.logger.error(f"{load_type} file {data_file} does not exist?")
+        return data_file_content
 
     def _run_relation_mapper(
         self, limit: Optional[int], g_type: str, mapper
@@ -446,7 +547,6 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             This method serves as a wrapper that adds connection validation and
             error handling around the core relation mapping functionality.
         """
-
         if not self.is_connected():
             self.logger.error("Not connected to NetworkX graphs")
             return None

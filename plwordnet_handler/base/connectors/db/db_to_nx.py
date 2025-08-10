@@ -1,8 +1,9 @@
 import os
+import tqdm
 import pickle
 import networkx as nx
 
-from typing import Optional, Dict, List, Any
+from typing import Optional, List, Any
 
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.synset import Synset
@@ -37,6 +38,8 @@ class GraphMapper(GraphMapperData):
         )
 
         self._graphs = {}
+        self._rel_types = {}
+        self._units_and_synsets = {}
 
     def convert_to_synset_graph(self) -> nx.MultiDiGraph:
         """
@@ -67,7 +70,7 @@ class GraphMapper(GraphMapperData):
                 list_elems=synsets,
                 list_relations=synset_relations,
                 graph=s_g,
-                g_type=GraphMapperData.G_SYN,
+                g_type=self.G_SYN,
             )
 
         return s_g
@@ -102,85 +105,10 @@ class GraphMapper(GraphMapperData):
                 list_elems=lexical_units,
                 list_relations=lu_relations,
                 graph=l_g,
-                g_type=GraphMapperData.G_LU,
+                g_type=self.G_LU,
             )
 
         return l_g
-
-    def convert_to_synset_with_units_graph(self) -> nx.MultiDiGraph:
-        """
-        Create a graph where synsets are nodes containing lists of lexical units,
-        and synset relations are edges.
-
-        Returns:
-            NetworkX MultiDiGraph with synsets as nodes
-            (containing unit lists) and relations as edges
-
-        Raises:
-            ValueError: If required data is None
-        """
-        self.logger.info("Creating synset with units graph")
-
-        # Get all required data
-        synsets = self.polish_wordnet.get_synsets(limit=self.limit)
-        if synsets is None:
-            raise ValueError("Synsets data is None")
-
-        synset_relations = self.polish_wordnet.get_synset_relations(limit=self.limit)
-        if synset_relations is None:
-            raise ValueError("Synset relations data is None")
-
-        lexical_units = self.polish_wordnet.get_lexical_units(limit=self.limit)
-        if lexical_units is None:
-            raise ValueError("Lexical units data is None")
-
-        units_and_synsets = self.polish_wordnet.get_units_and_synsets(
-            limit=self.limit
-        )
-        if units_and_synsets is None:
-            raise ValueError("Units and synsets data is None")
-
-        relation_types = self.polish_wordnet.get_relation_types(limit=self.limit)
-        if relation_types is None:
-            raise ValueError("Relation types data is None")
-
-        # Create mappings
-        rel_type_map = {rt.ID: rt for rt in relation_types}
-        lu_map = {lu.ID: lu for lu in lexical_units}
-        synset_units_map: Dict[int, List[LexicalUnit]] = {}
-        for unit_synset in units_and_synsets:
-            synset_id = unit_synset.SYN_ID
-            if synset_id not in synset_units_map:
-                synset_units_map[synset_id] = []
-            unit_id = unit_synset.LEX_ID
-            if unit_id in lu_map:
-                synset_units_map[synset_id].append(lu_map[unit_id])
-
-        # Create graph
-        graph = nx.MultiDiGraph()
-
-        # Add synset nodes with unit lists
-        for synset in synsets:
-            synset_data = synset.to_dict()
-            units_in_synset = synset_units_map.get(synset.ID, [])
-            synset_data["units"] = [unit.to_dict() for unit in units_in_synset]
-            graph.add_node(synset.ID, data=synset_data)
-        # Add synset relation edges
-        for relation in synset_relations:
-            rel_type = rel_type_map.get(relation.REL_ID)
-            edge_data = {
-                "relation_id": relation.REL_ID,
-                "relation_type": rel_type.name if rel_type else None,
-                "data": relation.to_dict(),
-            }
-            graph.add_edge(relation.PARENT_ID, relation.CHILD_ID, **edge_data)
-
-        self.logger.info(
-            f"Created synset with units graph with {graph.number_of_nodes()} "
-            f"nodes and {graph.number_of_edges()} edges"
-        )
-        self._graphs[self.G_UAS] = graph
-        return graph
 
     def prepare_all_graphs(self):
         """
@@ -203,17 +131,63 @@ class GraphMapper(GraphMapperData):
                     self.convert_to_synset_graph()
                 elif g_type == self.G_LU:
                     self.convert_to_lexical_unit_graph()
-                elif g_type == self.G_UAS:
-                    self.convert_to_synset_with_units_graph()
                 else:
                     raise ValueError(f"Unknown graph type: {g_type}")
+
+        self.prepare_mappings_before_store_to_file()
+
+    def prepare_mappings_before_store_to_file(self):
+        """
+        Prepares data mappings before storing them to a file.
+
+        This method retrieves and prepares two essential types
+        of mappings from the Polish wordnet:
+        1. Relation types mappings (_rel_types)
+        2. Units and synsets mappings (_units_and_synsets)
+
+        For each mapping type:
+        - Fetches data with the limit specified by self.limit
+        - Validates that data was successfully exported
+        - Logs information about the number of retrieved mappings
+        - Raises ValueError if no data is available
+
+        Raises:
+            ValueError: When relation types or units/synsets data export fails
+
+        Side effects:
+            - Sets self._rel_types to the retrieved relation types
+            - Sets self._units_and_synsets to the retrieved units and synsets
+            - Logs the data retrieval process at debug level
+        """
+        self.logger.debug("Preparing mappings to store to the file")
+
+        self.logger.debug(" - relation types mapping")
+        self._rel_types = self.polish_wordnet.get_relation_types(limit=self.limit)
+        if self._rel_types is None:
+            self.logger.error("No relation types data exported!")
+            raise ValueError("No relation types data exported!")
+        else:
+            self.logger.debug(f"  -> number of mappings {len(self._rel_types)}")
+
+        self.logger.debug(" - units and synsets mapping")
+        self._units_and_synsets = self.polish_wordnet.get_units_and_synsets(
+            limit=self.limit
+        )
+        if self._units_and_synsets is None:
+            self.logger.error("No units and synsets data exported!")
+            raise ValueError("No units and synsets data exported!")
+        else:
+            self.logger.debug(
+                f"  -> number of units and synsets {len(self._units_and_synsets)}"
+            )
+        self.logger.debug("The mapping has been prepared correctly")
 
     def store_to_dir(self, out_dir_path: str):
         """
         Store all graphs from _graphs to directory as separate pickle files.
 
-        Creates a subdirectory GRAPH_DIR within out_dir_path and saves each graph
-        from _graphs as a separate pickle file.
+        Creates a subdirectory GRAPH_DIR within out_dir_path and saves
+        each graph from _graphs as a separate pickle file.
 
         Args:
             out_dir_path: Path to the output directory
@@ -233,6 +207,16 @@ class GraphMapper(GraphMapperData):
                 pickle.dump(graph, f)
             self.logger.info(f"Saved graph '{graph_type}' to {file_path}")
         self.logger.info(f"Successfully stored {len(self._graphs)} graphs")
+
+        rel_file_path = os.path.join(graphs_dir, self.RELATION_TYPES_FILE)
+        self.logger.info(f"Storing relation types to file: {rel_file_path}")
+        with open(rel_file_path, "wb") as f:
+            pickle.dump(self._rel_types, f)
+
+        uas_file_path = os.path.join(graphs_dir, self.LU_IN_SYNSET_FILE)
+        self.logger.info(f"Storing units and synsets to file: {uas_file_path}")
+        with open(uas_file_path, "wb") as f:
+            pickle.dump(self._units_and_synsets, f)
 
     def _prepare_graph(
         self,
@@ -349,18 +333,47 @@ class GraphMapper(GraphMapperData):
                 f"(graph) does not match the number of the {g_type} "
                 f"relations (list): {s_r_count}"
             )
+            raise RuntimeError(
+                f"[ERROR] Number of {g_type} relations "
+                f"are not valid {s_r_count} !={n_r_count} "
+            )
+
         self.logger.info(f"~> Verification of {g_type} comments")
-        for s in list_elems:
-            try:
-                s_node = graph.nodes[s.ID]
-                node_data = s_node.get("data", {})
-                if not len(node_data):
-                    self.logger.error(
-                        f" [ERROR] No data found for graph synset {s.ID}"
+        with tqdm.tqdm(total=len(list_elems), desc="Verifying comments") as pbar:
+            for s in list_elems:
+                try:
+                    s_node = graph.nodes[s.ID]
+                    node_data = s_node.get("data", {})
+                    if not len(node_data):
+                        self.logger.error(
+                            f" [ERROR] No data found for graph synset {s.ID}"
+                        )
+                        continue
+                    node_orig_comment = node_data.get("comment", {}).get(
+                        "original_comment", ""
                     )
-                    continue
-            except KeyError as e:
-                self.logger.error(f"[ERROR] Synset {s.ID} does not exist in graph")
+                    elem_orig_comment = s.comment
+                    if elem_orig_comment is not None:
+                        elem_orig_comment = elem_orig_comment.original_comment
+
+                    if node_orig_comment != elem_orig_comment:
+                        self.logger.error(
+                            f" [ERROR] Original comment of node {s.ID} "
+                            f"is different than elem.comment"
+                        )
+                        self.logger.error(
+                            "---------------------------------------------------"
+                        )
+                        self.logger.error(node_orig_comment)
+                        self.logger.error(elem_orig_comment)
+                        self.logger.error(
+                            "---------------------------------------------------"
+                        )
+                except KeyError:
+                    self.logger.error(
+                        f"[ERROR] Synset {s.ID} does not exist in graph"
+                    )
+                pbar.update(1)
         self.logger.info("===============================================")
 
 

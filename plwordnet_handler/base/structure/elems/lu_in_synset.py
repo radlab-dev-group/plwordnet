@@ -84,36 +84,6 @@ class LexicalUnitAndSynset:
             f"unitindex={self.unitindex})"
         )
 
-    @property
-    def is_valid(self) -> bool:
-        """
-        Check if the lexical unit and synset relationship has valid basic properties.
-
-        Returns:
-            bool: True if the relationship appears valid, False otherwise
-        """
-        return self.LEX_ID > 0 and self.SYN_ID > 0 and self.unitindex >= 0
-
-    @property
-    def is_first_unit(self) -> bool:
-        """
-        Check if this is the first unit in the synset (unitindex=0).
-
-        Returns:
-            bool: True if unitindex is 0, False otherwise
-        """
-        return self.unitindex == 0
-
-    @property
-    def has_unit_index(self) -> bool:
-        """
-        Check if the relationship has a valid unit index.
-
-        Returns:
-            bool: True if unitindex is >= 0, False otherwise
-        """
-        return self.unitindex >= 0
-
 
 class LexicalUnitAndSynsetMapper:
     """

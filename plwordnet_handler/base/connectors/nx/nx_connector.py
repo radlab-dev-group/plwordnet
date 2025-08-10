@@ -306,12 +306,12 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         """
         return self._map_graph_to_objects(
             g_type=GraphMapperData.G_SYN,
-            mapper=SynsetMapper,
+            mapper_cls=SynsetMapper,
             limit=limit,
         )
 
     def _map_graph_to_objects(
-        self, g_type: str, mapper, limit: Optional[int] = None
+        self, g_type: str, mapper_cls, limit: Optional[int] = None
     ):
         """
         Maps NetworkX graph nodes to objects using the specified mapper
@@ -325,7 +325,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         Args:
             g_type (str): The graph type identifier to process
-            mapper: The mapper object used to convert node data to domain objects
+            mapper_cls: The mapper object used to convert node data to domain objects
             limit (Optional[int], optional): Maximum number of nodes to process.
             Defaults to None (no limit).
 
@@ -347,7 +347,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                 if node_data:
                     data_list.append(node_data)
             data_list = self._apply_limit(data_list, limit)
-            return mapper.map_from_dict_list(data_list)
+            return mapper_cls().map_from_dict_list(data_list)
         except Exception as e:
             self.logger.error(f"Error getting {g_type}: {e}")
             return None
@@ -553,7 +553,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
         try:
             return self._relation_mapper(
                 graph=self.graphs[g_type],
-                mapper_obj=mapper,
+                mapper_cls=mapper,
                 limit=limit,
             )
         except Exception as e:
@@ -561,7 +561,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             return None
 
     def _relation_mapper(
-        self, graph: nx.MultiDiGraph, mapper_obj, limit: Optional[int] = None
+        self, graph: nx.MultiDiGraph, mapper_cls, limit: Optional[int] = None
     ):
         """
         Extract and map relation data from graph edges.
@@ -572,7 +572,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         Args:
             graph: The NetworkX MultiDiGraph to extract relations from.
-            mapper_obj: The mapper object used to transform the relation data from
+            mapper_cls: The mapper object used to transform the relation data from
                         dictionary format to the desired output format.
             limit: Maximum number of relations to process.
                    If None, all relations are processed.
@@ -587,7 +587,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             if relation_data:
                 relations_data.append(relation_data)
         relations_data = self._apply_limit(relations_data, limit)
-        return mapper_obj.map_from_dict_list(relations_data)
+        return mapper_cls().map_from_dict_list(relations_data)
 
     @staticmethod
     def _apply_limit(data_list: List, limit: Optional[int]) -> List:

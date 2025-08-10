@@ -286,7 +286,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return LexicalUnitMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitMapper().map_from_dict_list(data_list=data_list)
 
     def get_lexical_relations(
         self, limit: Optional[int] = None
@@ -310,7 +310,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return LexicalUnitRelationMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitRelationMapper().map_from_dict_list(data_list=data_list)
 
     def get_synset(self, syn_id: int) -> Optional[Synset]:
         """
@@ -358,7 +358,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return SynsetMapper.map_from_dict_list(data_list=data_list)
+        return SynsetMapper().map_from_dict_list(data_list=data_list)
 
     def get_synset_relations(
         self, limit: Optional[int] = None
@@ -382,7 +382,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return SynsetRelationMapper.map_from_dict_list(data_list=data_list)
+        return SynsetRelationMapper().map_from_dict_list(data_list=data_list)
 
     def get_units_and_synsets(
         self, limit: Optional[int] = None
@@ -406,7 +406,7 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return LexicalUnitAndSynsetMapper.map_from_dict_list(data_list=data_list)
+        return LexicalUnitAndSynsetMapper().map_from_dict_list(data_list=data_list)
 
     def get_relation_types(
         self, limit: Optional[int] = None
@@ -430,4 +430,4 @@ class PlWordnetAPIMySQLDbConnector(_PlWordnetAPIMySQLDbConnectorQueries):
         )
         if not data_list:
             return None
-        return RelationTypeMapper.map_from_dict_list(data_list=data_list)
+        return RelationTypeMapper().map_from_dict_list(data_list=data_list)

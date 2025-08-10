@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Dict, Any, List
 
+from plwordnet_handler.base.structure.elems.general_mapper import GeneralMapper
+
 
 @dataclass
 class LexicalUnitAndSynset:
@@ -85,64 +87,9 @@ class LexicalUnitAndSynset:
         )
 
 
-class LexicalUnitAndSynsetMapper:
+class LexicalUnitAndSynsetMapper(GeneralMapper):
     """
     Utility class for mapping between dictionary and LexicalUnitAndSynset objects.
     """
 
-    @staticmethod
-    def map_from_dict(data: Dict[str, Any]) -> LexicalUnitAndSynset:
-        """
-        Map dictionary data to LexicalUnitAndSynset object.
-
-        Args:
-            data: Dictionary containing lexical unit and synset relationship data
-
-        Returns:
-            LexicalUnitAndSynset: Mapped LexicalUnitAndSynset object
-        """
-        return LexicalUnitAndSynset.from_dict(data)
-
-    @staticmethod
-    def map_from_dict_list(
-        data_list: List[Dict[str, Any]]
-    ) -> List[LexicalUnitAndSynset]:
-        """
-        Map list of dictionaries to list of LexicalUnitAndSynset objects.
-
-        Args:
-            data_list: List of dictionaries containing
-            lexical unit and synset relationship data
-
-        Returns:
-            List[LexicalUnitAndSynset]: List of mapped LexicalUnitAndSynset objects
-        """
-        return [LexicalUnitAndSynset.from_dict(data) for data in data_list]
-
-    @staticmethod
-    def map_to_dict(lu_and_synset: LexicalUnitAndSynset) -> Dict[str, Any]:
-        """
-        Map LexicalUnitAndSynset object to dictionary.
-
-        Args:
-            lu_and_synset: LexicalUnitAndSynset object to map
-
-        Returns:
-            Dict[str, Any]: Dictionary representation
-        """
-        return lu_and_synset.to_dict()
-
-    @staticmethod
-    def map_to_dict_list(
-        lu_and_synsets: List[LexicalUnitAndSynset],
-    ) -> List[Dict[str, Any]]:
-        """
-        Map list of LexicalUnitAndSynset objects to list of dictionaries.
-
-        Args:
-            lu_and_synsets: List of LexicalUnitAndSynset objects
-
-        Returns:
-            List[Dict[str, Any]]: List of dictionary representations
-        """
-        return [lu_synset.to_dict() for lu_synset in lu_and_synsets]
+    map_obj = LexicalUnitAndSynset

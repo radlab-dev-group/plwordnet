@@ -4,14 +4,15 @@ import random
 import logging
 
 import pandas as pd
-import networkx as nx
 
 from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, Iterator, List, Tuple
 
+from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
-from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
+
+# from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 
 
 @dataclass
@@ -58,7 +59,7 @@ class WordnetToEmbedderConverter:
     def __init__(
         self,
         xlsx_path: str,
-        connector: PlWordnetConnectorInterface,
+        pl_wordnet: PolishWordnet,
         init_converter: bool = False,
     ):
         """
@@ -66,10 +67,10 @@ class WordnetToEmbedderConverter:
 
         Args:
             xlsx_path: Path to an Excel file with relation weights
-            connector: Path to graphs to load
+            pl_wordnet: Object of PolishWordnet api tu use
             init_converter: If true, auto initialization will be performed
         """
-        self.connector = connector
+        self.pl_wordnet = pl_wordnet
         self.xlsx_path = Path(xlsx_path)
 
         self.__check_paths_and_raise_when_error()
@@ -221,9 +222,9 @@ class WordnetToEmbedderConverter:
         """
 
         if rel_type == GraphMapperData.G_SYN:
-            all_relations = self.connector.get_synset_relations(limit=limit)
+            all_relations = self.pl_wordnet.get_synset_relations(limit=limit)
         elif rel_type == GraphMapperData.G_LU:
-            all_relations = self.connector.get_lexical_relations(limit=limit)
+            all_relations = self.pl_wordnet.get_lexical_relations(limit=limit)
         else:
             return
 
@@ -294,9 +295,9 @@ class WordnetToEmbedderConverter:
 
         elem_obj = None
         if elem_type == GraphMapperData.G_SYN:
-            elem_obj = self.connector.get_synset(syn_id=elem_id)
+            elem_obj = self.pl_wordnet.get_synset(syn_id=elem_id)
         elif elem_type == GraphMapperData.G_LU:
-            elem_obj = self.connector.get_lexical_unit(lu_id=elem_id)
+            elem_obj = self.pl_wordnet.get_lexical_unit(lu_id=elem_id)
 
         comment = elem_obj.comment.as_dict() if elem_obj else None
         if comment and len(comment):

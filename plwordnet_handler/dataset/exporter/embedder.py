@@ -904,8 +904,7 @@ class WordnetToEmbedderConverter:
                     sample_count += 1
 
                 self.logger.info(
-                    f"Successfully exported {sample_count} samples to "
-                    f"{output_file} without alignment"
+                    f"Successfully exported {sample_count} samples to {output_file}"
                 )
             return True
         except Exception as e:

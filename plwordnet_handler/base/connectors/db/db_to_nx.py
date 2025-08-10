@@ -8,6 +8,7 @@ from typing import Optional, List, Any
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
+from plwordnet_handler.base.structure.elems.comment import ParsedComment
 from plwordnet_handler.base.structure.elems.synset_relation import SynsetRelation
 from plwordnet_handler.base.structure.elems.lu_relations import LexicalUnitRelation
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
@@ -304,6 +305,10 @@ class GraphMapper(GraphMapperData):
             list_relations (List[LexicalUnitRelation | SynsetRelation]): List of
             relations to verify
 
+        Raises:
+            TypeError if the `node.comment` type is not supported (only dict
+            and ParsedComment are valid)
+
         Note:
             This method is used for data integrity verification during graph
             construction or maintenance. It logs detailed reports including
@@ -349,9 +354,17 @@ class GraphMapper(GraphMapperData):
                             f" [ERROR] No data found for graph synset {s.ID}"
                         )
                         continue
-                    node_orig_comment = node_data.get("comment", {}).get(
-                        "original_comment", ""
-                    )
+
+                    node_data = node_data.get("comment", {})
+                    if node_data is None:
+                        node_orig_comment = None
+                    elif type(node_data) is ParsedComment:
+                        node_orig_comment = node_data.original_comment
+                    else:
+                        raise TypeError(
+                            f"Invalid type for node_data comment: {type(node_data)}"
+                        )
+
                     elem_orig_comment = s.comment
                     if elem_orig_comment is not None:
                         elem_orig_comment = elem_orig_comment.original_comment

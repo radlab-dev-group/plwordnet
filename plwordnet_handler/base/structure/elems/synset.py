@@ -1,27 +1,23 @@
+from typing import Dict, Any
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
 
-from plwordnet_handler.base.structure.elems.comment import (
-    parse_plwordnet_comment,
-    ParsedComment,
+from plwordnet_handler.base.structure.elems.general_mapper import (
+    GeneralMapper,
+    GeneralElem,
 )
+from plwordnet_handler.base.structure.elems.comment import parse_plwordnet_comment
 
 
 @dataclass
-class Synset:
+class Synset(GeneralElem):
     """
     Data class representing a synset from plWordnet database.
     """
 
-    ID: int
     split: int
     definition: str
     isabstract: int
-    status: int
-    comment: ParsedComment
-    owner: str
     unitsstr: str
-    error_comment: Optional[str]
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Synset":
@@ -39,13 +35,17 @@ class Synset:
             TypeError: If data types don't match expected types
         """
         try:
+            comment = data["comment"]
+            if type(comment) is str:
+                comment = parse_plwordnet_comment(comment)
+
             return cls(
                 ID=int(data["ID"]),
                 split=int(data["split"]),
                 definition=str(data["definition"]),
                 isabstract=int(data["isabstract"]),
                 status=int(data["status"]),
-                comment=parse_plwordnet_comment(str(data["comment"]).strip()),
+                comment=comment,
                 owner=str(data["owner"]),
                 unitsstr=str(data["unitsstr"]),
                 error_comment=(
@@ -72,7 +72,7 @@ class Synset:
             "definition": self.definition,
             "isabstract": self.isabstract,
             "status": self.status,
-            "comment": self.comment.as_dict(),
+            "comment": self.comment,
             "owner": self.owner,
             "unitsstr": self.unitsstr,
             "error_comment": self.error_comment,
@@ -108,59 +108,9 @@ class Synset:
         )
 
 
-class SynsetMapper:
+class SynsetMapper(GeneralMapper):
     """
     Utility class for mapping between dictionary and Synset objects.
     """
 
-    @staticmethod
-    def map_from_dict(data: Dict[str, Any]) -> Synset:
-        """
-        Map dictionary data to a Synset object.
-
-        Args:
-            data: Dictionary containing synset data
-
-        Returns:
-            Synset: Mapped Synset object
-        """
-        return Synset.from_dict(data)
-
-    @staticmethod
-    def map_from_dict_list(data_list: List[Dict[str, Any]]) -> List[Synset]:
-        """
-        Map list of dictionaries to list of Synset objects.
-
-        Args:
-            data_list: List of dictionaries containing synset data
-
-        Returns:
-            List[Synset]: List of mapped Synset objects
-        """
-        return [SynsetMapper.map_from_dict(data) for data in data_list]
-
-    @staticmethod
-    def map_to_dict(synset: Synset) -> Dict[str, Any]:
-        """
-        Map Synset object to dictionary.
-
-        Args:
-            synset: Synset object to map
-
-        Returns:
-            Dict[str, Any]: Dictionary representation
-        """
-        return synset.to_dict()
-
-    @staticmethod
-    def map_to_dict_list(synsets: List[Synset]) -> List[Dict[str, Any]]:
-        """
-        Map list of Synset objects to list of dictionaries.
-
-        Args:
-            synsets: List of Synset objects
-
-        Returns:
-            List[Dict[str, Any]]: List of dictionary representations
-        """
-        return [SynsetMapper.map_to_dict(synset) for synset in synsets]
+    map_obj = Synset

@@ -144,7 +144,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                 self.graphs[GraphMapperData.G_LU].nodes[lu_id].get("data", {})
             )
             if node_data is not None and len(node_data):
-                return LexicalUnitMapper.map_from_dict(data=node_data)
+                return LexicalUnitMapper().map_from_dict(data=node_data)
             else:
                 self.logger.error(f"No data found for lexical unit {lu_id}")
         except Exception as e:
@@ -200,7 +200,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
                 self.graphs[GraphMapperData.G_SYN].nodes[syn_id].get("data", {})
             )
             if node_data and len(node_data):
-                return SynsetMapper.map_from_dict(data=node_data)
+                return SynsetMapper().map_from_dict(data=node_data)
             else:
                 self.logger.error(f"No data found for synset {syn_id}")
         except Exception as e:

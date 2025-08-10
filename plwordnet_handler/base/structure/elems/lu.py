@@ -5,26 +5,25 @@ from plwordnet_handler.base.structure.elems.comment import (
     parse_plwordnet_comment,
     ParsedComment,
 )
+from plwordnet_handler.base.structure.elems.general_mapper import (
+    GeneralMapper,
+    GeneralElem,
+)
 
 
 @dataclass
-class LexicalUnit:
+class LexicalUnit(GeneralElem):
     """
     Data class representing a lexical unit from plWordnet database.
     """
 
-    ID: int
-    lemma: str
-    domain: int
     pos: int
+    lemma: str
+    variant: int
+    domain: int
     tagcount: int
     source: int
-    status: int
-    comment: ParsedComment
-    variant: int
     project: int
-    owner: str
-    error_comment: str
     verb_aspect: int
 
     @classmethod
@@ -115,59 +114,9 @@ class LexicalUnit:
         )
 
 
-class LexicalUnitMapper:
+class LexicalUnitMapper(GeneralMapper):
     """
-    Utility class for mapping between dictionary and LexicalUnit objects.
+    Utility class for mapping between dictionary and lexical units objects.
     """
 
-    @staticmethod
-    def map_from_dict(data: Dict[str, Any]) -> LexicalUnit:
-        """
-        Map dictionary data to LexicalUnit object.
-
-        Args:
-            data: Dictionary containing lexical unit data
-
-        Returns:
-            LexicalUnit: Mapped LexicalUnit object
-        """
-        return LexicalUnit.from_dict(data)
-
-    @staticmethod
-    def map_from_dict_list(data_list: List[Dict[str, Any]]) -> List[LexicalUnit]:
-        """
-        Map list of dictionaries to list of LexicalUnit objects.
-
-        Args:
-            data_list: List of dictionaries containing lexical unit data
-
-        Returns:
-            List[LexicalUnit]: List of mapped LexicalUnit objects
-        """
-        return [LexicalUnitMapper.map_from_dict(data) for data in data_list]
-
-    @staticmethod
-    def map_to_dict(lexical_unit: LexicalUnit) -> Dict[str, Any]:
-        """
-        Map LexicalUnit object to dictionary.
-
-        Args:
-            lexical_unit: LexicalUnit object to map
-
-        Returns:
-            Dict[str, Any]: Dictionary representation
-        """
-        return lexical_unit.to_dict()
-
-    @staticmethod
-    def map_to_dict_list(lexical_units: List[LexicalUnit]) -> List[Dict[str, Any]]:
-        """
-        Map list of LexicalUnit objects to a list of dictionaries.
-
-        Args:
-            lexical_units: List of LexicalUnit objects
-
-        Returns:
-            List[Dict[str, Any]]: List of dictionary representations
-        """
-        return [LexicalUnitMapper.map_to_dict(unit) for unit in lexical_units]
+    map_obj = LexicalUnit

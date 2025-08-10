@@ -1,11 +1,11 @@
+from typing import Dict, Any
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
 
-from plwordnet_handler.base.structure.elems.comment import parse_plwordnet_comment
 from plwordnet_handler.base.structure.elems.general_mapper import (
     GeneralMapper,
     GeneralElem,
 )
+from plwordnet_handler.base.structure.elems.comment import parse_plwordnet_comment
 
 
 @dataclass
@@ -35,13 +35,17 @@ class Synset(GeneralElem):
             TypeError: If data types don't match expected types
         """
         try:
+            comment = data["comment"]
+            if type(comment) is str:
+                comment = parse_plwordnet_comment(comment)
+
             return cls(
                 ID=int(data["ID"]),
                 split=int(data["split"]),
                 definition=str(data["definition"]),
                 isabstract=int(data["isabstract"]),
                 status=int(data["status"]),
-                comment=parse_plwordnet_comment(str(data["comment"]).strip()),
+                comment=comment,
                 owner=str(data["owner"]),
                 unitsstr=str(data["unitsstr"]),
                 error_comment=(
@@ -68,7 +72,7 @@ class Synset(GeneralElem):
             "definition": self.definition,
             "isabstract": self.isabstract,
             "status": self.status,
-            "comment": self.comment.as_dict(),
+            "comment": self.comment,
             "owner": self.owner,
             "unitsstr": self.unitsstr,
             "error_comment": self.error_comment,

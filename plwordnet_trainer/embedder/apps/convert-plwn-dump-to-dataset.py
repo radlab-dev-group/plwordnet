@@ -1,3 +1,5 @@
+from tqdm import tqdm
+
 SAMPLE_USAGE = """
 python convert-plwn-dump-to-dataset.py \
     --jsonl-path resources/dataset/embedder/dataset.jsonl \
@@ -6,10 +8,13 @@ python convert-plwn-dump-to-dataset.py \
     --seed 42
 """
 
-import json
 import os
-import argparse
+import json
+import spacy
 import random
+import argparse
+
+from typing import List
 
 
 class EmbedderDatasetConverter:
@@ -18,10 +23,34 @@ class EmbedderDatasetConverter:
     structured JSON datasets with train/test split.
     """
 
-    def __init__(self, jsonl_path, output_dir, train_ratio, seed=None):
+    def __init__(
+        self,
+        jsonl_path: str,
+        output_dir: str,
+        train_ratio: float,
+        split_to_sentences: bool,
+        seed=None,
+        spacy_model_name: str = "pl_core_news_sm",
+    ):
+        """
+        Initialize the dataset converter with configuration parameters.
+
+        Args:
+            jsonl_path: Path to the input JSONL file containing the dataset
+            output_dir: Directory where the split dataset files will be saved
+            train_ratio: Proportion of data to allocate to a training set
+            split_to_sentences: Whether to split text data into individual sentences
+            seed: Random seed for reproducible data splitting. Defaults to None
+            spacy_model_name: Name of the spacy model to use.
+            Defaults to "pl_core_news_sm"
+        """
+
+        self.nlp = spacy.load(spacy_model_name)
+
         self.jsonl_path = jsonl_path
         self.output_dir = output_dir
         self.train_ratio = train_ratio
+        self.split_to_sentences = split_to_sentences
         self.seed = seed
 
     def read_jsonl(self):
@@ -35,24 +64,55 @@ class EmbedderDatasetConverter:
                 samples.append(obj)
         return samples
 
-    @staticmethod
-    def convert_samples(samples):
+    def convert_samples(self, samples):
         """
         Converts raw PLWN samples to standardized dataset
         format with sentence pairs and metadata.
         """
 
         converted = []
-        for s in samples:
-            converted.append(
-                {
-                    "sentence1": s["text_parent"],
-                    "sentence2": s["text_child"],
-                    "score": s["relation_weight"],
-                    "split": "",  # Assign later
-                }
-            )
+        with tqdm(total=len(samples), desc="Converting samples") as pbar:
+            for s in samples:
+                _s1 = s["text_parent"]
+                _s2 = s["text_child"]
+                if self.split_to_sentences:
+                    s1_list = self.split_text_to_sentences(text_str=_s1)
+                    s2_list = self.split_text_to_sentences(text_str=_s2)
+                else:
+                    s1_list = [_s1]
+                    s2_list = [_s2]
+
+                for s1 in s1_list:
+                    for s2 in s2_list:
+                        converted.append(
+                            {
+                                "sentence1": s1,
+                                "sentence2": s2,
+                                "score": s["relation_weight"],
+                                "split": "",  # Assign later
+                            }
+                        )
+                pbar.update(1)
         return converted
+
+    def split_text_to_sentences(self, text_str: str) -> List[str]:
+        """
+        Splits text into individual sentences using basic punctuation rules.
+
+        Args:
+            text_str: Input text string to be split into sentences
+
+        Returns:
+            List[str]: List of individual sentences, stripped of leading/trailing whitespace
+        """
+        if not text_str or not text_str.strip():
+            return []
+
+        doc = self.nlp(text_str.strip())
+        sentences = [
+            sent.text.strip() for sent in doc.sents if len(sent.text.strip())
+        ]
+        return sentences
 
     def split_samples(self, samples):
         """
@@ -145,6 +205,13 @@ def parse_args():
         default=None,
         help="Optional random seed for reproducibility",
     )
+    parser.add_argument(
+        "--split-to-sentences",
+        dest="split_to_sentences",
+        action="store_true",
+        default=False,
+        help="Optional flag to split samples into sentences",
+    )
     return parser.parse_args()
 
 
@@ -155,5 +222,6 @@ if __name__ == "__main__":
         output_dir=args.output_dir,
         train_ratio=args.train_ratio,
         seed=args.seed,
+        split_to_sentences=args.split_to_sentences,
     )
     converter.run()

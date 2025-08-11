@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
@@ -225,7 +225,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
         return syn_rels
 
     def get_units_and_synsets(
-        self, limit: Optional[int] = None
+        self, limit: Optional[int] = None, return_mapping: bool = False
     ) -> Optional[List[LexicalUnitAndSynset]]:
         """
         Get units in synset from the wordnet connector.
@@ -233,18 +233,27 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         Args:
             limit: Optional limit for the number of results
+            return_mapping: Returns a mapping of synset to lexical units
 
         Returns:
             List of LexicalUnitAndSynset or None if an error occurred
         """
         if self.use_memory_cache:
-            if "get_units_and_synsets" in self.__mem__cache_:
-                return self.__mem__cache_["get_units_and_synsets"]
+            if (
+                "get_units_and_synsets" in self.__mem__cache_
+                and return_mapping in self.__mem__cache_["get_units_and_synsets"]
+            ):
+                return self.__mem__cache_["get_units_and_synsets"][return_mapping]
 
         u_a_s = self.connector.get_units_and_synsets(limit=limit)
-        if self.use_memory_cache:
-            self.__mem__cache_["get_units_and_synsets"] = u_a_s
+        if return_mapping:
+            u_a_s = self._map_units_to_synsets(uas=u_a_s)
 
+        if self.use_memory_cache:
+            if "get_units_and_synsets" not in self.__mem__cache_:
+                self.__mem__cache_["get_units_and_synsets"] = {}
+            if return_mapping not in self.__mem__cache_["get_units_and_synsets"]:
+                self.__mem__cache_["get_units_and_synsets"][return_mapping] = u_a_s
         return u_a_s
 
     def get_relation_types(
@@ -335,3 +344,27 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 continue
             lu.comment.external_url_description.content = content
         return lu_list
+
+    @staticmethod
+    def _map_units_to_synsets(
+        uas: List[LexicalUnitAndSynset],
+    ) -> Dict[int, List[int]]:
+        """
+        Create a mapping from the lexical unit and synset,
+        to collections of lexical unit IDs.
+
+        Args:
+            uas: List of LexicalUnitAndSynset objects containing
+            relationships between lexical units and synsets
+
+        Returns:
+            Dict[int, List[int]]: Dictionary mapping synset IDs to sets of
+            associated lexical unit IDs
+        """
+
+        _map = {}
+        for u in uas:
+            if u.SYN_ID not in _map:
+                _map[u.SYN_ID] = set()
+            _map[u.SYN_ID].add(u.LEX_ID)
+        return _map

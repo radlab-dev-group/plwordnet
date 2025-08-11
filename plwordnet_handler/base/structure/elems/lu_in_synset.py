@@ -5,6 +5,25 @@ from plwordnet_handler.base.structure.elems.general_mapper import GeneralMapper
 
 
 @dataclass
+class LexicalUnitAndSynsetFakeRelation:
+    """
+    Data class representing a fake relation between lexical units.
+
+    This class simulates a relation structure for lexical units associations
+    by providing the standard relation attributes (parent, child, relation type).
+
+    Attributes:
+        PARENT_ID: Identifier of the parent element in the relation
+        CHILD_ID: Identifier of the child element in the relation
+        REL_ID: Identifier of the relation type
+    """
+
+    PARENT_ID: int
+    CHILD_ID: int
+    REL_ID: int
+
+
+@dataclass
 class LexicalUnitAndSynset:
     """
     Data class representing a lexical unit

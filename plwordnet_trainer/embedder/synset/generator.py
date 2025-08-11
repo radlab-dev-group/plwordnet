@@ -1,7 +1,9 @@
 import torch
 import logging
 
-from typing import List, Dict, Union
+from tqdm import tqdm
+
+from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
@@ -39,13 +41,18 @@ class EmbeddingGenerator:
             raise Exception(f"Cannot load model: {model_path}. Error: {e}")
 
     def generate_embeddings(
-        self, texts: List[str]
+        self,
+        texts: List[str],
+        show_progress_bar: bool = False,
+        return_as_list: bool = False,
     ) -> List[Dict[str, torch.Tensor]]:
         """
         Generates embeddings for a given list of texts.
 
         Args:
             texts: A list of strings to be processed.
+            show_progress_bar: Whether to show a progress bar.
+            return_as_list: Whether to return a list of embeddings or dict.
 
         Returns:
             List[Dict[str, torch.Tensor]]: A list of dictionaries,
@@ -58,11 +65,15 @@ class EmbeddingGenerator:
         """
         self.logger.debug(f"Generating embeddings for {len(texts)} texts")
         try:
-            embeddings = self.model.encode(texts, convert_to_tensor=True)
-            results = [
-                {"text": text, "embedding": embedding}
-                for text, embedding in zip(texts, embeddings)
-            ]
+            embeddings = self.model.encode(
+                texts, convert_to_tensor=True, show_progress_bar=show_progress_bar
+            )
+            results = embeddings
+            if not return_as_list:
+                results = [
+                    {"text": text, "embedding": embedding}
+                    for text, embedding in zip(texts, embeddings)
+                ]
             self.logger.debug(
                 f"Embeddings for {len(embeddings)} texts are properly generated."
             )
@@ -72,16 +83,51 @@ class EmbeddingGenerator:
             raise Exception(f"Error during embedding generation: {e}")
 
 
-
 class SynsetEmbeddingGenerator:
-    def __init__(self, generator: EmbeddingGenerator, connector: PlWordnetConnectorInterface):
+    def __init__(
+        self, generator: EmbeddingGenerator, connector: PlWordnetConnectorInterface
+    ):
         self.generator = generator
         self.connector = connector
 
         self.logger = logging.getLogger(__name__)
 
     def run(self):
-        all_synsets = self.connector.get_units_and_synsets()
-        for s in all_synsets:
-            print(s)
+        batch_size = 200
+        all_lexical_units = self.connector.get_lexical_units()
 
+        with tqdm(
+            total=len(all_lexical_units),
+            desc="Generating embeddings from lexical units",
+        ) as pbar:
+            batch = []
+            for lu in all_lexical_units:
+                definition = lu.comment.definition
+                if definition is None or not len(definition):
+                    pbar.update(1)
+                    continue
+
+                if len(batch) < batch_size:
+                    batch.append(definition)
+                    pbar.update(1)
+                    continue
+
+                # lu.domain
+                # lu.comment.base_domain
+                # lu.comment.usage_examples
+                # lu.comment.external_url_description.content
+                # lu.comment.sentiment_annotations
+                # print(lu)
+                out = self.generator.generate_embeddings(
+                    batch, show_progress_bar=True, return_as_list=True
+                )
+                assert len(out) == len(batch)
+
+                pbar.update(len(batch))
+                batch = []
+
+            if len(batch):
+                out = self.generator.generate_embeddings(
+                    batch, show_progress_bar=False, return_as_list=True
+                )
+                pbar.update(len(out))

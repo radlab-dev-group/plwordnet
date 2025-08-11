@@ -84,9 +84,7 @@ class EmbeddingGenerator:
 
 
 class SynsetEmbeddingGenerator:
-    def __init__(
-        self, generator: EmbeddingGenerator, pl_wordnet: PolishWordnet
-    ):
+    def __init__(self, generator: EmbeddingGenerator, pl_wordnet: PolishWordnet):
         self.generator = generator
         self.pl_wordnet = pl_wordnet
 

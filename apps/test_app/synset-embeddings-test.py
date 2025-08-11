@@ -14,7 +14,7 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("../plwordnet_cli.log"),
+        logging.FileHandler("plwordnet_trainer.log"),
     ],
 )
 
@@ -31,16 +31,14 @@ connector = PlWordnetAPINxConnector(
     autoconnect=True,
 )
 pl_wn = PolishWordnet(
-                connector=connector,
-                db_config_path=None,
-                nx_graph_dir=None,
-                extract_wiki_articles=False,
-                use_memory_cache=True,
-                show_progress_bar=False,
-            )
-
-syn_emb_generator = SynsetEmbeddingGenerator(
-    generator=generator, pl_wordnet=pl_wn
+    connector=connector,
+    db_config_path=None,
+    nx_graph_dir=None,
+    extract_wiki_articles=False,
+    use_memory_cache=True,
+    show_progress_bar=False,
 )
+
+syn_emb_generator = SynsetEmbeddingGenerator(generator=generator, pl_wordnet=pl_wn)
 
 syn_emb_generator.run(batch_size=1024)

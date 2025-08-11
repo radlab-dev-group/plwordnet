@@ -9,8 +9,13 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, Iterator, List, Tuple
 
+from jinja2.filters import sync_do_list
+
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
+from plwordnet_handler.base.structure.elems.lu_in_synset import (
+    LexicalUnitAndSynsetFakeRelation,
+)
 
 
 @dataclass
@@ -122,22 +127,31 @@ class WordnetToEmbedderConverter:
         Extracts and yields embedder samples from
         both lexical unit and synset relations.
 
-        This generator method processes relation data from two graph types:
-        lexical unit relations and synset relations, yielding EmbedderSample objects
-        that contain comment data suitable for embedding processing.
+        This generator method processes relation data from four relation types:
+        lexical unit relations, synset relations, "unit and synset" mapped on
+        lexical units relations with faked relations between lexical units
+        (relation is inherited from the parent) and synonymy.
+        Yielding EmbedderSample objects that contain comment data
+        suitable for embedding processing.
 
         Args:
             limit: If specified, only the first `limit` elems are yielded.
 
         Yields:
             EmbedderSample: Sample objects containing relation comment data from
-            both lexical unit and synset relation graphs
+            lexical unit, synset relation, units and synset and synonymy
         """
         yield from self._embedder_samples_from_relations(
             rel_type=GraphMapperData.G_LU, limit=limit
         )
         yield from self._embedder_samples_from_relations(
             rel_type=GraphMapperData.G_SYN, limit=limit
+        )
+        yield from self._embedder_samples_from_relations(
+            rel_type=GraphMapperData.UNIT_AND_SYNSET, limit=limit
+        )
+        yield from self._embedder_samples_from_relations(
+            rel_type=GraphMapperData.SYNONYM, limit=limit
         )
 
     def export(
@@ -198,14 +212,15 @@ class WordnetToEmbedderConverter:
         Generates embedder training samples from relations of a specified type.
 
         This private method retrieves all relations of the given type
-        (synset or lexical unit) from the connector, extracts text data
-        from parent and child elements, and creates embedder samples with appropriate
-         relation weights. It processes each relation by fetching text content from
-        both parent and child nodes and generating training samples that capture
-        the semantic relationship between them.
+        (synset, lexical unit, "units and synset", synonymy) from the api,
+        extracts text data from parent and child elements, and creates embedder
+        samples with appropriate relation weights. It processes each relation
+        by fetching text content from both parent and child nodes and generating
+        training samples that capture the semantic relationship between them.
 
         Args:
-            rel_type (str): The type of relation (synset or lexical unit)
+            rel_type (str): The type of relation (synset, lexical unit,
+            lexical "unit and synset", synonymy)
             limit: If specified, only the first `limit` elems are yielded.
 
         Yields:
@@ -218,51 +233,129 @@ class WordnetToEmbedderConverter:
             It extracts all available text data from both parent
             and child elements before creating the final embedder samples.
         """
-
+        extract_type = rel_type
         if rel_type == GraphMapperData.G_SYN:
             all_relations = self.pl_wordnet.get_synset_relations(limit=limit)
         elif rel_type == GraphMapperData.G_LU:
             all_relations = self.pl_wordnet.get_lexical_relations(limit=limit)
+        elif rel_type == GraphMapperData.UNIT_AND_SYNSET:
+            # When unit and synset are used, then data is stored into LU
+            extract_type = GraphMapperData.G_LU
+            all_relations = list(self.__lu_in_syn_as_fake_relations(limit=limit))
+        elif rel_type == GraphMapperData.SYNONYM:
+            # When synonymy is used, then data is stored into LU
+            extract_type = GraphMapperData.G_LU
+            all_relations = list(self.__lu_in_synonymy_relation(limit=limit))
         else:
             return
 
-        for relation in all_relations:
-            self.logger.debug(
-                f"Preparing samples from {rel_type} relations id={relation.REL_ID}"
-            )
+        r_count = len(all_relations)
+        self.logger.info(
+            f"{r_count} {rel_type} relations will be used to generate data"
+        )
 
-            relation_id = relation.REL_ID
-            if relation_id is None or relation_id not in self.relation_weights:
-                self.logger.warning(
-                    f"Relation ID {relation_id} not found in {rel_type}"
+        with tqdm.tqdm(total=r_count, desc=f"Preparing {rel_type} examples") as pbar:
+            for relation in all_relations:
+                pbar.update(1)
+
+                relation_id = relation.REL_ID
+                if relation_id is None or relation_id not in self.relation_weights:
+                    self.logger.warning(
+                        f"Relation ID {relation_id} not found in {rel_type}"
+                    )
+                    continue
+
+                parent_id = relation.PARENT_ID
+                child_id = relation.CHILD_ID
+                relation_weight = self.relation_weights[relation_id]
+
+                parent_texts = []
+                p_texts = self.__extract_all_texts_from(
+                    elem_type=extract_type, elem_id=parent_id
                 )
-                continue
+                if p_texts is not None:
+                    parent_texts = list(p_texts)
 
-            parent_id = relation.PARENT_ID
-            child_id = relation.CHILD_ID
-            relation_weight = self.relation_weights[relation_id]
-            parent_texts = []
-            p_texts = self.__extract_all_texts_from(
-                elem_type=rel_type, elem_id=parent_id
-            )
-            if p_texts is not None:
-                parent_texts = list(p_texts)
+                child_texts = []
+                ch_texts = self.__extract_all_texts_from(
+                    elem_type=extract_type, elem_id=child_id
+                )
+                if ch_texts is not None:
+                    child_texts = list(ch_texts)
 
-            child_texts = []
-            ch_texts = self.__extract_all_texts_from(
-                elem_type=rel_type, elem_id=child_id
-            )
-            if ch_texts is not None:
-                child_texts = list(ch_texts)
+                yield from self._create_embedder_samples(
+                    parent_texts=parent_texts,
+                    child_texts=child_texts,
+                    relation_id=relation_id,
+                    relation_weight=relation_weight,
+                    parent_id=parent_id,
+                    child_id=child_id,
+                )
 
-            yield from self._create_embedder_samples(
-                parent_texts=parent_texts,
-                child_texts=child_texts,
-                relation_id=relation_id,
-                relation_weight=relation_weight,
-                parent_id=parent_id,
-                child_id=child_id,
-            )
+    def __lu_in_syn_as_fake_relations(
+        self, limit: int
+    ) -> Iterator[LexicalUnitAndSynsetFakeRelation]:
+        """
+        Generate fake relations between lexical units based on synset relationships.
+
+        This method creates artificial relations between lexical units
+        by leveraging existing synset relationships. For each synset relation,
+        it generates relations between all lexical units in the parent synset
+        and all lexical units in the child synset, preserving the original
+        relation type.
+
+        Args:
+            limit: Maximum number of synset relations to process
+
+        Yields:
+            LexicalUnitAndSynsetFakeRelation: Fake relation objects connecting
+            lexical units through synset relationships
+        """
+        # Mapping of synset to the list of lexical units
+        syn_lu_ids = self.pl_wordnet.get_units_and_synsets(
+            limit=limit, return_mapping=True
+        )
+        syn_relations = self.pl_wordnet.get_synset_relations(limit=limit)
+        for sr in syn_relations:
+            lus_child = syn_lu_ids.get(sr.CHILD_ID, [])
+            lus_parent = syn_lu_ids.get(sr.PARENT_ID, [])
+            for lu_child in lus_child:
+                for lu_parent in lus_parent:
+                    yield LexicalUnitAndSynsetFakeRelation(
+                        PARENT_ID=lu_parent,
+                        CHILD_ID=lu_child,
+                        REL_ID=sr.REL_ID,
+                    )
+
+    def __lu_in_synonymy_relation(
+        self, limit: int
+    ) -> Iterator[LexicalUnitAndSynsetFakeRelation]:
+        """
+        Generate synonymy relations between lexical units within the same synsets.
+
+        Creates fake relations representing synonymy between all pairs of lexical units
+        that belong to the same synset. Each lexical unit is connected to every other
+        lexical unit in its synset with a synonymy relation type (REL_ID = 30).
+
+        Args:
+            limit: Maximum number of unit-synset relationships to process
+
+        Yields:
+            LexicalUnitAndSynsetFakeRelation: Fake relation objects
+            with synonymy relation type (REL_ID=30) connecting
+            lexical units within the same synsets
+        """
+        syn_lu_ids = self.pl_wordnet.get_units_and_synsets(
+            limit=limit, return_mapping=True
+        )
+        for synonyms in syn_lu_ids.values():
+            for lu_parent in synonyms:
+                for lu_child in synonyms:
+                    yield LexicalUnitAndSynsetFakeRelation(
+                        PARENT_ID=lu_parent,
+                        CHILD_ID=lu_child,
+                        REL_ID=30,  # 30 - synonymy
+                    )
 
     def __extract_all_texts_from(
         self, elem_type: str, elem_id: int

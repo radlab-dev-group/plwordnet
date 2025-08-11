@@ -2,7 +2,7 @@ import sys
 import logging
 
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
-from plwordnet_trainer.embedding.utils.generator import EmbeddingGenerator, SynsetEmbeddingGenerator
+from plwordnet_trainer.embedder.utils.generator import EmbeddingGenerator, SynsetEmbeddingGenerator
 
 
 logging.basicConfig(

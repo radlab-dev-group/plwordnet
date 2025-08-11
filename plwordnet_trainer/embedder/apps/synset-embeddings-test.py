@@ -1,6 +1,7 @@
 import sys
 import logging
 
+from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
 from plwordnet_trainer.embedder.synset.generator import (
     EmbeddingGenerator,
@@ -22,16 +23,24 @@ logger = logging.getLogger(__name__)
 
 generator = EmbeddingGenerator(
     model_path="/mnt/data2/llms/models/radlab-open/embedders/radlab_polish-bi-encoder-mean",
-    device="cpu",
+    device="cuda:0",
 )
 
 connector = PlWordnetAPINxConnector(
-    nx_graph_dir="/home/pkedzia/.local/lib/python3.10/site-packages/plwordnet_handler/resources/graphs/plwordnet_test/nx/graphs",
+    nx_graph_dir="/mnt/data2/data/resources/plwordnet_handler/20250811/slowosiec_test/nx/graphs",
     autoconnect=True,
 )
+pl_wn = PolishWordnet(
+                connector=connector,
+                db_config_path=None,
+                nx_graph_dir=None,
+                extract_wiki_articles=False,
+                use_memory_cache=True,
+                show_progress_bar=False,
+            )
 
 syn_emb_generator = SynsetEmbeddingGenerator(
-    generator=generator, connector=connector
+    generator=generator, pl_wordnet=pl_wn
 )
 
-syn_emb_generator.run()
+syn_emb_generator.run(batch_size=1024)

@@ -1,4 +1,4 @@
-from plwordnet_trainer.embedder.utils.wandb import WandbConfig
+from plwordnet_trainer.embedder.constants.wandb import WandbConfig
 from plwordnet_trainer.utils.training_handler import TrainingHandler
 from plwordnet_trainer.utils.wandb import WanDBHandler
 

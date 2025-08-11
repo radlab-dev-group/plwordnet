@@ -6,7 +6,7 @@ from tqdm import tqdm
 from typing import List, Dict
 from sentence_transformers import SentenceTransformer
 
-from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
+from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 
 
 class EmbeddingGenerator:
@@ -85,16 +85,15 @@ class EmbeddingGenerator:
 
 class SynsetEmbeddingGenerator:
     def __init__(
-        self, generator: EmbeddingGenerator, connector: PlWordnetConnectorInterface
+        self, generator: EmbeddingGenerator, pl_wordnet: PolishWordnet
     ):
         self.generator = generator
-        self.connector = connector
+        self.pl_wordnet = pl_wordnet
 
         self.logger = logging.getLogger(__name__)
 
-    def run(self):
-        batch_size = 200
-        all_lexical_units = self.connector.get_lexical_units()
+    def run(self, batch_size: int = 400):
+        all_lexical_units = self.pl_wordnet.get_lexical_units()
 
         with tqdm(
             total=len(all_lexical_units),

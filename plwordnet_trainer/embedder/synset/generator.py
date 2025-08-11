@@ -84,13 +84,46 @@ class EmbeddingGenerator:
 
 
 class SynsetEmbeddingGenerator:
+    """
+    Generates embeddings for synsets based on lexical unit definitions.
+
+    This class processes lexical units from Polish WordNet and generates
+    embeddings from their definitions using a provided embedding generator.
+    It handles batch processing for efficient embedding generation.
+    """
+
     def __init__(self, generator: EmbeddingGenerator, pl_wordnet: PolishWordnet):
+        """
+        Initialize the synset embedding generator.
+
+        Args:
+            generator: EmbeddingGenerator instance for creating embeddings
+            pl_wordnet: PolishWordnet instance providing access
+            to lexical units and synsets
+        """
+
         self.generator = generator
         self.pl_wordnet = pl_wordnet
 
         self.logger = logging.getLogger(__name__)
 
-    def run(self, batch_size: int = 400):
+    def run(self, batch_size: int = 512):
+        """
+        Generate embeddings for all lexical units with valid definitions.
+
+        Processes lexical units in batches, extracting definitions from their
+        comments and generating embeddings. Units without definitions
+        are skipped. Progress is tracked with a progress bar.
+
+        Args:
+            batch_size: Number of definitions to process in each batch for
+            efficient embedding generation. Defaults to 512
+
+        Note:
+            Only lexical units with non-empty definitions are processed.
+            The final batch (if smaller than batch_size) is processed separately.
+        """
+
         all_lexical_units = self.pl_wordnet.get_lexical_units()
 
         with tqdm(

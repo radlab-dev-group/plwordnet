@@ -1,7 +1,14 @@
 numpy
 torch
+spacy
 wandb
 torchvision
 accelerate
 transformers
 sentence_transformers
+
+
+# Post install commands:
+# python -m spacy download pl_core_news_sm
+# python -m spacy download en_core_web_sm
+

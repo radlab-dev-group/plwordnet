@@ -1,5 +1,7 @@
-from plwordnet_trainer.utils.handler import TrainingHandler
-from plwordnet_trainer.utils.wandb import WanDBHandler, WandbConfig
+from plwordnet_trainer.embedder.utils.wandb import WandbConfig
+from plwordnet_trainer.utils.training_handler import TrainingHandler
+from plwordnet_trainer.utils.wandb import WanDBHandler
+
 from plwordnet_trainer.utils.argument_parser import (
     BASE_MODEL_REQUIRED,
     OUTPUT_DIR_REQUIRED,

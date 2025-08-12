@@ -439,15 +439,3 @@ Apache 2.0 License - szczegóły w pliku [LICENSE](LICENSE).
 Projekt rozwijany przez RadLab.Dev Team.
 Repository: https://github.com/radlab-dev-group/radlab-plwordnet
 
----
-
-# Dodatek
-
-Przykład konwersji zbioru danych ze zrzutu do embeddera do datasetu
-akceptowanego przez trainer embeddera:
-
-```shell
-python3 plwordnet_trainer/embedding/convert-plwn-dump-to-dataset.py \
-  --jsonl-path _resources_local/datasets/embedder/full_dataset_ratio-2.0.jsonl \
-  --output-dir _resources_local/datasets/embedder/full_dataset_ratio-2.0
-```

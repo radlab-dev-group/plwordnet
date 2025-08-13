@@ -32,7 +32,7 @@ def process_sample_batch(
     Args:
         batch: List of samples to process
         split_to_sentences: Whether to split text into sentences
-        spacy_model_name: Name of the spacy model to use
+        spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
 
     Returns:
         List of converted samples

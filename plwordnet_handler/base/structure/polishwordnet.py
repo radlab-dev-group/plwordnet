@@ -4,6 +4,7 @@ from plwordnet_handler.base.api.plwordnet import PlWordnetAPI
 from plwordnet_handler.base.connectors.db.db_connector import (
     PlWordnetAPIMySQLDbConnector,
 )
+from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
 
 
@@ -14,7 +15,7 @@ class PolishWordnet:
 
     def __init__(
         self,
-        connector=None,
+        connector: PlWordnetConnectorInterface = None,
         db_config_path: Optional[str] = None,
         nx_graph_dir: Optional[str] = None,
         extract_wiki_articles: bool = False,

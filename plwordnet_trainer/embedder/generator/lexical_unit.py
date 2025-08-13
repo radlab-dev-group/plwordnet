@@ -7,7 +7,9 @@ from typing import List, Dict, Iterator, Any, Optional
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
-from plwordnet_trainer.embedder.generator.bi_encoder import BiEncoderEmbeddingGenerator
+from plwordnet_trainer.embedder.generator.bi_encoder import (
+    BiEncoderEmbeddingGenerator,
+)
 from plwordnet_trainer.embedder.generator.generator_i import _ElemGeneratorBase
 from plwordnet_trainer.embedder.generator.strategy import (
     EmbeddingBuildStrategy,

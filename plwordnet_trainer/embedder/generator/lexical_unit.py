@@ -78,6 +78,7 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
             combinations of all texts per lexical unit
         """
 
+        lu_wo_texts = []
         all_lexical_units = self.pl_wordnet.get_lexical_units()
         with tqdm(
             total=len(all_lexical_units),
@@ -88,7 +89,7 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
                     lu=lu, split_to_sentences=split_to_sentences
                 )
                 if not len(possible_texts):
-                    self.logger.error(f"Lexical unit {lu} has no possible texts!")
+                    lu_wo_texts.append(lu)
                     continue
 
                 embeddings = self.generator.generate_embeddings(
@@ -104,6 +105,9 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
                 )
 
                 pbar.update(1)
+
+        self.logger.info("Finished generating embeddings")
+        self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
 
     @classmethod
     def _embedding_for_each_lu_text(

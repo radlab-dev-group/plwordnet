@@ -1,14 +1,18 @@
-from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.utils.logger import prepare_logger
+
 from plwordnet_handler.base.connectors.milvus.core.schema import (
     MilvusWordNetSchemaHandler,
 )
-from plwordnet_trainer.embedder.generator.lexical_unit import (
+from plwordnet_handler.base.connectors.milvus.milvus_connector import MilvusConnector
+
+from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
+from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
+from plwordnet_trainer.embedder.generator.bi_encoder import (
     BiEncoderEmbeddingGenerator,
+)
+from plwordnet_trainer.embedder.generator.lexical_unit import (
     LexicalUnitEmbeddingGenerator,
 )
-from plwordnet_handler.base.connectors.milvus.milvus_connector import MilvusConnector
-from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
 
 MILVUS_CONFIG = (
     "/mnt/data2/dev/develop/radlab-plwordnet/resources/milvus-config-pk.json"

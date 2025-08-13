@@ -1,0 +1,7 @@
+{
+  "host": "localhost",
+  "port": "19533",
+  "user": "root",
+  "password": "password123",
+  "db_name": "wordnet"
+}

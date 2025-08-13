@@ -9,7 +9,9 @@ from pymilvus import (
 from typing import Dict, Any, Optional
 
 from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
-from plwordnet_handler.base.connectors.milvus.base import MilvusWordNetBaseHandler
+from plwordnet_handler.base.connectors.milvus.core.base import (
+    MilvusWordNetBaseHandler,
+)
 
 
 class _SchemaDef:
@@ -160,73 +162,6 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
         self.lu_collection_name = "lu_embeddings"
         self.lu_vector_dim = lu_vector_dim
 
-    def collection_exists(self, collection_name: str) -> bool:
-        """
-        Check if a collection exists.
-
-        Args:
-            collection_name: Name of the collection to check
-
-        Returns:
-            bool: True if a collection exists, False otherwise
-        """
-        try:
-            return utility.has_collection(
-                collection_name, using=self.connection_alias
-            )
-        except MilvusException as e:
-            self.logger.error(f"Error checking collection existence: {e}")
-            return False
-
-    def get_collection_info(self, collection_name: str) -> Optional[Dict[str, Any]]:
-        """
-        Get information about a collection.
-
-        Args:
-            collection_name: Name of the collection
-
-        Returns:
-            Dict containing collection info or None if error occurred
-        """
-        try:
-            if not self.collection_exists(collection_name):
-                return None
-
-            collection = Collection(collection_name, using=self.connection_alias)
-
-            return {
-                "name": collection_name,
-                "schema": collection.schema,
-                "num_entities": collection.num_entities,
-                "is_empty": collection.is_empty,
-                "indexes": collection.indexes,
-            }
-        except MilvusException as e:
-            self.logger.error(f"Error getting collection info: {e}")
-            return None
-
-    def initialize(self) -> bool:
-        """
-        Initialize the complete Milvus setup:
-         - connect,
-         - create collections,
-         - indexes.
-
-        Returns:
-            bool: True if initialization is successful
-        """
-        if not self.connect():
-            return False
-
-        if not self.__create_collections():
-            return False
-
-        if not self.__create_indexes():
-            return False
-
-        self.logger.info("Milvus WordNet handler initialized successfully")
-        return True
-
     def get_status(self) -> Dict[str, Any]:
         """
         Get the status of both collections.
@@ -239,10 +174,10 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
                 self.synset_collection_name
             ),
             "lu_collection": self.get_collection_info(self.lu_collection_name),
-            "connection": self.connection_alias,
+            "connection": self.conn_name,
         }
 
-    def __create_collections(self) -> bool:
+    def create_collections(self) -> bool:
         """
         Create both synset and lexical unit collections.
 
@@ -257,7 +192,7 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
             self.logger.error(f"Failed to create collections: {e}")
             return False
 
-    def __create_indexes(self, index_type: str = "HNSW") -> bool:
+    def create_indexes(self, index_type: str = "HNSW") -> bool:
         """
         Create indexes on vector fields for both collections.
 
@@ -278,16 +213,14 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
 
             # Create index for synset collection
             synset_collection = Collection(
-                self.synset_collection_name, using=self.connection_alias
+                self.synset_collection_name, using=self.conn_name
             )
             synset_collection.create_index(
                 field_name="embedding", index_params=index_params
             )
 
             # Create an index for LU collection
-            lu_collection = Collection(
-                self.lu_collection_name, using=self.connection_alias
-            )
+            lu_collection = Collection(self.lu_collection_name, using=self.conn_name)
             lu_collection.create_index(
                 field_name="embedding", index_params=index_params
             )
@@ -329,13 +262,13 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
         """
 
         if not utility.has_collection(
-            self.synset_collection_name, using=self.connection_alias
+            self.synset_collection_name, using=self.conn_name
         ):
             synset_schema = self.__create_synset_schema()
             Collection(
                 name=self.synset_collection_name,
                 schema=synset_schema,
-                using=self.connection_alias,
+                using=self.conn_name,
             )
             self.logger.info(f"Created collection: {self.synset_collection_name}")
         else:
@@ -351,14 +284,12 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
         appropriate schema if not found. Logs the creation status.
         """
 
-        if not utility.has_collection(
-            self.lu_collection_name, using=self.connection_alias
-        ):
+        if not utility.has_collection(self.lu_collection_name, using=self.conn_name):
             lu_schema = self.__create_lu_schema()
             Collection(
                 name=self.lu_collection_name,
                 schema=lu_schema,
-                using=self.connection_alias,
+                using=self.conn_name,
             )
             self.logger.info(f"Created collection: {self.lu_collection_name}")
         else:

@@ -11,7 +11,7 @@ from plwordnet_handler.base.connectors.milvus.milvus_connector import MilvusConn
 from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
 
 MILVUS_CONFIG = (
-    "/mnt/data2/dev/develop/radlab-plwordnet/resources/milvus-config.json"
+    "/mnt/data2/dev/develop/radlab-plwordnet/resources/milvus-config-pk.json"
 )
 NX_GRAPHS = (
     "/mnt/data2/data/resources/plwordnet_handler/20250811/slowosiec_test/nx/graphs"

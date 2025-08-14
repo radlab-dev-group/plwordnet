@@ -65,7 +65,9 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             logger_name=__name__, log_level=log_level, logger_file_name=log_filename
         )
 
-    def generate(self, split_to_sentences: bool = False) -> Iterator[Dict[str, Any]]:
+    def generate(
+        self, split_to_sentences: bool = False
+    ) -> Iterator[List[Dict[str, Any]]]:
         """
         Generate embeddings for all lexical units and synsets with multiple
         processing strategies using multithreading.
@@ -94,62 +96,68 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
                 split_to_sentences=split_to_sentences,
             )
         else:
-            yield from self.__run_multithreading(
-                all_lexical_units=all_lexical_units,
-                split_to_sentences=split_to_sentences,
-            )
+            # yield from self.__run_multithreading(
+            #     all_lexical_units=all_lexical_units,
+            #     split_to_sentences=split_to_sentences,
+            # )
+            raise NotImplementedError("Multiprocessing not yet supported")
 
-    def __run_multithreading(
-        self, all_lexical_units: List, split_to_sentences: bool
-    ):
-        lu_wo_texts = []
-        # Use ThreadPoolExecutor for parallel processing
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            with tqdm(
-                total=len(all_lexical_units),
-                desc="Generating embeddings from lexical units",
-            ) as pbar:
-                # 1. Submit tasks to the thread pool
-                future_to_lu = {
-                    executor.submit(
-                        self._process_single_lu, lu, split_to_sentences
-                    ): lu
-                    for lu in all_lexical_units
-                }
-
-                # 2. Process completed tasks as they finish
-                for future in as_completed(future_to_lu):
-                    lu = future_to_lu[future]
-                    try:
-                        result = future.result()
-                        if result is None:
-                            lu_wo_texts.append(lu)
-                        else:
-                            yield from result
-                    except Exception as exc:
-                        self.logger.error(f"LU {lu} generated an exception: {exc}")
-
-                    pbar.update(1)
-
-        self.logger.info("Finished generating embeddings")
-        self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
+    # def __run_multithreading(
+    #     self, all_lexical_units: List, split_to_sentences: bool
+    # ):
+    #     lu_wo_texts = []
+    #     # Use ThreadPoolExecutor for parallel processing
+    #     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+    #         with tqdm(
+    #             total=len(all_lexical_units),
+    #             desc="Generating embeddings from lexical units",
+    #         ) as pbar:
+    #             # 1. Submit tasks to the thread pool
+    #             future_to_lu = {
+    #                 executor.submit(
+    #                     self._process_single_lu, lu, split_to_sentences
+    #                 ): lu
+    #                 for lu in all_lexical_units
+    #             }
+    #
+    #             # 2. Process completed tasks as they finish
+    #             for future in as_completed(future_to_lu):
+    #                 lu = future_to_lu[future]
+    #                 try:
+    #                     result = future.result()
+    #                     if result is None:
+    #                         lu_wo_texts.append(lu)
+    #                     else:
+    #                         yield from result
+    #                 except Exception as exc:
+    #                     self.logger.error(f"LU {lu} generated an exception: {exc}")
+    #
+    #                 pbar.update(1)
+    #
+    #     self.logger.info("Finished generating embeddings")
+    #     self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
 
     def __run_single_thread(self, all_lexical_units: List, split_to_sentences: bool):
-        lu_wo_texts = []
+        lu_wo_examples = []
         with tqdm(
             total=len(all_lexical_units),
             desc="Generating embeddings from lexical units",
         ) as pbar:
             for lu in all_lexical_units:
                 pbar.update(1)
-                ab_dict = self._process_single_lu(lu, split_to_sentences)
-                if ab_dict is None:
-                    lu_wo_texts.append(lu)
+                lu_embeddings = self._process_single_lu(lu, split_to_sentences)
+                if lu_embeddings is None:
+                    lu_wo_examples.append(lu)
+                    if len(lu_wo_examples) % 1000 == 0:
+                        self.logger.info(
+                            f"Lexical Units without examples {len(lu_wo_examples)}"
+                        )
                     continue
-                yield from ab_dict
+                yield lu_embeddings
 
         self.logger.info("Finished generating embeddings")
-        self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
+        self.logger.info(f"LUs without examples: {[l.ID for l in lu_wo_examples]}")
+        self.logger.info(f"Number of LUs without examples: {len(lu_wo_examples)}")
 
     def _process_single_lu(
         self, lu: LexicalUnit, split_to_sentences: bool

@@ -19,13 +19,14 @@ from plwordnet_trainer.embedder.generator.strategy import (
 )
 
 
-class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
+class SemanticEmbeddingGenerator(_ElemGeneratorBase):
     """
-    Generates embeddings for lexical unit definitions.
+    Generates embeddings for lexical unit and synset definitions.
 
-    This class processes lexical units from Polish WordNet and generates
-    embeddings from their definitions using a provided embedding generator.
-    It handles batch processing for efficient embedding generation.
+    This class processes lexical units and synsets from Polish WordNet
+    and generates embeddings from their definitions using a provided
+    embedding generator. It handles batch processing
+    for efficient embedding generation.
     """
 
     def __init__(
@@ -66,7 +67,7 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
 
     def generate(self, split_to_sentences: bool = False) -> Iterator[Dict[str, Any]]:
         """
-        Generate embeddings for all lexical units with multiple
+        Generate embeddings for all lexical units and synsets with multiple
         processing strategies using multithreading.
 
         Processes each lexical unit to extract text content, generates

@@ -13,14 +13,14 @@ from plwordnet_trainer.embedder.generator.bi_encoder import (
     BiEncoderEmbeddingGenerator,
 )
 from plwordnet_trainer.embedder.generator.lexical_unit import (
-    LexicalUnitEmbeddingGenerator,
+    SemanticEmbeddingGenerator,
 )
 from plwordnet_trainer.embedder.milvus.consumer import EmbeddingMilvusConsumer
 
 
 DEVICE = "cuda:0"
 LOG_LEVEL = "INFO"
-CREATE_SCHEMA = True
+CREATE_SCHEMA = False
 
 MILVUS_CONFIG = (
     "/mnt/data2/dev/develop/radlab-plwordnet/resources/milvus-config-pk.json"
@@ -65,7 +65,7 @@ else:
     with PolishWordnet(nx_graph_dir=NX_GRAPHS, use_memory_cache=True) as pl_wn:
         logger.info("PolishWordnet connected")
 
-        syn_emb_generator = LexicalUnitEmbeddingGenerator(
+        syn_emb_generator = SemanticEmbeddingGenerator(
             generator=BiEncoderEmbeddingGenerator(
                 model_path=BI_ENCODER_MODEL_PATH,
                 model_name=BI_ENCODER_MODEL_NAME,
@@ -79,9 +79,11 @@ else:
             log_filename=LOG_FILENAME,
             spacy_model_name=SPACY_MODEL_NAME,
             strategy=EmbeddingBuildStrategy.MEAN,
-            max_workers=4,
+            max_workers=2,
         )
         logger.info("SynsetEmbeddingGenerator created")
 
         for e_dict in syn_emb_generator.generate(split_to_sentences=True):
-            embedding_consumer.add_embedding(embedding_dict=e_dict)
+            embedding_consumer.add_embedding(
+                embedding_dict=e_dict, model_name=BI_ENCODER_MODEL_NAME
+            )

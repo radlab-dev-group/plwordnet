@@ -59,7 +59,8 @@ else:
     embedding_consumer = EmbeddingMilvusConsumer(
         milvus=MilvusWordNetInsertHandler.from_config_file(
             config_path=MILVUS_CONFIG,
-        )
+        ),
+        batch_size=1000,
     )
 
     with PolishWordnet(nx_graph_dir=NX_GRAPHS, use_memory_cache=True) as pl_wn:
@@ -79,7 +80,7 @@ else:
             log_filename=LOG_FILENAME,
             spacy_model_name=SPACY_MODEL_NAME,
             strategy=EmbeddingBuildStrategy.MEAN,
-            max_workers=2,
+            max_workers=1,
         )
         logger.info("SynsetEmbeddingGenerator created")
 
@@ -87,3 +88,4 @@ else:
             embedding_consumer.add_embedding(
                 embedding_dict=e_dict, model_name=BI_ENCODER_MODEL_NAME
             )
+        embedding_consumer.flush()

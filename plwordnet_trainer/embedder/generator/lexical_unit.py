@@ -1,8 +1,10 @@
-import spacy
 import torch
+import spacy
+import threading
 
 from tqdm import tqdm
 from typing import List, Dict, Iterator, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
@@ -34,6 +36,7 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
         log_filename: str = None,
         spacy_model_name: str = "pl_core_news_sm",
         strategy: EmbeddingBuildStrategy = EmbeddingBuildStrategy.MEAN,
+        max_workers: int = 1,
     ):
         """
         Initialize the synset embedding generator.
@@ -45,13 +48,17 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
             log_level: The log level to use (default: INFO).
             log_filename: The filename to save the log (default: None).
             spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
+            max_workers: Maximum number of worker threads (default: 4)
         """
 
         self.generator = generator
         self.pl_wordnet = pl_wordnet
+        self.max_workers = max_workers
+        self.spacy_model_name = spacy_model_name
+
         self._emb_pos_processor = StrategyProcessor(strategy=strategy)
 
-        self._spacy = spacy.load(spacy_model_name)
+        self._local_spacy = threading.local()
 
         self.logger = prepare_logger(
             logger_name=__name__, log_level=log_level, logger_file_name=log_filename
@@ -59,19 +66,20 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
 
     def generate(self, split_to_sentences: bool = False) -> Iterator[Dict[str, Any]]:
         """
-        Generate embeddings for all lexical units with multiple processing strategies.
+        Generate embeddings for all lexical units with multiple
+        processing strategies using multithreading.
 
-        Processes each lexical unit to extract text content, generates embeddings,
-        and yields data using two approaches: individual text embeddings and
-        processed combined embeddings.
+        Processes each lexical unit to extract text content, generates
+        embeddings, and yields data using two approaches: individual
+        text embeddings and processed combined embeddings.
 
         Args:
-            split_to_sentences: Whether to split external URL descriptions into
-                               individual sentences for more granular embeddings
+            split_to_sentences: Whether to split external URL descriptions
+            into individual sentences for more granular embeddings
 
         Yields:
-            Dict[str, Any]: Dictionary containing lexical unit data, text content,
-                           embeddings, and processing type information
+            Dict[str, Any]: Dictionary containing lexical unit data,
+            text content, embeddings, and processing type information
 
         Note:
             Yields embeddings both for individual texts and for processed
@@ -80,47 +88,92 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
 
         lu_wo_texts = []
         all_lexical_units = self.pl_wordnet.get_lexical_units()
-        with tqdm(
-            total=len(all_lexical_units),
-            desc="Generating embeddings from lexical units",
-        ) as pbar:
-            for lu in all_lexical_units:
-                possible_texts = self._get_lu_texts(
-                    lu=lu, split_to_sentences=split_to_sentences
-                )
-                if not len(possible_texts):
-                    lu_wo_texts.append(lu)
-                    continue
 
-                embeddings = self.generator.generate_embeddings(
-                    possible_texts, show_progress_bar=False, return_as_list=True
-                )
-                assert len(embeddings) == len(possible_texts)
+        # Use ThreadPoolExecutor for parallel processing
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            with tqdm(
+                total=len(all_lexical_units),
+                desc="Generating embeddings from lexical units",
+            ) as pbar:
+                # 1. Submit tasks to the thread pool
+                future_to_lu = {
+                    executor.submit(
+                        self._process_single_lu, lu, split_to_sentences
+                    ): lu
+                    for lu in all_lexical_units
+                }
 
-                yield from self._embedding_for_each_lu_text(
-                    possible_texts=possible_texts, embeddings=embeddings, lu=lu
-                )
-                yield from self._embedding_from_lu_processor(
-                    possible_texts=possible_texts, embeddings=embeddings, lu=lu
-                )
+                # 2. Process completed tasks as they finish
+                for future in as_completed(future_to_lu):
+                    lu = future_to_lu[future]
+                    try:
+                        result = future.result()
+                        if result is None:
+                            lu_wo_texts.append(lu)
+                        else:
+                            yield from result
+                    except Exception as exc:
+                        self.logger.error(f"LU {lu} generated an exception: {exc}")
 
-                pbar.update(1)
+                    pbar.update(1)
 
         self.logger.info("Finished generating embeddings")
         self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
 
+    def _process_single_lu(
+        self, lu: LexicalUnit, split_to_sentences: bool
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Process a single lexical unit and generate embeddings.
+
+        Args:
+            lu: LexicalUnit to process
+            split_to_sentences: Whether to split sentences
+
+        Returns:
+            List of embedding dictionaries or None if no texts found
+        """
+        possible_texts = self._get_lu_texts(
+            lu=lu, split_to_sentences=split_to_sentences
+        )
+
+        if not len(possible_texts):
+            return None
+
+        embeddings = self.generator.generate_embeddings(
+            possible_texts,
+            show_progress_bar=False,
+            return_as_list=True,
+            truncate_text_to_max_len=True,
+        )
+        assert len(embeddings) == len(possible_texts)
+
+        results = []
+        results.extend(
+            self._embedding_for_each_lu_example(
+                possible_texts=possible_texts, embeddings=embeddings, lu=lu
+            )
+        )
+        results.extend(
+            self._embedding_from_lu_processor(
+                possible_texts=possible_texts, embeddings=embeddings, lu=lu
+            )
+        )
+        return results
+
     @classmethod
-    def _embedding_for_each_lu_text(
+    def _embedding_for_each_lu_example(
         cls,
         possible_texts: List[str],
         embeddings: List[torch.Tensor],
         lu: LexicalUnit,
     ):
         """
-        Yield individual embeddings for each text associated with a lexical unit.
+        Yield individual embeddings for each example associated with a lexical unit.
 
         Args:
-            possible_texts: List of text strings extracted from the lexical unit
+            possible_texts: List of text (examples) strings extracted
+            from the lexical unit
             embeddings: List of corresponding embedding vectors
             lu: LexicalUnit object being processed
 
@@ -133,7 +186,7 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
                 "lu": lu,
                 "texts": [text],
                 "embedding": emb,
-                "type": "single_lu_text",
+                "type": "lu_example",
             }
 
     def _embedding_from_lu_processor(
@@ -162,7 +215,8 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
             "lu": lu,
             "text": possible_texts,
             "embedding": main_embedding,
-            "type": self._emb_pos_processor.strategy,
+            "type": "lu",
+            "strategy": self._emb_pos_processor.strategy,
         }
 
     def _get_lu_texts(
@@ -212,7 +266,9 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
             # Split to sentences?
             _t = [lu.comment.external_url_description.content.strip()]
             if split_to_sentences:
-                doc = self._spacy(
+                # Use thread-local spaCy model
+                spacy_model = self._get_spacy_model()
+                doc = spacy_model(
                     lu.comment.external_url_description.content.strip()
                 )
                 _t = [
@@ -228,3 +284,11 @@ class LexicalUnitEmbeddingGenerator(_ElemGeneratorBase):
                     possible_texts.append(sen_anno.example.strip())
 
         return possible_texts
+
+    def _get_spacy_model(self):
+        """
+        Get a thread-local spaCy model instance.
+        """
+        if not hasattr(self._local_spacy, "spacy_model"):
+            self._local_spacy.spacy_model = spacy.load(self.spacy_model_name)
+        return self._local_spacy.spacy_model

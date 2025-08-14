@@ -50,6 +50,9 @@ class EmbeddingMilvusConsumer:
         Raises:
             NotImplementedError: If the embedding type is not supported
         """
+        if not len(embedding_dict):
+            return False
+
         emb_type = embedding_dict.get("type", None)
         if batch_size is None:
             batch_size = self.batch_size
@@ -107,20 +110,20 @@ class EmbeddingMilvusConsumer:
             embedding_dict: Dictionary containing lexical unit example data
             model_name: Name of the model used to generate the embedding
         """
-        if len(embedding_dict):
-            lu = embedding_dict["lu"]
-            text = embedding_dict["texts"]
-            if not len(text) or not len(text[0].strip()):
-                return
-            text = text[0].strip()
+        lu = embedding_dict["lu"]
+        text = embedding_dict["texts"]
+        embedding = embedding_dict["embedding"].cpu().numpy()
+        if not len(text) or not len(text[0].strip()):
+            return
+        text = text[0].strip()
 
-            item = {
-                "id": lu.ID,
-                "embedding": embedding_dict["embedding"],
-                "example": text,
-                "model_name": model_name,
-            }
-            self._batch_lu_e.append(item)
+        item = {
+            "id": lu.ID,
+            "embedding": embedding,
+            "example": text,
+            "model_name": model_name,
+        }
+        self._batch_lu_e.append(item)
 
         if len(self._batch_lu_e) >= batch_size:
             _inserted = self.milvus.insert_lu_examples_embeddings(
@@ -138,18 +141,19 @@ class EmbeddingMilvusConsumer:
             embedding_dict: Dictionary containing lexical unit data
             model_name: Name of the model used to generate the embedding
         """
-        if len(embedding_dict):
-            lu = embedding_dict["lu"]
-            item = {
-                "id": lu.ID,
-                "embedding": embedding_dict["embedding"],
-                "lemma": embedding_dict["lemma"],
-                "pos": embedding_dict["pos"],
-                "domain": embedding_dict["domain"],
-                "variant": embedding_dict["variant"],
-                "model_name": model_name,
-            }
-            self._batch_lu.append(item)
+        lu = embedding_dict["lu"]
+        embedding = embedding_dict["embedding"].cpu().numpy()
+
+        item = {
+            "id": lu.ID,
+            "embedding": embedding,
+            "lemma": lu.lemma,
+            "pos": lu.pos,
+            "domain": lu.domain,
+            "variant": lu.variant,
+            "model_name": model_name,
+        }
+        self._batch_lu.append(item)
 
         if len(self._batch_lu) >= batch_size:
             _inserted = self.milvus.insert_lu_embeddings(

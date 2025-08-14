@@ -13,6 +13,8 @@ from plwordnet_handler.base.connectors.milvus.core.base import (
     MilvusWordNetBaseHandler,
 )
 
+MAX_TEXT_LEN = 6000
+
 
 class _SchemaDef:
     class LU:
@@ -41,7 +43,7 @@ class _SchemaDef:
                 FieldSchema(
                     name="lemma",
                     dtype=DataType.VARCHAR,
-                    max_length=200,
+                    max_length=510,
                     description="Lemma of the lexical unit",
                 ),
                 FieldSchema(
@@ -60,7 +62,7 @@ class _SchemaDef:
                 FieldSchema(
                     name="model_name",
                     dtype=DataType.VARCHAR,
-                    max_length=500,
+                    max_length=512,
                     description="Name of model used to generate embeddings",
                 ),
             ]
@@ -99,13 +101,13 @@ class _SchemaDef:
                 FieldSchema(
                     name="example",
                     dtype=DataType.VARCHAR,
-                    max_length=1024,
+                    max_length=MAX_TEXT_LEN,
                     description="lexical unit example (definition, sentiment, etc.)",
                 ),
                 FieldSchema(
                     name="model_name",
                     dtype=DataType.VARCHAR,
-                    max_length=500,
+                    max_length=512,
                     description="Name of model used to generate embeddings",
                 ),
             ]
@@ -144,13 +146,13 @@ class _SchemaDef:
                 FieldSchema(
                     name="unitsstr",
                     dtype=DataType.VARCHAR,
-                    max_length=500,
+                    max_length=1024,
                     description="String representation of units in synset",
                 ),
                 FieldSchema(
                     name="model_name",
                     dtype=DataType.VARCHAR,
-                    max_length=500,
+                    max_length=512,
                     description="Name of model used to generate embeddings",
                 ),
             ]
@@ -260,12 +262,13 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
             self.logger.error(f"Failed to create collections: {e}")
             return False
 
-    def create_indexes(self, index_type: str = "HNSW") -> bool:
+    def create_indexes(self, index_type: str = "IVF_FLAT") -> bool:
         """
         Create indexes on vector fields for both collections.
 
         Args:
             index_type: Type of index to create (HNSW, IVF_FLAT, etc.)
+            Defaults to "IVF_FLAT"
 
         Returns:
             bool: True if indexes are created successfully
@@ -275,31 +278,46 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
                 "metric_type": "L2",
                 "index_type": index_type,
                 "params": (
-                    {"M": 8, "efConstruction": 64} if index_type == "HNSW" else {}
+                    {"M": 8, "efConstruction": 64}
+                    if index_type == "HNSW"
+                    else {"nlist": 1536}
                 ),
             }
 
-            # Create index for synset collection
-            synset_collection = Collection(
-                self.synset_collection_name, using=self.conn_name
-            )
-            synset_collection.create_index(
-                field_name="embedding", index_params=index_params
-            )
+            collections = [
+                (self.synset_collection_name, "synset"),
+                (self.lu_collection_name, "LU"),
+                (self.lu_examples_collection_name, "LU examples"),
+            ]
 
-            # Create an index for LU collection
-            lu_collection = Collection(self.lu_collection_name, using=self.conn_name)
-            lu_collection.create_index(
-                field_name="embedding", index_params=index_params
-            )
-
-            # Create an index for LU examples collection
-            lu_examples_collection = Collection(
-                self.lu_examples_collection_name, using=self.conn_name
-            )
-            lu_examples_collection.create_index(
-                field_name="embedding", index_params=index_params
-            )
+            for collection_name, desc in collections:
+                collection = Collection(collection_name, using=self.conn_name)
+                collection.create_index(
+                    field_name="embedding", index_params=index_params
+                )
+                collection.load()
+            #
+            # # Create index for synset collection
+            # synset_collection = Collection(
+            #     self.synset_collection_name, using=self.conn_name
+            # )
+            # synset_collection.create_index(
+            #     field_name="embedding", index_params=index_params
+            # )
+            #
+            # # Create an index for LU collection
+            # lu_collection = Collection(self.lu_collection_name, using=self.conn_name)
+            # lu_collection.create_index(
+            #     field_name="embedding", index_params=index_params
+            # )
+            #
+            # # Create an index for LU examples collection
+            # lu_examples_collection = Collection(
+            #     self.lu_examples_collection_name, using=self.conn_name
+            # )
+            # lu_examples_collection.create_index(
+            #     field_name="embedding", index_params=index_params
+            # )
 
             self.logger.info(f"Created {index_type} indexes on collections")
             return True

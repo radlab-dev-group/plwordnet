@@ -85,12 +85,13 @@ class BiEncoderEmbeddingGenerator:
             texts = [t[:400] for t in texts]
 
         try:
-            embeddings = self.model.encode(
-                texts,
-                convert_to_tensor=True,
-                show_progress_bar=show_progress_bar,
-                normalize_embeddings=self.normalize_embeddings,
-            )
+            with torch.no_grad():
+                embeddings = self.model.encode(
+                    texts,
+                    convert_to_tensor=True,
+                    show_progress_bar=show_progress_bar,
+                    normalize_embeddings=self.normalize_embeddings,
+                )
             results = embeddings
             if not return_as_list:
                 results = [

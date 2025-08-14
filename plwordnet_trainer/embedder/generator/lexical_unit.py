@@ -86,10 +86,23 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             Yields embeddings both for individual texts and for processed
             combinations of all texts per lexical unit
         """
-
-        lu_wo_texts = []
         all_lexical_units = self.pl_wordnet.get_lexical_units()
 
+        if self.max_workers == 1:
+            yield from self.__run_single_thread(
+                all_lexical_units=all_lexical_units,
+                split_to_sentences=split_to_sentences,
+            )
+        else:
+            yield from self.__run_multithreading(
+                all_lexical_units=all_lexical_units,
+                split_to_sentences=split_to_sentences,
+            )
+
+    def __run_multithreading(
+        self, all_lexical_units: List, split_to_sentences: bool
+    ):
+        lu_wo_texts = []
         # Use ThreadPoolExecutor for parallel processing
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             with tqdm(
@@ -117,6 +130,23 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
                         self.logger.error(f"LU {lu} generated an exception: {exc}")
 
                     pbar.update(1)
+
+        self.logger.info("Finished generating embeddings")
+        self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
+
+    def __run_single_thread(self, all_lexical_units: List, split_to_sentences: bool):
+        lu_wo_texts = []
+        with tqdm(
+            total=len(all_lexical_units),
+            desc="Generating embeddings from lexical units",
+        ) as pbar:
+            for lu in all_lexical_units:
+                pbar.update(1)
+                ab_dict = self._process_single_lu(lu, split_to_sentences)
+                if ab_dict is None:
+                    lu_wo_texts.append(lu)
+                    continue
+                yield from ab_dict
 
         self.logger.info("Finished generating embeddings")
         self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")

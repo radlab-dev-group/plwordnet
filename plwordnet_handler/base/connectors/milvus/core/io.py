@@ -5,6 +5,7 @@ from pymilvus import Collection, MilvusException
 
 from plwordnet_handler.base.connectors.milvus.core.schema import (
     MilvusWordNetSchemaHandler,
+    MAX_TEXT_LEN,
 )
 from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
 
@@ -20,6 +21,10 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
         Initialize the insert handler with same parameters as schema handler.
         """
         super().__init__(*args, **kwargs)
+
+        self._lu_collection = None
+        self._synset_collection = None
+        self._lu_examples_collection = None
 
     def insert_synset_embeddings(
         self, data: List[Dict[str, Any]], batch_size: int = 1000
@@ -39,9 +44,7 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
             bool: True if insertion is successful, False otherwise
         """
         try:
-            collection = Collection(
-                self.synset_collection_name, using=self.conn_name
-            )
+            collection = self._get_synset_collection()
             for i in range(0, len(data), batch_size):
                 batch = data[i : i + batch_size]
                 entities = [
@@ -51,12 +54,6 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
                     [item["model_name"] for item in batch],
                 ]
                 collection.insert(entities)
-                self.logger.info(
-                    f"Inserted synset batch {i // batch_size + 1}: "
-                    f"{len(batch)} records"
-                )
-            collection.flush()
-            self.logger.info(f"Successfully inserted {len(data)} synset embeddings")
             return True
 
         except MilvusException as e:
@@ -87,7 +84,7 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
             bool: True if insertion is successful, False otherwise
         """
         try:
-            collection = Collection(self.lu_collection_name, using=self.conn_name)
+            collection = self._get_lu_collection()
             for i in range(0, len(data), batch_size):
                 batch = data[i : i + batch_size]
                 entities = [
@@ -100,13 +97,6 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
                     [item["model_name"] for item in batch],
                 ]
                 collection.insert(entities)
-                self.logger.info(
-                    f"Inserted LU batch {i // batch_size + 1}: {len(batch)} records"
-                )
-            collection.flush()
-            self.logger.info(
-                f"Successfully inserted {len(data)} lexical unit embeddings"
-            )
             return True
 
         except MilvusException as e:
@@ -134,27 +124,16 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
             bool: True if insertion is successful, False otherwise
         """
         try:
-            collection = Collection(
-                self.lu_examples_collection_name, using=self.conn_name
-            )
+            collection = self._get_lu_examples_collection()
             for i in range(0, len(data), batch_size):
                 batch = data[i : i + batch_size]
                 entities = [
                     [item["id"] for item in batch],
                     [item["embedding"] for item in batch],
-                    [item["example"] for item in batch],
+                    [item["example"][:MAX_TEXT_LEN] for item in batch],
                     [item["model_name"] for item in batch],
                 ]
                 collection.insert(entities)
-                self.logger.info(
-                    f"Inserted LU examples batch {i // batch_size + 1}: "
-                    f"{len(batch)} records"
-                )
-            collection.flush()
-            self.logger.info(
-                f"Successfully inserted {len(data)} "
-                f"lexical unit examples embeddings"
-            )
             return True
 
         except MilvusException as e:
@@ -271,6 +250,27 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
             }
         ]
         return self.insert_lu_examples_embeddings(data, batch_size=1)
+
+    def _get_lu_collection(self):
+        if self._lu_collection is None:
+            self._lu_collection = Collection(
+                self.lu_collection_name, using=self.conn_name
+            )
+        return self._lu_collection
+
+    def _get_synset_collection(self):
+        if self._synset_collection is None:
+            self._synset_collection = Collection(
+                self.synset_collection_name, using=self.conn_name
+            )
+        return self._synset_collection
+
+    def _get_lu_examples_collection(self):
+        if self._lu_examples_collection is None:
+            self._lu_examples_collection = Collection(
+                self.lu_examples_collection_name, using=self.conn_name
+            )
+        return self._lu_examples_collection
 
     @classmethod
     def from_config_file(cls, config_path: str) -> "MilvusWordNetInsertHandler":

@@ -30,7 +30,7 @@ NX_GRAPHS = (
 )
 
 # Bi-encoder model spec
-BI_ENCODER_MODEL_NAME = ""
+BI_ENCODER_MODEL_NAME = "Semantic-v0.1-o7reqebo"
 BI_ENCODER_WANDB = (
     "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/o7reqebo"
 )

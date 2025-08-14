@@ -40,7 +40,9 @@ class BiEncoderEmbeddingGenerator:
         self.normalize_embeddings = normalize_embeddings
         try:
             self.model_name = model_name
-            self.model = SentenceTransformer(model_path, device=device)
+            self.model = SentenceTransformer(
+                model_path, device=device, trust_remote_code=True
+            )
             self.embedding_dim = self.model.get_sentence_embedding_dimension()
             self.device = device
 

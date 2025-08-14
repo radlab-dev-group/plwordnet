@@ -178,9 +178,9 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
         password: str = "",
         db_name: str = "default",
         config: Optional[MilvusConfig] = None,
-        syn_vector_dim: int = 1024,
-        lu_vector_dim: int = 1024,
-        lu_text_vector_dim: int = 1024,
+        syn_vector_dim: int = 1152,
+        lu_vector_dim: int = 1152,
+        lu_examples_vector_dim: int = 1152,
         log_level: str = "INFO",
     ):
         """
@@ -195,11 +195,11 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
             db_name: Name of the Milvus database. Defaults to "default"
             config: Optional MilvusConfig object for advanced configuration
             syn_vector_dim: Dimension size for synset embedding vectors.
-            Defaults to 1024
+            Defaults to 1152
             lu_vector_dim: Dimension size for "lexical unit embedding"
-            vectors. Defaults to 1024
-            lu_text_vector_dim: Dimension size for a vector of texts
-            belonging to lexical units. Defaults to 1024
+            vectors. Defaults to 1152
+            lu_examples_vector_dim: Dimension size for a vector of examples
+            belonging to lexical units. Defaults to 1152
             log_level: Logging level for the connector. Defaults to "INFO"
         """
 
@@ -224,7 +224,7 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
 
         self.lu_examples_schema = None
         self.lu_examples_collection_name = "lu_texts_embeddings"
-        self.lu_example_vector_dim = lu_vector_dim
+        self.lu_example_vector_dim = lu_examples_vector_dim
 
     def get_status(self) -> Dict[str, Any]:
         """
@@ -238,6 +238,9 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
                 self.synset_collection_name
             ),
             "lu_collection": self.get_collection_info(self.lu_collection_name),
+            "lu_examples_collection": self.get_collection_info(
+                self.lu_examples_collection_name
+            ),
             "connection": self.conn_name,
         }
 

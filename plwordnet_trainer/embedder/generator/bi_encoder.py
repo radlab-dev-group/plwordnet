@@ -15,6 +15,7 @@ class BiEncoderEmbeddingGenerator:
     def __init__(
         self,
         model_path: str,
+        model_name: str,
         device: str = "cpu",
         normalize_embeddings: bool = True,
         log_level: str = "INFO",
@@ -38,6 +39,7 @@ class BiEncoderEmbeddingGenerator:
         )
         self.normalize_embeddings = normalize_embeddings
         try:
+            self.model_name = model_name
             self.model = SentenceTransformer(model_path, device=device)
             self.embedding_dim = self.model.get_sentence_embedding_dimension()
             self.device = device
@@ -55,6 +57,7 @@ class BiEncoderEmbeddingGenerator:
         texts: List[str],
         show_progress_bar: bool = False,
         return_as_list: bool = False,
+        truncate_text_to_max_len: bool = False,
     ) -> List[Dict[str, torch.Tensor]] | List[torch.Tensor]:
         """
         Generates embeddings for a given list of texts.
@@ -63,6 +66,7 @@ class BiEncoderEmbeddingGenerator:
             texts: A list of strings to be processed.
             show_progress_bar: Whether to show a progress bar.
             return_as_list: Whether to return a list of embeddings or dict.
+            truncate_text_to_max_len: Whether to truncate text (default: False).
 
         Returns:
             List[Dict[str, torch.Tensor]]: A list of dictionaries,
@@ -74,6 +78,10 @@ class BiEncoderEmbeddingGenerator:
             embedding generation.
         """
         self.logger.debug(f"Generating embeddings for {len(texts)} texts")
+
+        if truncate_text_to_max_len:
+            texts = [t[:400] for t in texts]
+
         try:
             embeddings = self.model.encode(
                 texts,

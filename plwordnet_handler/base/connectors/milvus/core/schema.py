@@ -31,8 +31,13 @@ class _SchemaDef:
                     name="id",
                     dtype=DataType.INT64,
                     is_primary=True,
-                    auto_id=False,
-                    description="Lexical Unit ID from WordNet",
+                    auto_id=True,
+                    description="Lexical Unit Embedding ID",
+                ),
+                FieldSchema(
+                    name="lu_id",
+                    dtype=DataType.INT64,
+                    description="Lexical Unit ID from Słowosieć",
                 ),
                 FieldSchema(
                     name="embedding",
@@ -89,8 +94,13 @@ class _SchemaDef:
                     name="id",
                     dtype=DataType.INT64,
                     is_primary=True,
-                    auto_id=False,
-                    description="Lexical Unit ID from WordNet",
+                    auto_id=True,
+                    description="Lexical Unit Example Embedding ID",
+                ),
+                FieldSchema(
+                    name="lu_id",
+                    dtype=DataType.INT64,
+                    description="Lexical Unit ID from Słowosieć",
                 ),
                 FieldSchema(
                     name="embedding",
@@ -134,8 +144,13 @@ class _SchemaDef:
                     name="id",
                     dtype=DataType.INT64,
                     is_primary=True,
-                    auto_id=False,
-                    description="Synset ID from WordNet",
+                    auto_id=True,
+                    description="Synset Embedding ID",
+                ),
+                FieldSchema(
+                    name="syn_id",
+                    dtype=DataType.INT64,
+                    description="Synset ID from Słowosieć",
                 ),
                 FieldSchema(
                     name="embedding",
@@ -225,7 +240,7 @@ class MilvusWordNetSchemaHandler(MilvusWordNetBaseHandler):
         self.lu_vector_dim = lu_vector_dim
 
         self.lu_examples_schema = None
-        self.lu_examples_collection_name = "lu_texts_embeddings"
+        self.lu_examples_collection_name = "lu_examples_embeddings"
         self.lu_example_vector_dim = lu_examples_vector_dim
 
     def get_status(self) -> Dict[str, Any]:

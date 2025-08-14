@@ -18,7 +18,7 @@ from plwordnet_trainer.embedder.generator.lexical_unit import (
 from plwordnet_trainer.embedder.milvus.consumer import EmbeddingMilvusConsumer
 
 
-DEVICE = "cuda:0"
+DEVICE = "cuda:1"
 LOG_LEVEL = "INFO"
 CREATE_SCHEMA = False
 
@@ -84,8 +84,9 @@ else:
         )
         logger.info("SynsetEmbeddingGenerator created")
 
-        for e_dict in syn_emb_generator.generate(split_to_sentences=True):
-            embedding_consumer.add_embedding(
-                embedding_dict=e_dict, model_name=BI_ENCODER_MODEL_NAME
-            )
+        for embeddings in syn_emb_generator.generate(split_to_sentences=True):
+            for emb_dict in embeddings:
+                embedding_consumer.add_embedding(
+                    embedding_dict=emb_dict, model_name=BI_ENCODER_MODEL_NAME
+                )
         embedding_consumer.flush()

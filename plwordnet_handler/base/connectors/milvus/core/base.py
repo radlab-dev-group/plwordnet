@@ -172,13 +172,13 @@ class _MilvusBaseInitializer(_MilvusBaseConnector, ABC):
         return True
 
     @abstractmethod
-    def create_indexes(self, index_type: str = "HNSW") -> bool:
+    def create_indexes(self, index_type: str = "IVF_FLAT") -> bool:
         """
         Create indexes on vector fields for efficient similarity search.
 
         Args:
             index_type: Type of index to create for vector fields.
-                       Defaults to "HNSW"
+                       Defaults to "IVF_FLAT"
 
         Returns:
             bool: True if index creation is successful, False otherwise

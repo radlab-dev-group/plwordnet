@@ -43,7 +43,8 @@ def prepare_logger(
     if use_default_config:
         logging.basicConfig(
             level=logging.INFO,
-            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            format="%(asctime)s - %(name)s - %(levelname)s - "
+            "%(filename)s:%(lineno)d- %(message)s",
             handlers=[
                 logging.StreamHandler(sys.stdout),
                 logging.FileHandler(l_file_name),

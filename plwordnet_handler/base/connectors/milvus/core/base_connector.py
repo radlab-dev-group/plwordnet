@@ -14,9 +14,9 @@ from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
 class MilvusBaseConnector(ABC):
     conn_name = "wordnet_connection"
 
-    lu_collection_name = "lu_embeddings"
-    synset_collection_name = "synset_embeddings"
-    lu_examples_collection_name = "lu_examples_embeddings"
+    lu_collection_name = "base_lu_embeddings"
+    synset_collection_name = "base_synset_embeddings"
+    lu_examples_collection_name = "base_lu_examples_embeddings"
 
     def __init__(
         self,

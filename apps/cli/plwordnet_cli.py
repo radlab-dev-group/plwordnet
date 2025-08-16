@@ -6,21 +6,26 @@ from plwordnet_handler.cli.argparser import prepare_parser
 from plwordnet_handler.utils.logger import prepare_logger
 
 
+class Constants:
+    logger_file_name = "plwordnet_cli.log"
+
+
 def main(argv=None):
     args = prepare_parser().parse_args(argv)
 
     logger = prepare_logger(
         logger_name="plwordnet_cli",
-        logger_file_name="plwordnet_cli.log",
+        logger_file_name=Constants.logger_file_name,
         use_default_config=True,
         log_level=args.log_level,
     )
 
-    try:
-        cli_wrapper = CLIWrappers(args, verify_args=True, log_level=args.log_level)
-    except Exception as ex:
-        logger.error(ex)
-        return 1
+    cli_wrapper = CLIWrappers(
+        args,
+        verify_args=True,
+        log_level=args.log_level,
+        log_filename=Constants.logger_file_name,
+    )
 
     logger.info("Starting plwordnet-cli")
     logger.debug(f"Arguments: {vars(args)}")

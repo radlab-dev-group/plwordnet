@@ -4,8 +4,8 @@ from plwordnet_trainer.cli.argparser import prepare_parser
 from plwordnet_trainer.cli.wrappers import CLIMilvusWrappers, Constants
 
 
-def main():
-    args = prepare_parser().parse_args()
+def main(argv=None):
+    args = prepare_parser().parse_args(argv)
 
     logger = prepare_logger(
         logger_name=__name__,
@@ -20,16 +20,9 @@ def main():
         log_level=args.log_level,
         log_filename=Constants.LOG_FILENAME,
     )
-    # try:
-    #     cli_wrapper = CLIMilvusWrappers(
-    #         args=args,
-    #         verify_args=True,
-    #         log_level=args.log_level,
-    #         log_filename=Constants.LOG_FILENAME,
-    #     )
-    # except Exception as ex:
-    #     logger.error(ex)
-    #     return 1
+
+    logger.info("Starting plwordnet-milvus")
+    logger.debug(f"Arguments: {vars(args)}")
 
     # The highest priority has schema initialization
     if args.prepare_database:

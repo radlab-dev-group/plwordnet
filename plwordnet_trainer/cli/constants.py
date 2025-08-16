@@ -6,9 +6,8 @@ logging, file paths, and database configuration. These constants provide
 fallback values when the user does not provide specific configurations.
 
 Constants:
-    DEFAULT_LOG_LEVEL: Default logging level for application messages
-    DEFAULT_MILVUS_DB_CFG_PATH: Default path to Milvus database configuration
-        file, with fallback if resource path utility returns None
+    DEFAULT_MILVUS_DB_CFG_PATH: Default path to the Milvus database configuration
+        file, with fallback if the resource path utility returns None
 
 """
 

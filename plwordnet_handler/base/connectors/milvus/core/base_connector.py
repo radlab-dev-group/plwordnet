@@ -60,7 +60,7 @@ class MilvusBaseConnector(ABC):
 
         self.log_level = log_level
         self.logger = prepare_logger(
-            logger_name=logger_name or self.__name__, log_level=log_level
+            logger_name=logger_name or __name__, log_level=log_level
         )
 
     def connect(self) -> bool:

@@ -117,6 +117,21 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         return True
 
+    def is_api_required(self) -> bool:
+        """
+        Check if API connection is required based on current arguments.
+
+        Determines whether an API connection to the WordNet database is needed
+        by evaluating the current command-line arguments and operations requested.
+
+        Returns:
+            bool: True if API connection is required, False otherwise
+        """
+
+        if self.args.prepare_base_embeddings:
+            return True
+        return False
+
     def prepare_database(self):
         """
         Initialize and prepare the Milvus database for WordNet operations.

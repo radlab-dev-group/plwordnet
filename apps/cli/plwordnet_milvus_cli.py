@@ -30,11 +30,13 @@ def main(argv=None):
             logger.error("Error while preparing plwordnet Milvus database")
             return 1
 
+    if cli_wrapper.is_api_required():
+        if cli_wrapper.prepare_wordnet_based_on_args(use_memory_cache=True) is None:
+            logger.error("Error while preparing plwordnet API.")
+            return 1
+
     # If --prepare-base-embedding is given
     if args.prepare_base_embeddings:
-        # plwn api is required
-        if cli_wrapper.prepare_wordnet_based_on_args(use_memory_cache=True) is None:
-            return 1
         cli_wrapper.prepare_base_embeddings(batch_size=1000)
 
     return 0

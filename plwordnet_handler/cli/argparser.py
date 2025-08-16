@@ -35,8 +35,7 @@ def prepare_parser() -> argparse.ArgumentParser:
         dest="db_config",
         type=str,
         default=DEFAULT_DB_CFG_PATH,
-        help="Path to JSON file with database configuration "
-        "(used for --convert-to-nx-graph or --use-database)",
+        help="Path to JSON file with database configuration",
     )
     parser.add_argument(
         "--use-database",

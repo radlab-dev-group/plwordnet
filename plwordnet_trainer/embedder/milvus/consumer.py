@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-from plwordnet_handler.base.connectors.milvus.core.io import (
+from plwordnet_handler.base.connectors.milvus.insert_handler import (
     MilvusWordNetInsertHandler,
 )
 

@@ -118,6 +118,17 @@ class CLIMilvusWrappers(CLIWrapperBase):
         return True
 
     def prepare_database(self):
+        """
+        Initialize and prepare the Milvus database for WordNet operations.
+
+        Creates a Milvus schema initializer with the configured connection settings,
+        performs complete database initialization including collections and indexes,
+        then tests the connection status before disconnecting.
+
+        Raises:
+            Exception: If database initialization fails
+        """
+
         handler = MilvusWordNetSchemaInitializer(config=self.milvus_config)
         _initialized = handler.initialize()
         if not _initialized:
@@ -128,6 +139,19 @@ class CLIMilvusWrappers(CLIWrapperBase):
         handler.disconnect()
 
     def prepare_base_embeddings(self, batch_size: int = 1000):
+        """
+        Generate and insert base semantic embeddings into the Milvus database.
+
+        Creates an embedding consumer and semantic embedding generator to process
+        WordNet data and generate embeddings using a bi-encoder model. Processes
+        embeddings for accepted part-of-speech categories and inserts them into
+        the database in batches.
+
+        Args:
+            batch_size: Number of embeddings to process in each batch.
+            Defaults to 1000
+        """
+
         embedding_consumer = EmbeddingMilvusConsumer(
             milvus=MilvusWordNetInsertHandler(config=self.milvus_config),
             batch_size=batch_size,

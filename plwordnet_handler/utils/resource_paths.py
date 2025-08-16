@@ -12,6 +12,7 @@ class ResourcePaths:
     """
 
     DEFAULT_PLWN_DB_CONFIG = "plwordnet-mysql-db.json"
+    DEFAULT_PLWN_MILVUS_CONFIG = "milvus-config.json"
 
     PACKAGE_NAME = "plwordnet_handler"
     RESOURCES_SUBDIR = "resources"
@@ -130,6 +131,13 @@ class ResourcePaths:
             return None
         return res_path / cls.DEFAULT_PLWN_DB_CONFIG
 
+    @classmethod
+    def get_default_milvus_db_config(cls) -> Optional[Path]:
+        res_path = cls.get_installed_resources_path()
+        if res_path is None:
+            return None
+        return res_path / cls.DEFAULT_PLWN_MILVUS_CONFIG
+
 
 def get_default_graph_path(prefer_full: bool = True) -> Optional[str]:
     """
@@ -171,3 +179,13 @@ def get_default_db_config_path() -> Optional[Path]:
         Path to a default mysql connection config file
     """
     return ResourcePaths.get_default_db_config()
+
+
+def get_default_milvus_db_config_path() -> Optional[Path]:
+    """
+    Get a default Milvus db config path.
+
+    Returns:
+        Path to a default Milvus connection config file
+    """
+    return ResourcePaths.get_default_milvus_db_config()

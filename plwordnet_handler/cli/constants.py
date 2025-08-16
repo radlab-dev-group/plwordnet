@@ -16,17 +16,18 @@ Constants:
 """
 
 from plwordnet_handler.utils.resource_paths import (
+    ResourcePaths,
     get_default_graph_path,
     get_default_db_config_path,
 )
 
 DEFAULT_LOG_LEVEL = "INFO"
-DEFAULT_RESOURCES_DIR = "resources"
-DEFAULT_NX_OUT_DIR = f"{DEFAULT_RESOURCES_DIR}/plwordnet"
+
+DEFAULT_NX_OUT_DIR = f"{ResourcePaths.RESOURCES_SUBDIR}/plwordnet"
 DEFAULT_NX_GRAPHS_DIR = get_default_graph_path() or f"{DEFAULT_NX_OUT_DIR}/nx/graphs"
 DEFAULT_DB_CFG_PATH = (
     get_default_db_config_path()
-    or f"{DEFAULT_RESOURCES_DIR}/plwordnet-mysql-db.json"
+    or f"{ResourcePaths.RESOURCES_SUBDIR}/{ResourcePaths.DEFAULT_PLWN_DB_CONFIG}"
 )
 
 DEFAULT_OUTPUT_FILE = "embedder_dataset.jsonl"

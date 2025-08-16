@@ -23,7 +23,7 @@ class _SetupConfiguration:
     @dataclass
     class SetupConfig:
         module_name: str = "plwordnet-handler"
-        module_version: str = "1.0.2"
+        module_version: str = "1.0.3"
         handler_module_name: str = "plwordnet_handler"
         short_description: str = "Narzędzie do pracy ze Słowosiecią"
 
@@ -341,6 +341,7 @@ setup(
     entry_points={
         "console_scripts": [
             "plwordnet-cli=apps.cli.plwordnet_cli:main",
+            "plwordnet-milvus=apps.cli.plwordnet_milvus_cli:main",
         ],
     },
     keywords="nlp, wordnet, polish, linguistics, semantic",

@@ -17,8 +17,6 @@ from plwordnet_handler.utils.resource_paths import (
     ResourcePaths,
 )
 
-DEFAULT_LOG_LEVEL = "INFO"
-
 DEFAULT_MILVUS_DB_CFG_PATH = (
     get_default_milvus_db_config_path()
     or f"{ResourcePaths.RESOURCES_SUBDIR}/{ResourcePaths.DEFAULT_PLWN_MILVUS_CONFIG}"

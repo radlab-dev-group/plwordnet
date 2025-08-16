@@ -1,10 +1,8 @@
 import argparse
 
-from plwordnet_trainer.cli.constants import (
-    DEFAULT_LOG_LEVEL,
-    DEFAULT_MILVUS_DB_CFG_PATH,
-)
 from plwordnet_trainer.cli.example_usage import EXAMPLE_USAGE
+from plwordnet_handler.cli.base_argparser import prepare_base_parser
+from plwordnet_trainer.cli.constants import DEFAULT_MILVUS_DB_CFG_PATH
 
 
 def prepare_parser() -> argparse.ArgumentParser:
@@ -19,10 +17,9 @@ def prepare_parser() -> argparse.ArgumentParser:
         argparse.ArgumentParser: Fully configured argument parser ready to parse
         command-line arguments
     """
-    parser = argparse.ArgumentParser(
+    parser = prepare_base_parser(
         description="Polish Wordnet Milvus connector",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=EXAMPLE_USAGE,
+        example_usage=EXAMPLE_USAGE,
     )
 
     # -------------------------------------------------------------------------
@@ -55,15 +52,6 @@ def prepare_parser() -> argparse.ArgumentParser:
 
     # -------------------------------------------------------------------------
     # General, debug options
-    parser.add_argument(
-        "--log-level",
-        dest="log_level",
-        type=str,
-        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
-        default=DEFAULT_LOG_LEVEL,
-        help="Set the logging level",
-    )
-
     parser.add_argument(
         "--device",
         dest="device",

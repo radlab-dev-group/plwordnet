@@ -1,19 +1,19 @@
 import numpy as np
 
 from typing import Dict, Any, List, Union
-from pymilvus import Collection, MilvusException
+from pymilvus import MilvusException
 
-from plwordnet_handler.base.connectors.milvus.core.schema import (
-    MilvusWordNetSchemaHandler,
-    MAX_TEXT_LEN,
-)
+from plwordnet_handler.base.connectors.milvus.core.schema import MAX_TEXT_LEN
 from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.base_connector import (
+    MilvusBaseConnector,
+)
 
 
-class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
+class MilvusWordNetInsertHandler(MilvusBaseConnector):
     """
     Handler for inserting data into WordNet Milvus collections.
-    Extends MilvusWordNetSchemaHandler with insert capabilities.
+    Extends MilvusBaseConnector with insert capabilities.
     """
 
     def __init__(self, *args, **kwargs):
@@ -21,10 +21,6 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
         Initialize the insert handler with same parameters as schema handler.
         """
         super().__init__(*args, **kwargs)
-
-        self._lu_collection = None
-        self._synset_collection = None
-        self._lu_examples_collection = None
 
     def insert_synset_embeddings(
         self, data: List[Dict[str, Any]], batch_size: int = 1000
@@ -250,27 +246,6 @@ class MilvusWordNetInsertHandler(MilvusWordNetSchemaHandler):
             }
         ]
         return self.insert_lu_examples_embeddings(data, batch_size=1)
-
-    def _get_lu_collection(self):
-        if self._lu_collection is None:
-            self._lu_collection = Collection(
-                self.lu_collection_name, using=self.conn_name
-            )
-        return self._lu_collection
-
-    def _get_synset_collection(self):
-        if self._synset_collection is None:
-            self._synset_collection = Collection(
-                self.synset_collection_name, using=self.conn_name
-            )
-        return self._synset_collection
-
-    def _get_lu_examples_collection(self):
-        if self._lu_examples_collection is None:
-            self._lu_examples_collection = Collection(
-                self.lu_examples_collection_name, using=self.conn_name
-            )
-        return self._lu_examples_collection
 
     @classmethod
     def from_config_file(cls, config_path: str) -> "MilvusWordNetInsertHandler":

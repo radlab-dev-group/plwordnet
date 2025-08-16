@@ -341,6 +341,7 @@ setup(
     entry_points={
         "console_scripts": [
             "plwordnet-cli=apps.cli.plwordnet_cli:main",
+            "plwordnet-milvus=apps.cli.plwordnet_milvus_cli:main",
         ],
     },
     keywords="nlp, wordnet, polish, linguistics, semantic",

@@ -38,6 +38,7 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
         spacy_model_name: str = "pl_core_news_sm",
         strategy: EmbeddingBuildStrategy = EmbeddingBuildStrategy.MEAN,
         max_workers: int = 1,
+        accept_pos: Optional[List[int]] = None,
     ):
         """
         Initialize the synset embedding generator.
@@ -50,9 +51,11 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             log_filename: The filename to save the log (default: None).
             spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
             max_workers: Maximum number of worker threads (default: 4)
+            accept_pos: List of accepted POS (integers) tags (default: None).
         """
 
         self.generator = generator
+        self.accept_pos = accept_pos
         self.pl_wordnet = pl_wordnet
         self.max_workers = max_workers
         self.spacy_model_name = spacy_model_name
@@ -89,6 +92,10 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             combinations of all texts per lexical unit
         """
         all_lexical_units = self.pl_wordnet.get_lexical_units()
+        if self.accept_pos is not None and len(self.accept_pos):
+            all_lexical_units = [
+                lu for lu in all_lexical_units if lu.pos in self.accept_pos
+            ]
 
         if self.max_workers == 1:
             yield from self.__run_single_thread(

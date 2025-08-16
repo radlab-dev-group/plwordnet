@@ -10,6 +10,7 @@ python plwordnet-milvus --help
 
 # Initialize database(database, schemas, indexes, collections)
 plwordnet-milvus 
+    --log-level=DEBUG
     --milvus-config=resources/milvus-config.json 
     --prepare-database
 

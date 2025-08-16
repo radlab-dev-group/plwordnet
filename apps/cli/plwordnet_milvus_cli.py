@@ -78,6 +78,7 @@ def main():
                 spacy_model_name=Constants.SPACY_MODEL_NAME,
                 strategy=EmbeddingBuildStrategy.MEAN,
                 max_workers=1,
+                accept_pos=[1, 2, 3, 4],
             )
             logger.info("SynsetEmbeddingGenerator created")
             for embeddings in syn_emb_generator.generate(split_to_sentences=True):

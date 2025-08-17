@@ -1,7 +1,7 @@
 import tqdm
 from typing import Iterator, Dict, Any, Optional, List, Tuple
 
-from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_trainer.embedder.constants.embedding_types import EmbeddingTypes
 from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy

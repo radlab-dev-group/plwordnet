@@ -2,30 +2,31 @@ import torch
 import spacy
 import threading
 
+from numpy import ndarray
 from tqdm import tqdm
 from typing import List, Dict, Iterator, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from plwordnet_handler.utils.logger import prepare_logger
+# from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
+from plwordnet_trainer.embedder.constants.embedding_types import EmbeddingTypes
+from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
 from plwordnet_trainer.embedder.generator.bi_encoder import (
     BiEncoderEmbeddingGenerator,
 )
-from plwordnet_trainer.embedder.generator.generator_i import _ElemGeneratorBase
-from plwordnet_trainer.embedder.generator.strategy import (
-    EmbeddingBuildStrategy,
-    StrategyProcessor,
+from plwordnet_trainer.embedder.generator.generator_i import (
+    _AnySemanticEmbeddingGeneratorBase,
 )
 
 
-class SemanticEmbeddingGenerator(_ElemGeneratorBase):
+class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase):
     """
-    Generates embeddings for lexical unit and synset definitions.
+    Generates embeddings for lexical unit and lexical units examples.
 
-    This class processes lexical units and synsets from Polish WordNet
+    This class processes lexical units and its examples from Polish WordNet
     and generates embeddings from their definitions using a provided
-    embedding generator. It handles batch processing
+    embedding embedding_generator. It handles batch processing
     for efficient embedding generation.
     """
 
@@ -41,47 +42,48 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
         accept_pos: Optional[List[int]] = None,
     ):
         """
-        Initialize the synset embedding generator.
+        Initialize the lexical unit embedding embedding_generator.
 
         Args:
             generator: EmbeddingGenerator instance for creating embeddings
             pl_wordnet: PolishWordnet instance providing access
-            to lexical units and synsets
+            to lexical units and lexical units examples
             log_level: The log level to use (default: INFO).
             log_filename: The filename to save the log (default: None).
             spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
             max_workers: Maximum number of worker threads (default: 4)
             accept_pos: List of accepted POS (integers) tags (default: None).
         """
+        super().__init__(
+            generator=generator,
+            strategy=strategy,
+            log_level=log_level,
+            log_name=__name__,
+            log_filename=log_filename,
+            accept_pos=accept_pos,
+            pl_wordnet=pl_wordnet,
+        )
 
-        self.generator = generator
-        self.accept_pos = accept_pos
-        self.pl_wordnet = pl_wordnet
         self.max_workers = max_workers
         self.spacy_model_name = spacy_model_name
 
-        self._emb_pos_processor = StrategyProcessor(strategy=strategy)
-
         self._local_spacy = threading.local()
 
-        self.logger = prepare_logger(
-            logger_name=__name__, log_level=log_level, logger_file_name=log_filename
-        )
-
     def generate(
-        self, split_to_sentences: bool = False
+        self, split_to_sentences: Optional[bool] = False
     ) -> Iterator[List[Dict[str, Any]]]:
         """
-        Generate embeddings for all lexical units and synsets with multiple
-        processing strategies using multithreading.
+        Generate embeddings for all lexical units and lexical units examples
+        with multiple processing strategies using multithreading or single thread.
 
         Processes each lexical unit to extract text content, generates
         embeddings, and yields data using two approaches: individual
         text embeddings and processed combined embeddings.
 
         Args:
-            split_to_sentences: Whether to split external URL descriptions
-            into individual sentences for more granular embeddings
+            split_to_sentences (optional): Whether to split external URL
+            descriptions, definitions, etc. into individual sentences
+            for more granular embeddings
 
         Yields:
             Dict[str, Any]: Dictionary containing lexical unit data,
@@ -98,7 +100,7 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             ]
 
         if self.max_workers == 1:
-            yield from self.__run_single_thread(
+            yield from self._generate_in_single_thread(
                 all_lexical_units=all_lexical_units,
                 split_to_sentences=split_to_sentences,
             )
@@ -144,7 +146,24 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
     #     self.logger.info("Finished generating embeddings")
     #     self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
 
-    def __run_single_thread(self, all_lexical_units: List, split_to_sentences: bool):
+    def _generate_in_single_thread(
+        self, all_lexical_units: List, split_to_sentences: bool
+    ):
+        """
+        Generate embeddings for lexical units using single-threaded processing.
+
+        Processes each lexical unit sequentially to generate embeddings, tracking
+        progress with a progress bar, and collecting statistics on units without
+        examples. Yields embedding results as they are generated.
+
+        Args:
+            all_lexical_units: List of lexical units to process
+            split_to_sentences: Whether to split text content
+            into individual sentences
+
+        Yields:
+            Generated embeddings for each successfully processed lexical unit
+        """
         lu_wo_examples = []
         with tqdm(
             total=len(all_lexical_units),
@@ -186,13 +205,14 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
         if not len(possible_texts):
             return None
 
-        embeddings = self.generator.generate_embeddings(
+        embeddings = self.embedding_generator.generate_embeddings(
             possible_texts,
             show_progress_bar=False,
             return_as_list=True,
             truncate_text_to_max_len=True,
         )
         assert len(embeddings) == len(possible_texts)
+        embeddings = [e.cpu().numpy() for e in embeddings]
 
         results = []
         results.extend(
@@ -211,7 +231,7 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
     def _embedding_for_each_lu_example(
         cls,
         possible_texts: List[str],
-        embeddings: List[torch.Tensor],
+        embeddings: List[torch.Tensor | ndarray],
         lu: LexicalUnit,
     ):
         """
@@ -232,13 +252,14 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
                 "lu": lu,
                 "texts": [text],
                 "embedding": emb,
-                "type": "lu_example",
+                "type": EmbeddingTypes.Base.lu_example,
+                "strategy": "model",
             }
 
     def _embedding_from_lu_processor(
         self,
         possible_texts: List[str],
-        embeddings: List[torch.Tensor],
+        embeddings: List[torch.Tensor | ndarray],
         lu: LexicalUnit,
     ):
         """
@@ -256,13 +277,13 @@ class SemanticEmbeddingGenerator(_ElemGeneratorBase):
             Dict[str, Any]: Dictionary with processed combined embedding
             data marked with the processor's strategy type
         """
-        main_embedding = self._emb_pos_processor.process(embeddings=embeddings)
+        main_embedding = self.embedding_processor.process(embeddings=embeddings)
         yield {
             "lu": lu,
             "text": possible_texts,
             "embedding": main_embedding,
-            "type": "lu",
-            "strategy": self._emb_pos_processor.strategy,
+            "type": EmbeddingTypes.Base.lu,
+            "strategy": self.embedding_processor.strategy,
         }
 
     def _get_lu_texts(

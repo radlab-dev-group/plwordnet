@@ -1,3 +1,4 @@
+import numpy
 import torch
 
 from enum import Enum
@@ -57,4 +58,4 @@ class StrategyProcessor:
                 )
 
         if self.strategy == EmbeddingBuildStrategy.MEAN:
-            return torch.mean(torch.Tensor(embeddings), dim=0)
+            return torch.mean(torch.Tensor(numpy.array(embeddings)), dim=0)

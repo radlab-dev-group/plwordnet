@@ -80,3 +80,46 @@ class _AnySemanticEmbeddingGeneratorBase(ABC):
         """
 
         raise NotImplementedError
+
+    def _get_units_and_synsets_with_pos(
+        self, accepted_pos: Optional[List[int]] = None
+    ) -> Dict[int, List[int]]:
+        """
+        Filter synset-to-lexical-unit mappings by part-of-speech categories.
+
+        Retrieves all synset-to-lexical-unit mappings and filters lexical units
+        based on accepted part-of-speech categories. Returns only synsets that
+        contain at least one lexical unit matching the POS criteria.
+
+        Args:
+            accepted_pos: List of accepted part-of-speech category IDs.
+            If None or empty, returns all mappings without filtering
+
+        Returns:
+            Dict[int, List[int]]: Dictionary mapping synset IDs to lists of
+            filtered lexical unit IDs that match the POS criteria
+        """
+
+        self.logger.info(
+            f"Filtering lu in synsets to LU ids with pos: {self.accept_pos}"
+        )
+
+        lu_in_syn = self.pl_wordnet.get_units_and_synsets(return_mapping=True)
+        if accepted_pos is None or not len(accepted_pos):
+            return lu_in_syn
+
+        syn_map = {}
+        lu_in_syn = self.pl_wordnet.get_units_and_synsets(return_mapping=True)
+        for s_id, lu_ids in lu_in_syn.items():
+            proper_ids = []
+            for _lu_id in lu_ids:
+                lu = self.pl_wordnet.get_lexical_unit(lu_id=_lu_id)
+                if lu is None:
+                    self.logger.warning(f"Lexical unit {_lu_id} not found")
+                    continue
+                if lu.pos not in accepted_pos:
+                    continue
+                proper_ids.append(lu.ID)
+            if len(proper_ids):
+                syn_map[s_id] = proper_ids
+        return syn_map

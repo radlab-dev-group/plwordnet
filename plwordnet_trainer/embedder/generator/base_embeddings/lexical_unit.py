@@ -1,3 +1,4 @@
+import numpy
 import torch
 import spacy
 import threading
@@ -251,7 +252,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
             yield {
                 "lu": lu,
                 "texts": [text],
-                "embedding": emb,
+                "embedding": numpy.array(emb),
                 "type": EmbeddingTypes.Base.lu_example,
                 "strategy": "model",
             }
@@ -281,7 +282,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         yield {
             "lu": lu,
             "text": possible_texts,
-            "embedding": main_embedding,
+            "embedding": numpy.array(main_embedding),
             "type": EmbeddingTypes.Base.lu,
             "strategy": self.embedding_processor.strategy,
         }

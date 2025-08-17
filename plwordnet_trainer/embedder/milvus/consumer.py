@@ -110,8 +110,10 @@ class EmbeddingMilvusConsumer:
             self._batch_lu = []
 
         if len(self._batch_syn):
+            self.milvus.insert_synset_embeddings(
+                data=self._batch_syn, batch_size=self.batch_size
+            )
             self._batch_syn = []
-            raise NotImplementedError("Synset flushing not implemented")
 
     def __process_lu_example(
         self, embedding_dict: Dict[str, Any], model_name: str, batch_size: int

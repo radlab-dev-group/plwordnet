@@ -75,6 +75,18 @@ class PlwordnetMilvusSchema:
                     max_length=512,
                     description="Name of model used to generate embeddings",
                 ),
+                FieldSchema(
+                    name="type",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Type of the embedding",
+                ),
+                FieldSchema(
+                    name="strategy",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Strategy of building the embedding",
+                ),
             ]
 
             schema = CollectionSchema(
@@ -125,6 +137,18 @@ class PlwordnetMilvusSchema:
                     max_length=512,
                     description="Name of model used to generate embeddings",
                 ),
+                FieldSchema(
+                    name="type",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Type of the embedding",
+                ),
+                FieldSchema(
+                    name="strategy",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Strategy of building the embedding",
+                ),
             ]
 
             schema = CollectionSchema(
@@ -174,6 +198,18 @@ class PlwordnetMilvusSchema:
                     dtype=DataType.VARCHAR,
                     max_length=512,
                     description="Name of model used to generate embeddings",
+                ),
+                FieldSchema(
+                    name="type",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Type of the embedding",
+                ),
+                FieldSchema(
+                    name="strategy",
+                    dtype=DataType.VARCHAR,
+                    max_length=128,
+                    description="Strategy of building the embedding",
                 ),
             ]
 

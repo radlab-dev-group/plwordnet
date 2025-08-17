@@ -26,10 +26,20 @@ class _MilvusSearchFields:
         "domain",
         "variant",
         "model_name",
+        "type",
+        "strategy",
     ]
 
     # List of base_lu_embedding_examples Milvus fields returned from the query
-    LU_EXAMPLES_OUT_FIELDS = ["id", "lu_id", "embedding", "example", "model_name"]
+    LU_EXAMPLES_OUT_FIELDS = [
+        "id",
+        "lu_id",
+        "embedding",
+        "example",
+        "model_name",
+        "type",
+        "strategy",
+    ]
 
 
 class MilvusWordNetSearchHandler(MilvusBaseConnector):

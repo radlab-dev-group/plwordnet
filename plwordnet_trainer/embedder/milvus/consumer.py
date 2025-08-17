@@ -129,8 +129,8 @@ class EmbeddingMilvusConsumer:
             "embedding": embedding_dict["embedding"],
             "example": text,
             "model_name": model_name,
-            "type": embedding_dict.get("type", ""),
-            "strategy": embedding_dict.get("strategy", ""),
+            "type": str(embedding_dict.get("type", "")),
+            "strategy": str(embedding_dict.get("strategy", "")),
         }
         self._batch_lu_e.append(item)
 
@@ -160,8 +160,8 @@ class EmbeddingMilvusConsumer:
             "domain": lu.domain,
             "variant": lu.variant,
             "model_name": model_name,
-            "type": embedding_dict.get("type", ""),
-            "strategy": embedding_dict.get("strategy", ""),
+            "type": str(embedding_dict.get("type", "")),
+            "strategy": str(embedding_dict.get("strategy", "")),
         }
         self._batch_lu.append(item)
 

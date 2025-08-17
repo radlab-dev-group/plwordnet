@@ -9,8 +9,6 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, Iterator, List, Tuple
 
-from jinja2.filters import sync_do_list
-
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 from plwordnet_handler.base.structure.elems.lu_in_synset import (

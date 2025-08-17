@@ -50,6 +50,15 @@ def prepare_parser() -> argparse.ArgumentParser:
         help="If option is given the base embeddings will be prepared.",
     )
 
+    parser.add_argument(
+        "--insert-base-mean-empty-embeddings",
+        dest="insert_mean_empty_base_embeddings",
+        default=False,
+        action="store_true",
+        help="If option is given the mean base embedding will be "
+        "inserted in case when other LU from synset are available.",
+    )
+
     # -------------------------------------------------------------------------
     # General, debug options
     parser.add_argument(

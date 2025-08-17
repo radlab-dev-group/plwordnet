@@ -77,13 +77,18 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             if self._relation_types is None:
                 self.logger.error("No relation_types loaded!")
                 return False
-            self.logger.info("Successfully loaded relation_types!")
+            self.logger.debug("Successfully loaded relation_types!")
 
             self._load_lexical_units_and_synsets()
             if self._lexical_units_in_synsets is None:
                 self.logger.error("No lexical_units_in_synsets loaded!")
                 return False
-            self.logger.info("Successfully loaded lexical_units_in_synsets!")
+            self.logger.debug("Successfully loaded lexical_units_in_synsets!")
+
+            self.logger.info(
+                f"Successfully loaded NetworkX graphs "
+                f"resources from {self.nx_graph_dir}"
+            )
 
             self._connected = True
             return True
@@ -142,7 +147,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
             else:
                 self.logger.error(f"No data found for lexical unit {lu_id}")
         except Exception as e:
-            self.logger.error(f"Failed to get lexical unit {lu_id}: {e}")
+            self.logger.error(f"Failed to get lexical unit {lu_id}: {str(e)}")
             return None
         return None
 

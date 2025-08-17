@@ -48,6 +48,8 @@ class MilvusWordNetInsertHandler(MilvusBaseConnector):
                     [item["embedding"] for item in batch],
                     [item["unitsstr"] for item in batch],
                     [item["model_name"] for item in batch],
+                    # [item["type"] for item in batch],
+                    # [item["strategy"] for item in batch],
                 ]
                 collection.insert(entities)
             return True
@@ -91,6 +93,8 @@ class MilvusWordNetInsertHandler(MilvusBaseConnector):
                     [item["domain"] for item in batch],
                     [item["variant"] for item in batch],
                     [item["model_name"] for item in batch],
+                    # [item["type"] for item in batch],
+                    # [item["strategy"] for item in batch],
                 ]
                 collection.insert(entities)
             return True
@@ -128,6 +132,8 @@ class MilvusWordNetInsertHandler(MilvusBaseConnector):
                     [item["embedding"] for item in batch],
                     [item["example"][:MAX_TEXT_LEN] for item in batch],
                     [item["model_name"] for item in batch],
+                    # [item["type"] for item in batch],
+                    # [item["strategy"] for item in batch],
                 ]
                 collection.insert(entities)
             return True

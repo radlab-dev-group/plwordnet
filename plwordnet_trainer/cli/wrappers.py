@@ -157,15 +157,17 @@ class CLIMilvusWrappers(CLIWrapperBase):
         Raises:
             Exception: If database initialization fails
         """
-
         handler = MilvusWordNetSchemaInitializer(config=self.milvus_config)
-        _initialized = handler.initialize()
-        if not _initialized:
-            raise False
+        handler.initialize()
 
-        handler.connect()
-        self.logger.info(handler.get_status())
-        handler.disconnect()
+        try:
+            handler.connect()
+            self.logger.info(handler.get_status())
+            handler.disconnect()
+            return True
+        except Exception as e:
+            self.logger.error(e)
+            return False
 
     def prepare_base_embeddings(self, batch_size: int = 1000):
         """

@@ -30,6 +30,7 @@ def main(argv=None):
             logger.error("Error while preparing plwordnet Milvus database")
             return 1
 
+    # Initialize api if is required
     if cli_wrapper.is_api_required():
         if cli_wrapper.prepare_wordnet_based_on_args(use_memory_cache=True) is None:
             logger.error("Error while preparing plwordnet API.")
@@ -38,5 +39,9 @@ def main(argv=None):
     # If --prepare-base-embedding is given
     if args.prepare_base_embeddings:
         cli_wrapper.prepare_base_embeddings(batch_size=1000)
+
+    # If --insert-base-mean-empty-embeddings
+    if args.insert_mean_empty_base_embeddings:
+        cli_wrapper.insert_mean_empty_base_embeddings(batch_size=1000)
 
     return 0

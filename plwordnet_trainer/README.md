@@ -1,4 +1,8 @@
-## Przygotowanie zbioru embeddera
+# Opis działania moduły `plwordnet_trainer` oraz `plwordnet-milvus`
+
+## Przygotowywanie zbiorów danych
+
+### Przygotowanie zbioru embeddera
 
 Poniżej znajduje się opis przygotowania zbioru danych do uczenia embeddera semantycznego.
 Zakłada się, że użytkownik dysponuje lokalnie grafami, lub połaczeniem do bazy.
@@ -6,9 +10,7 @@ Zakłada się, że użytkownik dysponuje lokalnie grafami, lub połaczeniem do b
 Wcześniej należy posiadać również zainstalowaną bibliotekę `radlab-plwordnet`.
 W katalogu głównum np. `pip3 install . --break && rm -rf build *.egg-info`
 
----
-
-**Konwersja Słowosieci do podsawowego zbioru ebeddera**
+#### Konwersja Słowosieci do podsawowego zbioru ebeddera
 
 Na początku (korzystając z `plwordnet-cli`) należy wyeksportować (`--dump-embedder-dataset-to-file`) 
 dowolnym  connectorem (`--use-database` lub `--nx-graphs-dir`) zawartośc bazy do podstawowego pliku 
@@ -23,9 +25,7 @@ plwordnet-cli \
   --embedder-low-high-ratio=1.2
 ```
 
----
-
-**Przygotowanie danych do deduplikacji**
+#### Przygotowanie danych do deduplikacji
 
 Po tym należy przekonwetować zbiór do poprawnego formatu z podziałem na dane treningowe i testowe.
 Do tego należy wykorzystać aplikację `convert-raw-embedder-dump-to-dataset.py` z `apps/utils/embedder`.
@@ -41,7 +41,8 @@ python3 plwordnet_trainer/embedder/apps/convert-plwn-dump-to-dataset.py \
 	--train-ratio=0.93
 ```
 
-lub z właczaonym podziałem na zdania i wielowątkowością (czas konwersji ~3 godziny, bez wielowątkości 30-50 godzin):
+lub z właczaonym podziałem na zdania i wielowątkowością (czas konwersji ~3 godziny, 
+bez wielowątkości 30-50 godzin):
 
 ```bash
 python3 plwordnet_trainer/embedder/apps/convert-plwn-dump-to-dataset.py \
@@ -61,9 +62,7 @@ Writing dataset...
 Done. Train: 13922579 samples, Test: 1047937 samples.
 ```
 
----
-
-**Deduplikacja danych treningowo-testowych**
+#### Deduplikacja danych treningowo-testowych
 
 Kolejnym krokiem jest deduplikacja zbioru z wcześniejszego kroku.
 
@@ -88,3 +87,97 @@ Data saved to file: resources/emb_dataset/embedding-dump-ratio-1.2-w-synonymy/em
 
 Process complete!
 ```
+
+## Semantyczna baza do przechowywania embeddingów
+
+Podczas procesu tworzenia embeddingów semantycznych i innych, gdzie 
+jako stały rezultat powstaje embedding, wykorzystywany jest Milvus
+jako baza danych (zarówno składowanie jak i wyszukanie). 
+
+Do obsługi połączenia z Milvusem i operacji na bazie Milvusa służy 
+komenda konsolowa `plwordnet-milvus`. Pełna lista opcji dostępna po 
+```bash
+plwordnet-milvus --help
+```
+
+Aplikacja do łaczenia z bazą wykorzystuje plik konfiguracyjny `milvus-config.json` 
+w postaci json (konfiguracja połączenia do bazy) podawany za pomocą przełącznika 
+`--milvus-config`. Przykładowa zawartość pliku `milvus-config.json`:
+```json
+{
+  "host": "localhost",
+  "port": "19533",
+  "user": "root",
+  "password": "password123",
+  "db_name": "wordnet_20250817"
+}
+```
+
+Przed przystąpieniem do przygotowywania embedingów należy zainicjować
+bazę, schematy, indeksy i kolekcje Milvusa za pomocą polecenia:
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config-pk.json \
+  --prepare-database
+```
+
+## Przygotowanie embeddingów
+
+### Embeddingi podstawowe 
+
+**Embeddingi podstawowe** budowane są na podstawie definicji jednostek leksykalnych.
+W trakcie budowy wykorzystywany jest **model embeddera semantycznego**, którego
+proces przygotowania przedstawiony jest wyżej.
+
+W pierwszym kroku budowane są ebeddingi _podstawowe dla przykładów_ z jednostek
+leksykalnych, a następnie bazując na _podstawowych embeddingach przykładów_ 
+budowane są _embeddingi podstawowe dla jednostek_. Podczas budowy embeddingu
+dla jednostki leksykalnej, brana jest pod uwagę strategia budowy (domyślnie `MEAN`).
+Aby przygotować embeddinig podstawowe i zapisać je do Milvusa należy wykonać polecenie:
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config.json 
+  --device="cuda:1" \
+  --log-level=INFO \
+  --prepare-base-embeddings \
+  --nx-graph-dir=/path/to/plwordnet/graphs
+```
+**UWAGA!** Ważne aby embeddingi z modelu liczyć na karcie graficznej (w przykładzie
+powyżej `--device="cuda:1"`), obliczenia na procesorze mogą być bardzo długie.
+
+Kolejnym krokiem jest przygotowanie _fake embeddingów dla jednostek leksykalnych_.
+Ponieważ wiele jednostek nie posiada przykładów/definicji, na podstawie których
+można zbudować embedding podstawowy, należy uzupełnić dziury bazując na relacji
+_synonimii_. W procesie powstają _fake embeddingi jednostek leksykalnych_, które
+są w relacji _synosnimii_ z innymi, które posiadają co najmniej jeden
+_podstawowy embedding jednostki leksykalnej_. Jeżeli jednostka nie ma w synsecie
+innej jednostki z _podstawowym embeddingiem_ to w tym kroku zostanie pominięta.
+Podczas tworzenia _fake embeddingów_ wykorzystywana jest strategia ich budowy,
+która domyślnie ustawiona jest na `MEAN`. Aby przygotować _fake-emeddinig_
+nalezy podać przełącznik `--insert-base-mean-empty-embeddings` 
+do `plwordnet-milvus`. Przykład całej komendy:
+
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config.json \
+  --insert-base-mean-empty-embeddings \
+  --nx-graph-dir=/path/to/plwordnet/graphs
+```
+
+---
+
+Oczywiście komendy można łączyć i wykonać jedno polecenie:
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config-pk.json \
+  --device="cuda:1" \
+  --log-level=INFO \
+  --prepare-database \
+  --prepare-base-embeddings \ 
+  --insert-base-mean-empty-embeddings \ 
+  --nx-graph-dir=/path/to/plwordnet/graphs
+```
+czyli:
+ - `--prepare-database` -- zainicjuje bazę danych (jeżeli nie ma)
+ - `--prepare-base-embeddings` -- przygotuje _embeddinig podstawowe_
+ - `--insert-base-mean-empty-embeddings` -- przygotuje _fake embeddingi_

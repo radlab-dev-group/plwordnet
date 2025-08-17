@@ -76,6 +76,12 @@ class EmbeddingMilvusConsumer:
                 model_name=model_name,
                 batch_size=batch_size,
             )
+        elif emb_type == EmbeddingTypes.Base.synset:
+            self.__process_synset(
+                embedding_dict=embedding_dict,
+                model_name=model_name,
+                batch_size=batch_size,
+            )
         else:
             raise ValueError(f"Unknown embedding type: {emb_type}")
         return True
@@ -170,3 +176,36 @@ class EmbeddingMilvusConsumer:
                 data=self._batch_lu, batch_size=len(self._batch_lu)
             )
             self._batch_lu = []
+
+    def __process_synset(
+        self, embedding_dict: Dict[str, Any], model_name: str, batch_size: int
+    ):
+        """
+        Process and batch a synset embedding for insertion into Milvus.
+
+        Extracts synset data from the embedding dictionary, formats it for Milvus
+        insertion, and adds it to the current batch. Automatically flushes the
+        batch to Milvus when the batch size limit is reached.
+
+        Args:
+            embedding_dict: Dictionary containing synset and embedding data
+            model_name: Name of the model used to generate the embedding
+            batch_size: Maximum number of items to accumulate before insertion
+        """
+
+        syn = embedding_dict["synset"]
+        item = {
+            "id": syn.ID,
+            "embedding": embedding_dict["embedding"],
+            "unitsstr": syn.unitsstr,
+            "model_name": model_name,
+            "type": str(embedding_dict.get("type", "")),
+            "strategy": str(embedding_dict.get("strategy", "")),
+        }
+        self._batch_syn.append(item)
+
+        if len(self._batch_syn) >= batch_size:
+            _inserted = self.milvus.insert_synset_embeddings(
+                data=self._batch_syn, batch_size=len(self._batch_syn)
+            )
+            self._batch_syn = []

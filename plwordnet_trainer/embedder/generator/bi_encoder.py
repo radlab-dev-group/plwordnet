@@ -60,7 +60,7 @@ class BiEncoderEmbeddingGenerator:
         show_progress_bar: bool = False,
         return_as_list: bool = False,
         truncate_text_to_max_len: bool = False,
-    ) -> List[Dict[str, torch.Tensor]] | List[torch.Tensor]:
+    ) -> List[Dict[str, torch.Tensor] | torch.Tensor]:
         """
         Generates embeddings for a given list of texts.
 

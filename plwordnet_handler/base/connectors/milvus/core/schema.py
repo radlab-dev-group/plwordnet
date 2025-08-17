@@ -9,13 +9,13 @@ MAX_TEXT_LEN = 6000
 
 class EmbeddingIndexType:
     IVF_FLAT = {
-        "metric_type": "L2",
+        "metric_type": "COSINE",
         "index_type": "IVF_FLAT",
         "params": {"nlist": 1536},
     }
 
     HNSW = {
-        "metric_type": "L2",
+        "metric_type": "COSINE",
         "index_type": "HNSW",
         "params": {"M": 8, "efConstruction": 64},
     }

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
-from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_trainer.embedder.generator.base_embeddings.lexical_unit_empty import (
     SemanticEmbeddingGeneratorEmptyLu,
 )

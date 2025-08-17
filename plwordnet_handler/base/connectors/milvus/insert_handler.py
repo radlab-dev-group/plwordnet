@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Union
 from pymilvus import MilvusException
 
 from plwordnet_handler.base.connectors.milvus.core.schema import MAX_TEXT_LEN
-from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_handler.base.connectors.milvus.core.base_connector import (
     MilvusBaseConnector,
 )

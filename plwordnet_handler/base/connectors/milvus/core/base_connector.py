@@ -28,6 +28,7 @@ class MilvusBaseConnector(ABC):
         config: Optional[MilvusConfig] = None,
         log_level: str = "INFO",
         logger_name: Optional[str] = None,
+        auto_connect: bool = False,
     ):
         """
         Initialize Milvus connection handler.
@@ -40,6 +41,10 @@ class MilvusBaseConnector(ABC):
             db_name: Database name
             config: MilvusConfig object (takes precedence over individual parameters)
             log_level: Logging level (Default is INFO)
+            auto_connect: Whether to automatically connect to Milvus
+
+        Raises:
+            MilvusException: If connection is failed and auto_connect is True.
         """
         if config:
             self.host = config.host
@@ -63,12 +68,18 @@ class MilvusBaseConnector(ABC):
             logger_name=logger_name or __name__, log_level=log_level
         )
 
+        if auto_connect:
+            self.connect()
+
     def connect(self) -> bool:
         """
         Establish connection to Milvus server.
 
         Returns:
             bool: True if the connection is successful, False otherwise
+
+        Raises:
+            MilvusException: If connection is failed.
         """
         try:
             connections.connect(

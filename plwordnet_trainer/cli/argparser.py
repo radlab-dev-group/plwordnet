@@ -43,20 +43,29 @@ def prepare_parser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--prepare-base-embeddings",
-        dest="prepare_base_embeddings",
+        "--prepare-base-embeddings-lu",
+        dest="prepare_base_embeddings_lu",
         default=False,
         action="store_true",
-        help="If option is given the base embeddings will be prepared.",
+        help="If option is given the base embeddings for lexical units "
+        "and its examples will be prepared. LU emb is mean of examples.",
     )
 
     parser.add_argument(
-        "--insert-base-mean-empty-embeddings",
-        dest="insert_mean_empty_base_embeddings",
+        "--prepare-base-mean-empty-embeddings-lu",
+        dest="prepare_mean_empty_base_embeddings_lu",
         default=False,
         action="store_true",
-        help="If option is given the mean base embedding will be "
-        "inserted in case when other LU from synset are available.",
+        help="If option is given the mean base embedding will be prepared "
+        "and inserted in Milvus in case when other LU from synset are available.",
+    )
+
+    parser.add_argument(
+        "--prepare-base-embeddings-synset",
+        dest="prepare_base_embeddings_synset",
+        default=False,
+        action="store_true",
+        help="If option is given the base embeddings for synset will be prepared.",
     )
 
     # -------------------------------------------------------------------------

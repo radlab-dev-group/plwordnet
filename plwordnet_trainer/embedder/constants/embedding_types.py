@@ -5,9 +5,11 @@ class EmbeddingTypes:
 
     class Base:
         """
-        Base embeddings, created from Lexical unit examples
+        Base embeddings, created from Lexical unit examples and synsets using
+        only embeddings from lexical units examples usage, definition, etc.
         """
 
         lu = "base_lu"
         lu_fake = "base_lu_fake"
         lu_example = "base_lu_example"
+        synset = "base_synset"

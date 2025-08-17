@@ -4,6 +4,9 @@ from plwordnet_trainer.cli.argparser import prepare_parser
 from plwordnet_trainer.cli.wrappers import CLIMilvusWrappers, Constants
 
 
+MILVUS_INSERT_BATCH_SIZE = 1000
+
+
 def main(argv=None):
     args = prepare_parser().parse_args(argv)
 
@@ -36,12 +39,20 @@ def main(argv=None):
             logger.error("Error while preparing plwordnet API.")
             return 1
 
-    # If --prepare-base-embedding is given
-    if args.prepare_base_embeddings:
-        cli_wrapper.prepare_base_embeddings(batch_size=1000)
+    # If --prepare-base-embedding-lu is given
+    if args.prepare_base_embeddings_lu:
+        cli_wrapper.prepare_base_embeddings_lu(batch_size=MILVUS_INSERT_BATCH_SIZE)
 
-    # If --insert-base-mean-empty-embeddings
-    if args.insert_mean_empty_base_embeddings:
-        cli_wrapper.insert_mean_empty_base_embeddings(batch_size=1000)
+    # If --prepare-base-mean-empty-embeddings
+    if args.prepare_mean_empty_base_embeddings_lu:
+        cli_wrapper.prepare_mean_empty_base_embeddings_lu(
+            batch_size=MILVUS_INSERT_BATCH_SIZE
+        )
+
+    # If --prepare-base-embeddings-synset
+    if args.prepare_base_embeddings_synset:
+        cli_wrapper.prepare_base_embeddings_synsets(
+            batch_size=MILVUS_INSERT_BATCH_SIZE
+        )
 
     return 0

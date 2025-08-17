@@ -119,9 +119,8 @@ class SemanticEmbeddingGeneratorEmptyLu(_AnySemanticEmbeddingGeneratorBase):
             Dict: Dictionary containing synset ID and status with 'found' and
             'not_found' lists of lexical unit IDs
         """
-
         self.logger.info(f"Preparing embeddings for LU with no base embeddings")
-        syn_lus = self._get_synsets_with_lu_ids_pos_filter()
+        syn_lus = self._get_units_and_synsets_with_pos(accepted_pos=self.accept_pos)
 
         with tqdm.tqdm(
             total=len(syn_lus),
@@ -141,45 +140,6 @@ class SemanticEmbeddingGeneratorEmptyLu(_AnySemanticEmbeddingGeneratorBase):
                         "not_found": not_found_lu_ids,
                     },
                 }
-
-    def _get_synsets_with_lu_ids_pos_filter(self):
-        """
-        Get synsets mapped to lexical unit IDs filtered by part-of-speech.
-
-        Retrieves all synset-to-lexical-unit mappings and filters lexical units
-        based on the accepted part-of-speech categories. Only includes synsets
-        that have at least one lexical unit matching the POS filter criteria.
-
-        Returns:
-            Dict[int, List[int]]: Mapping of synset IDs to lists
-            of filtered lexical unit IDs
-        """
-
-        self.logger.info(
-            f"Preparing synsets with LU ids with pos filtering: {self.accept_pos}"
-        )
-
-        synset_map = {}
-        lu_in_syn = self.pl_wordnet.get_units_and_synsets(return_mapping=True)
-        for s_id, lu_ids in lu_in_syn.items():
-            proper_ids = []
-            for _lu_id in lu_ids:
-                lu = self.pl_wordnet.get_lexical_unit(lu_id=_lu_id)
-                if lu is None:
-                    self.logger.warning(f"Lexical unit {_lu_id} not found")
-                    continue
-
-                if (
-                    self.accept_pos is not None
-                    and len(self.accept_pos)
-                    and lu.pos not in self.accept_pos
-                ):
-                    continue
-                proper_ids.append(lu.ID)
-            if len(proper_ids):
-                synset_map[s_id] = proper_ids
-
-        return synset_map
 
     def _prepare_embedding_for_empty_lu(self, lu_status):
         """

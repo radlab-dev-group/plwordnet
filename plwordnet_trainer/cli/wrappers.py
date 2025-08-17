@@ -1,10 +1,10 @@
 from typing import Optional
 
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
-
-from plwordnet_handler.utils.logger import prepare_logger
-from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_trainer.embedder.generator.base_embeddings.lexical_unit_empty import (
+    SemanticEmbeddingGeneratorEmptyLu,
+)
 from plwordnet_trainer.embedder.milvus.consumer import EmbeddingMilvusConsumer
 from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
 from plwordnet_handler.base.connectors.milvus.initializer import (
@@ -17,14 +17,15 @@ from plwordnet_handler.base.connectors.milvus.insert_handler import (
 from plwordnet_trainer.embedder.generator.bi_encoder import (
     BiEncoderEmbeddingGenerator,
 )
-from plwordnet_trainer.embedder.generator.lexical_unit import (
-    SemanticEmbeddingGenerator,
+from plwordnet_trainer.embedder.generator.base_embeddings.lexical_unit import (
+    SemanticEmbeddingGeneratorLuAndExamples,
 )
 
 
 class Constants:
     SPACY_MODEL_NAME = "pl_core_news_sm"
     LOG_FILENAME = "synset-embeddings.log"
+    ACCEPT_POS = [1, 2, 3, 4]
 
 
 class BiEncoderModelConfig:
@@ -107,17 +108,56 @@ class CLIMilvusWrappers(CLIWrapperBase):
         if args.prepare_base_embeddings:
             opts += 1
 
+        # if --insert-base-mean-empty-embeddings
+        if args.insert_mean_empty_base_embeddings:
+            opts += 1
+
         if opts == 0:
             raise TypeError(
+                "\n\n"
                 "No one option is given, please choose: \n"
                 "  --prepare-database - to prepare database,\n"
                 "  --prepare-base-embeddings - to prepare base embeddings,\n"
+                "  --insert-base-mean-empty-embeddings - insert mean-embeddings "
+                "for empty lu (without examples/base embedding)\n"
+                "  (...) \n"
                 "  --help to show all available options"
             )
 
         return True
 
+    def is_api_required(self) -> bool:
+        """
+        Check if API connection is required based on current arguments.
+
+        Determines whether an API connection to the WordNet database is needed
+        by evaluating the current command-line arguments and operations requested.
+
+        Returns:
+            bool: True if API connection is required, False otherwise
+        """
+        # --prepare-base-embeddings
+        if self.args.prepare_base_embeddings:
+            return True
+
+        # --insert-base-mean-empty-embeddings
+        if self.args.insert_mean_empty_base_embeddings:
+            return True
+
+        return False
+
     def prepare_database(self):
+        """
+        Initialize and prepare the Milvus database for WordNet operations.
+
+        Creates a Milvus schema initializer with the configured connection settings,
+        performs complete database initialization including collections and indexes,
+        then tests the connection status before disconnecting.
+
+        Raises:
+            Exception: If database initialization fails
+        """
+
         handler = MilvusWordNetSchemaInitializer(config=self.milvus_config)
         _initialized = handler.initialize()
         if not _initialized:
@@ -128,13 +168,35 @@ class CLIMilvusWrappers(CLIWrapperBase):
         handler.disconnect()
 
     def prepare_base_embeddings(self, batch_size: int = 1000):
+        """
+        Generate and insert base semantic embeddings into the Milvus database.
+
+        Creates an embedding consumer and semantic embedding embedding_generator to process
+        WordNet data and generate embeddings using a bi-encoder model. Processes
+        embeddings for accepted part-of-speech categories and inserts them into
+        the database in batches.
+
+        Args:
+            batch_size: Number of embeddings to process in each batch.
+            Defaults to 1000
+
+        Raises:
+            RuntimeError: If PlWordnet API or Milvus config is not initialized
+        """
+        if self.pl_wn is None:
+            raise RuntimeError("PlWordNet API is not initialized")
+
+        if self.milvus_config is None:
+            raise RuntimeError("Milvus config is not initialized!")
+
+        self.logger.info("Preparing embedding consumer")
         embedding_consumer = EmbeddingMilvusConsumer(
             milvus=MilvusWordNetInsertHandler(config=self.milvus_config),
             batch_size=batch_size,
         )
 
-        self.logger.info("PolishWordnet connected")
-        syn_emb_generator = SemanticEmbeddingGenerator(
+        self.logger.info("Preparing base LU/LU examples embeddings generator")
+        syn_emb_generator = SemanticEmbeddingGeneratorLuAndExamples(
             generator=BiEncoderEmbeddingGenerator(
                 model_path=BiEncoderModelConfig.MODEL_PATH,
                 model_name=BiEncoderModelConfig.MODEL_NAME,
@@ -149,14 +211,48 @@ class CLIMilvusWrappers(CLIWrapperBase):
             spacy_model_name=Constants.SPACY_MODEL_NAME,
             strategy=EmbeddingBuildStrategy.MEAN,
             max_workers=1,
-            accept_pos=[1, 2, 3, 4],
+            accept_pos=Constants.ACCEPT_POS,
         )
 
-        self.logger.info("SynsetEmbeddingGenerator created")
+        self.logger.info("Starting base-embeddings generation")
         for embeddings in syn_emb_generator.generate(split_to_sentences=True):
             for emb_dict in embeddings:
                 embedding_consumer.add_embedding(
                     embedding_dict=emb_dict,
                     model_name=BiEncoderModelConfig.MODEL_NAME,
                 )
+
+        # Insert missing (from not full batch)
+        embedding_consumer.flush()
+
+    def insert_mean_empty_base_embeddings(self, batch_size: int = 1000):
+        if self.pl_wn is None:
+            raise RuntimeError("PlWordNet API is not initialized")
+
+        if self.milvus_config is None:
+            raise RuntimeError("Milvus config is not initialized!")
+
+        self.logger.info("Preparing empty mean-embeddings generator")
+        empty_lu_generator = SemanticEmbeddingGeneratorEmptyLu(
+            milvus_config=self.milvus_config,
+            pl_wordnet=self.pl_wn,
+            strategy=EmbeddingBuildStrategy.MEAN,
+            log_level=self.args.log_level,
+            log_filename=Constants.LOG_FILENAME,
+            accept_pos=Constants.ACCEPT_POS,
+        )
+
+        self.logger.info("Preparing embedding consumer")
+        embedding_consumer = EmbeddingMilvusConsumer(
+            milvus=MilvusWordNetInsertHandler(config=self.milvus_config),
+            batch_size=batch_size,
+        )
+
+        self.logger.info("Starting empty-embeddings generation")
+        for emb_dict in empty_lu_generator.generate():
+            embedding_consumer.add_embedding(
+                embedding_dict=emb_dict,
+                model_name=BiEncoderModelConfig.MODEL_NAME,
+            )
+        # Insert missing (from not full batch)
         embedding_consumer.flush()

@@ -88,12 +88,15 @@ class ResourcePaths:
         return None
 
     @classmethod
-    def get_installed_graph_resources_path(cls, graph_type: str) -> Optional[Path]:
+    def get_installed_graph_resources_path(
+        cls, graph_type: str, debug: bool = False
+    ) -> Optional[Path]:
         """
         Get a path to a specific installed graph (or resource) file.
 
         Args:
             graph_type: Graph type: `full` or `test`
+            debug: Boolean flag to enable debug mode
 
         Returns:
             Path to a graph dir or None if not found graphs
@@ -106,7 +109,8 @@ class ResourcePaths:
         for g_file in cls.GRAPH_RESOURCES_FILES:
             graph_file = graphs_dir / g_file
             if not graph_file.exists():
-                print(f"Graph/resource file does not exist: {graph_file}")
+                if debug:
+                    print(f"Graph/resource file does not exist: {graph_file}")
                 return None
         return graphs_dir
 
@@ -126,6 +130,17 @@ class ResourcePaths:
 
     @classmethod
     def get_default_db_config(cls) -> Optional[Path]:
+        """
+        Get the default database configuration file path.
+
+        Retrieves the path to the default PLWordNet database configuration file
+        by combining the installed resources path with the default config filename.
+
+        Returns:
+            Optional[Path]: Path to the default database configuration file,
+            or None if the resource path cannot be determined
+        """
+
         res_path = cls.get_installed_resources_path()
         if res_path is None:
             return None
@@ -133,6 +148,18 @@ class ResourcePaths:
 
     @classmethod
     def get_default_milvus_db_config(cls) -> Optional[Path]:
+        """
+        Get the default Milvus database configuration file path.
+
+        Retrieves the path to the default PLWordNet Milvus database configuration
+        file by combining the installed resources path with the default Milvus
+        config filename.
+
+        Returns:
+            Optional[Path]: Path to the default Milvus configuration file,
+            or None if the resource path cannot be determined
+        """
+
         res_path = cls.get_installed_resources_path()
         if res_path is None:
             return None

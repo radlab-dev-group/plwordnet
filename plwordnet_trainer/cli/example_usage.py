@@ -13,7 +13,7 @@ python plwordnet-milvus --help
 
 -----------------------------------------------------------------------------------------
 
-# Initialize database(database, schemas, indexes, collections)
+# 1. Initialize database(database, schemas, indexes, collections)
 
 plwordnet-milvus 
     --log-level=DEBUG
@@ -22,7 +22,7 @@ plwordnet-milvus
 
 -----------------------------------------------------------------------------------------
 
-# Prepare base embeddings (this step have to be done before embeddings fusion)
+# 2. Prepare base embeddings (this step have to be done before embeddings fusion)
 (or --use-database to use MySQL instead of --nx-graphs-dir)
 
 plwordnet-milvus 
@@ -31,4 +31,14 @@ plwordnet-milvus
     --prepare-base-embeddings 
     --device="cuda:1"
 
+
+-----------------------------------------------------------------------------------------
+
+# 3. Insert embeddings for empty lexical units (without base embeddings)
+(mean embeddings for empty lexical units in case when any LU from synset is available)
+
+plwordnet-milvus 
+    --milvus-config=resources/milvus-config-pk.json 
+    --nx-graph-dir=path/to/networkx/graphs
+    --insert-base-mean-empty-embeddings
 """

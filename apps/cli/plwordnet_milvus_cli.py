@@ -4,8 +4,8 @@ from plwordnet_trainer.cli.argparser import prepare_parser
 from plwordnet_trainer.cli.wrappers import CLIMilvusWrappers, Constants
 
 
-def main():
-    args = prepare_parser().parse_args()
+def main(argv=None):
+    args = prepare_parser().parse_args(argv)
 
     logger = prepare_logger(
         logger_name=__name__,
@@ -20,16 +20,9 @@ def main():
         log_level=args.log_level,
         log_filename=Constants.LOG_FILENAME,
     )
-    # try:
-    #     cli_wrapper = CLIMilvusWrappers(
-    #         args=args,
-    #         verify_args=True,
-    #         log_level=args.log_level,
-    #         log_filename=Constants.LOG_FILENAME,
-    #     )
-    # except Exception as ex:
-    #     logger.error(ex)
-    #     return 1
+
+    logger.info("Starting plwordnet-milvus")
+    logger.debug(f"Arguments: {vars(args)}")
 
     # The highest priority has schema initialization
     if args.prepare_database:
@@ -37,11 +30,18 @@ def main():
             logger.error("Error while preparing plwordnet Milvus database")
             return 1
 
+    # Initialize api if is required
+    if cli_wrapper.is_api_required():
+        if cli_wrapper.prepare_wordnet_based_on_args(use_memory_cache=True) is None:
+            logger.error("Error while preparing plwordnet API.")
+            return 1
+
     # If --prepare-base-embedding is given
     if args.prepare_base_embeddings:
-        # plwn api is required
-        if cli_wrapper.prepare_wordnet_based_on_args(use_memory_cache=True) is None:
-            return 1
         cli_wrapper.prepare_base_embeddings(batch_size=1000)
+
+    # If --insert-base-mean-empty-embeddings
+    if args.insert_mean_empty_base_embeddings:
+        cli_wrapper.insert_mean_empty_base_embeddings(batch_size=1000)
 
     return 0

@@ -74,22 +74,34 @@ class GeneralMapper:
 
 
 @dataclass
-class GeneralElem(ABC):
+class BaseGeneralElem(ABC):
     """
     Abstract base class for general elements in the Polish WordNet structure.
+
+    Attributes:
+        ID (int): Unique identifier for the element
+
+    """
+
+    ID: int
+
+
+@dataclass
+class GeneralElem(BaseGeneralElem, ABC):
+    """
+    Abstract base class for general elements in the Polish WordNet structure
+    with error comment and parsed comment.
 
     This class defines the common attributes and interface that all elements
     must implement. It serves as a template for concrete element implementations.
 
     Attributes:
-        ID (int): Unique identifier for the element
         status (int): Status code of the element
         owner (str): Owner identifier for the element
         error_comment (str): Error comment associated with the element
         comment (ParsedComment): Parsed comment object containing additional metadata
     """
 
-    ID: int
     status: int
     owner: str
     error_comment: str

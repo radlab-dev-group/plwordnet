@@ -54,7 +54,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             lu_id: Lexical unit ID to search for
 
         Returns:
-            Optional[Dict[str, Any]]] Dictionary containing search results
+            Optional[Dict[str, Any]] Dictionary containing search results
             with embeddings and metadata, or None if any error occurs.
 
         Note:
@@ -64,7 +64,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
         try:
             collection = self._get_lu_collection()
 
-            expr = f"id == {lu_id}"
+            expr = f"lu_id == {lu_id}"
             results = collection.query(
                 expr=expr,
                 output_fields=_MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS,
@@ -89,14 +89,14 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
 
     def get_lexical_unit_examples_embeddings(
         self,
-        lex_id: int,
+        lu_id: int,
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Retrieve lexical unit examples embeddings by LEX_ID
         from the lexical units examples collection.
 
         Args:
-            lex_id: Lexical unit ID (LEX_ID) to search for in lexical
+            lu_id: Lexical unit ID (LEX_ID) to search for in lexical
             units examples collection
 
         Returns:
@@ -110,7 +110,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
         """
         try:
             collection = self._get_lu_examples_collection()
-            expr = f"id == {lex_id}"
+            expr = f"lu_id == {lu_id}"
             results = collection.query(
                 expr=expr,
                 output_fields=_MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS,
@@ -120,7 +120,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             return results
         except MilvusException as e:
             self.logger.error(
-                f"Failed to retrieve lexical unit examples for LEX_ID {lex_id}: {e}"
+                f"Failed to retrieve lexical unit examples for LEX_ID {lu_id}: {e}"
             )
             return None
         except Exception as e:
@@ -151,10 +151,16 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             self.logger.warning("Empty lu_ids list provided")
             return []
 
+        if len(lu_ids) == 1:
+            lu_e = self.get_lexical_unit_embedding(lu_id=lu_ids[0])
+            if lu_e is not None:
+                return [lu_e]
+            return []
+
         try:
             collection = self._get_lu_collection()
             ids_str = ", ".join(str(lu_id) for lu_id in lu_ids)
-            expr = f"id in [{ids_str}]"
+            expr = f"lu_id in [{ids_str}]"
             results = collection.query(
                 expr=expr, output_fields=_MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS
             )
@@ -172,7 +178,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
     def get_lexical_units_examples_embedding(
         self,
         lex_ids: List[int],
-    ) -> List[Dict[str, Any]]:
+    ) -> List[List[Dict[str, Any]]]:
         """
         Retrieve lexical unit examples embeddings by list of LEX_IDs
         from the lexical units examples collection.
@@ -182,8 +188,8 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             for in the lexical units examples collection
 
         Returns:
-            List[Dict[str, Any]]: List of dictionaries containing search results
-            with embeddings and metadata for all found LEX_IDs
+            List[List[Dict[str, Any]]]: List of dictionaries containing
+            search results with embeddings and metadata for all found LEX_IDs
 
         Note:
             Searches by exact LEX_ID match in the lexical unit examples collection.
@@ -193,10 +199,16 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             self.logger.warning("Empty lex_ids list provided")
             return []
 
+        if len(lex_ids) == 1:
+            lu_e = self.get_lexical_unit_examples_embeddings(lu_id=lex_ids[0])
+            if lu_e is not None:
+                return [lu_e]
+            return []
+
         try:
             collection = self._get_lu_examples_collection()
             ids_str = ", ".join(str(lex_id) for lex_id in lex_ids)
-            expr = f"id in [{ids_str}]"
+            expr = f"lu_id in [{ids_str}]"
             results = collection.query(
                 expr=expr, output_fields=_MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS
             )

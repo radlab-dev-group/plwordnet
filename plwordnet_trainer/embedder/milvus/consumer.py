@@ -1,5 +1,6 @@
 from typing import Dict, Any
 
+from plwordnet_trainer.embedder.constants.embedding_types import EmbeddingTypes
 from plwordnet_handler.base.connectors.milvus.insert_handler import (
     MilvusWordNetInsertHandler,
 )
@@ -57,13 +58,19 @@ class EmbeddingMilvusConsumer:
         if batch_size is None:
             batch_size = self.batch_size
 
-        if emb_type == "lu_example":
+        if emb_type == EmbeddingTypes.Base.lu_example:
             self.__process_lu_example(
                 embedding_dict=embedding_dict,
                 model_name=model_name,
                 batch_size=batch_size,
             )
-        elif emb_type == "lu":
+        elif emb_type == EmbeddingTypes.Base.lu:
+            self.__process_lu(
+                embedding_dict=embedding_dict,
+                model_name=model_name,
+                batch_size=batch_size,
+            )
+        elif emb_type == EmbeddingTypes.Base.lu_fake:
             self.__process_lu(
                 embedding_dict=embedding_dict,
                 model_name=model_name,
@@ -109,19 +116,21 @@ class EmbeddingMilvusConsumer:
         Args:
             embedding_dict: Dictionary containing lexical unit example data
             model_name: Name of the model used to generate the embedding
+            batch_size: Batch size for inserting embeddings
         """
-        lu = embedding_dict["lu"]
         text = embedding_dict["texts"]
-        embedding = embedding_dict["embedding"].cpu().numpy()
         if not len(text) or not len(text[0].strip()):
             return
         text = text[0].strip()
 
+        lu = embedding_dict["lu"]
         item = {
             "id": lu.ID,
-            "embedding": embedding,
+            "embedding": embedding_dict["embedding"],
             "example": text,
             "model_name": model_name,
+            "type": embedding_dict.get("type", ""),
+            "strategy": embedding_dict.get("strategy", ""),
         }
         self._batch_lu_e.append(item)
 
@@ -140,18 +149,19 @@ class EmbeddingMilvusConsumer:
         Args:
             embedding_dict: Dictionary containing lexical unit data
             model_name: Name of the model used to generate the embedding
+            batch_size: Batch size for inserting embeddings
         """
         lu = embedding_dict["lu"]
-        embedding = embedding_dict["embedding"].cpu().numpy()
-
         item = {
             "id": lu.ID,
-            "embedding": embedding,
+            "embedding": embedding_dict["embedding"],
             "lemma": lu.lemma,
             "pos": lu.pos,
             "domain": lu.domain,
             "variant": lu.variant,
             "model_name": model_name,
+            "type": embedding_dict.get("type", ""),
+            "strategy": embedding_dict.get("strategy", ""),
         }
         self._batch_lu.append(item)
 

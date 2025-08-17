@@ -139,7 +139,7 @@ plwordnet-milvus \
   --milvus-config=resources/milvus-config.json 
   --device="cuda:1" \
   --log-level=INFO \
-  --prepare-base-embeddings \
+  --prepare-base-embeddings-lu \
   --nx-graph-dir=/path/to/plwordnet/graphs
 ```
 **UWAGA!** Ważne aby embeddingi z modelu liczyć na karcie graficznej (w przykładzie
@@ -154,13 +154,31 @@ _podstawowy embedding jednostki leksykalnej_. Jeżeli jednostka nie ma w synseci
 innej jednostki z _podstawowym embeddingiem_ to w tym kroku zostanie pominięta.
 Podczas tworzenia _fake embeddingów_ wykorzystywana jest strategia ich budowy,
 która domyślnie ustawiona jest na `MEAN`. Aby przygotować _fake-emeddinig_
-nalezy podać przełącznik `--insert-base-mean-empty-embeddings` 
+nalezy podać przełącznik `--prepare-base-mean-empty-embeddings-lu` 
 do `plwordnet-milvus`. Przykład całej komendy:
 
 ```bash
 plwordnet-milvus \
   --milvus-config=resources/milvus-config.json \
-  --insert-base-mean-empty-embeddings \
+  --prepare-base-mean-empty-embeddings-lu \
+  --nx-graph-dir=/path/to/plwordnet/graphs
+```
+
+Kolejnym krokiem jest przygotowanie podstawowych embeddingów dla synsetów z ważoną strategią budowy.
+Synsety budowane są w oparciu o reprezentacje jednostek podstawowych (również fake).
+Ważenie uwzględnia moc embeddingu jednostki leksykalnej wyrażonej w postaci liczby embeddingów
+z przykładami użycia tej jednostki -- im więcej przykładów ma jednostka, 
+tym mocniej uczestniczy w budowie. Dodatkowy współczynnik wygładzający
+`embedder.generator.base_embeddings.SemanticEmbeddingGeneratorSynset.SMOOTH_FACTOR`
+nie eliminuje przypadków, kiedy jednostka nie posiada przykładów, ale posiada embedding 
+(jest to wspominana wcześniej **fake jednostka**) -- taka jednostka ma udział w propagacji 
+na synset, jednak posiada najmniejszy wpływ. Aby dodać podstawowe embeddingi dla synsetów
+należy wywołać `plwordnet-milvus` CLI z parametrem `--prepare-base-embeddings-synset`:
+
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config.json \
+  --prepare-base-embeddings-synset \
   --nx-graph-dir=/path/to/plwordnet/graphs
 ```
 
@@ -173,11 +191,13 @@ plwordnet-milvus \
   --device="cuda:1" \
   --log-level=INFO \
   --prepare-database \
-  --prepare-base-embeddings \ 
-  --insert-base-mean-empty-embeddings \ 
+  --prepare-base-embeddings-lu \
+  --prepare-base-mean-empty-embeddings-lu \
+  --prepare-base-embeddings-synset \
   --nx-graph-dir=/path/to/plwordnet/graphs
 ```
 czyli:
  - `--prepare-database` -- zainicjuje bazę danych (jeżeli nie ma)
- - `--prepare-base-embeddings` -- przygotuje _embeddinig podstawowe_
- - `--insert-base-mean-empty-embeddings` -- przygotuje _fake embeddingi_
+ - `--prepare-base-embeddings-lu` -- przygotuje embeddinig podstawowe dla jednostek
+ - `--insert-base-mean-empty-embeddings-lu` -- przygotuje podstawowe fake embeddingi dla jednostek
+ - `--prepare-base-embeddings-synset` -- przygotowuje podstawowe embeddingi synsetów

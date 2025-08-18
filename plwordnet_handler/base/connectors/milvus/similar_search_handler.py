@@ -1,4 +1,6 @@
+import torch
 import numpy as np
+
 from pymilvus import MilvusException
 from typing import Dict, Any, List, Optional, Union
 
@@ -21,9 +23,38 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
     optional filtering of results.
     """
 
+    @classmethod
+    def from_config_file(
+        cls, config_path: str
+    ) -> "MilvusWordNetSemanticSearchHandler":
+        """
+        Create a MilvusWordNetSemanticSearchHandler instance
+        from a configuration file.
+
+        Loads Milvus configuration from a JSON file and creates a new instance of the
+        semantic search handler with the loaded configuration settings. This factory
+        method provides a convenient way to initialize the handler with predefined
+        connection parameters.
+
+        Args:
+            config_path: Path to the JSON configuration file containing Milvus
+            connection settings (host, port, credentials, etc.)
+
+        Returns:
+            MilvusWordNetSemanticSearchHandler: Handler instance configured with
+            settings from the specified configuration file
+
+        Raises:
+            FileNotFoundError: If the configuration file doesn't exist
+            json.JSONDecodeError: If the JSON configuration file is invalid
+            KeyError: If required configuration keys are missing from the file
+        """
+        config = MilvusConfig.from_json_file(config_path)
+        return cls(config=config)
+
     def search_most_similar_lu(
         self,
-        query_embedding: Union[List[float], np.ndarray],
+        query_embedding: Union[List[float], np.ndarray, torch.Tensor],
         top_k: int,
         metric_type: str = "COSINE",
         filters: Optional[Dict[str, Any]] = None,
@@ -37,7 +68,7 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
 
         Args:
             query_embedding: Query query_embedding vector as a list of floats
-            or numpy array
+            or numpy array or torch.Tensor
             top_k: Maximum number of similar results to return
             metric_type: Similarity metric to use (default: "COSINE")
             filters: Optional dictionary of field-value pairs for filtering results
@@ -70,20 +101,23 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
 
     def search_most_similar_lu_examples(
         self,
-        query_embedding: Union[List[float], np.ndarray],
+        query_embedding: Union[List[float], np.ndarray, torch.Tensor],
         top_k: int,
         metric_type: str = "COSINE",
         filters: Optional[Dict[str, Any]] = None,
     ) -> Optional[List[Dict[str, Any]]]:
         """
-        Search for most similar lexical unit example embeddings using vector similarity.
+        Search for most similar lexical unit example embeddings
+        using vector similarity.
 
         Performs a vector similarity search in the lexical unit examples collection
-        to find the most semantically similar examples to the provided query_embedding vector.
-        Results are ranked by similarity score and limited to top_k entries.
+        to find the most semantically similar examples to the provided
+        query_embedding vector. Results are ranked by similarity score
+        and limited to top_k entries.
 
         Args:
-            query_embedding: Query query_embedding vector as a list of floats or numpy array
+            query_embedding: Query query_embedding vector as
+            a list of floats or numpy array or torch.Tensor
             top_k: Maximum number of similar results to return
             metric_type: Similarity metric to use (default: "COSINE")
             filters: Optional dictionary of field-value pairs for filtering results
@@ -118,7 +152,7 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
 
     def search_most_similar_synsets(
         self,
-        query_embedding: Union[List[float], np.ndarray],
+        query_embedding: Union[List[float], np.ndarray, torch.Tensor],
         top_k: int,
         metric_type: str = "COSINE",
         filters: Optional[Dict[str, Any]] = None,
@@ -131,7 +165,8 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
         Results are ranked by similarity score and limited to top_k entries.
 
         Args:
-            query_embedding: Query query_embedding vector as list of floats or numpy array
+            query_embedding: Query query_embedding vector as
+            a list of floats or numpy array or torch.Tensor
             top_k: Maximum number of similar results to return
             metric_type: Similarity metric to use (default: "COSINE")
             filters: Optional dictionary of field-value pairs for filtering results
@@ -164,10 +199,10 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
             )
             return None
 
-    @staticmethod
     def _execute_search_query_on_collection(
+        self,
         collection,
-        query_embedding: Union[List[float], np.ndarray],
+        query_embedding: Union[List[float], np.ndarray, torch.Tensor],
         top_k: int,
         output_fields: List[str],
         metric_type: str = "COSINE",
@@ -182,7 +217,8 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
 
         Args:
             collection: Milvus collection object to search in
-            query_embedding: Query query_embedding vector as list of floats or numpy array
+            query_embedding: Query query_embedding vector
+            as list of floats or numpy array or torch.Tensor
             top_k: Maximum number of similar results to return
             output_fields: List of field names to include in search results
             metric_type: Similarity metric to use (default: "COSINE")
@@ -197,8 +233,10 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
             filter expressions from the "filters" dictionary using field-value
             equality conditions joined with logical AND operators.
         """
-        if isinstance(query_embedding, np.ndarray):
-            query_embedding = query_embedding.tolist()
+
+        query_embedding = self.__proper_query_embedding(
+            query_embedding=query_embedding
+        )
 
         search_params = {"metric_type": metric_type, "params": {"nprobe": 10}}
 
@@ -223,31 +261,10 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
 
         return [hit.entity.to_dict() for hit in results[0]]
 
-    @classmethod
-    def from_config_file(
-        cls, config_path: str
-    ) -> "MilvusWordNetSemanticSearchHandler":
-        """
-        Create a MilvusWordNetSemanticSearchHandler instance
-        from a configuration file.
-
-        Loads Milvus configuration from a JSON file and creates a new instance of the
-        semantic search handler with the loaded configuration settings. This factory
-        method provides a convenient way to initialize the handler with predefined
-        connection parameters.
-
-        Args:
-            config_path: Path to the JSON configuration file containing Milvus
-            connection settings (host, port, credentials, etc.)
-
-        Returns:
-            MilvusWordNetSemanticSearchHandler: Handler instance configured with
-            settings from the specified configuration file
-
-        Raises:
-            FileNotFoundError: If the configuration file doesn't exist
-            json.JSONDecodeError: If the JSON configuration file is invalid
-            KeyError: If required configuration keys are missing from the file
-        """
-        config = MilvusConfig.from_json_file(config_path)
-        return cls(config=config)
+    @staticmethod
+    def __proper_query_embedding(query_embedding):
+        if isinstance(query_embedding, np.ndarray):
+            query_embedding = query_embedding.tolist()
+        elif isinstance(query_embedding, torch.Tensor):
+            query_embedding = query_embedding.tolist()
+        return query_embedding

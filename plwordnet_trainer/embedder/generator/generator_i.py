@@ -8,7 +8,7 @@ from plwordnet_trainer.embedder.generator.strategy import (
     StrategyProcessor,
 )
 
-from plwordnet_trainer.embedder.generator.bi_encoder import (
+from plwordnet_trainer.embedder.bi_encoder import (
     BiEncoderEmbeddingGenerator,
 )
 

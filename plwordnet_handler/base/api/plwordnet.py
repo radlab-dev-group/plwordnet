@@ -75,7 +75,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
             - When memory cache is enabled, stores the retrieved lexical unit
               in the cache for future requests
             - Note: There appears to be a cache key inconsistency where retrieval
-              uses "get_lexical_unit" but storage uses "get_lexical_units"
+              uses "get_lexical_unit" but storage uses "get_lexical_unit"
 
         Performance:
             - First call: Fetches from a data source via connector
@@ -88,9 +88,9 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         lu = self.connector.get_lexical_unit(lu_id=lu_id)
         if self.use_memory_cache:
-            if "get_lexical_units" not in self.__mem__cache_:
-                self.__mem__cache_["get_lexical_units"] = {}
-            self.__mem__cache_["get_lexical_units"][lu_id] = lu
+            if "get_lexical_unit" not in self.__mem__cache_:
+                self.__mem__cache_["get_lexical_unit"] = {}
+            self.__mem__cache_["get_lexical_unit"][lu_id] = lu
         return lu
 
     def get_lexical_units(

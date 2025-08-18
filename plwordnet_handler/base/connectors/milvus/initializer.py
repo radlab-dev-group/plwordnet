@@ -11,7 +11,7 @@ from typing import Optional
 
 from pymysql import NotSupportedError
 
-from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_handler.base.connectors.milvus.core.base_connector import (
     MilvusBaseConnector,
 )

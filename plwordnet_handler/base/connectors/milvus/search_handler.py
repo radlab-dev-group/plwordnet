@@ -1,45 +1,13 @@
 from pymilvus import MilvusException
 from typing import Dict, Any, List, Optional
 
-from plwordnet_handler.base.connectors.milvus.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
+from plwordnet_handler.base.connectors.milvus.core.search_fields import (
+    MilvusSearchFields,
+)
 from plwordnet_handler.base.connectors.milvus.core.base_connector import (
     MilvusBaseConnector,
 )
-
-
-class _MilvusSearchFields:
-    """
-    Configuration class for Milvus search output fields.
-
-    Defines the standard field sets that should be returned from Milvus queries
-    for different types of WordNet embeddings, ensuring consistent data retrieval
-    across different search operations.
-    """
-
-    # List of base_lu_embedding Milvus fields returned from the query
-    LU_EMBEDDING_OUT_FIELDS = [
-        "id",
-        "lu_id",
-        "embedding",
-        "lemma",
-        "pos",
-        "domain",
-        "variant",
-        "model_name",
-        "type",
-        "strategy",
-    ]
-
-    # List of base_lu_embedding_examples Milvus fields returned from the query
-    LU_EXAMPLES_OUT_FIELDS = [
-        "id",
-        "lu_id",
-        "embedding",
-        "example",
-        "model_name",
-        "type",
-        "strategy",
-    ]
 
 
 class MilvusWordNetSearchHandler(MilvusBaseConnector):
@@ -80,7 +48,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             expr = f"lu_id == {lu_id}"
             results = collection.query(
                 expr=expr,
-                output_fields=_MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS,
+                output_fields=MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS,
                 limit=self.LU_LIMIT_FACTOR,
             )
             if not results:
@@ -127,7 +95,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
             expr = f"lu_id == {lu_id}"
             results = collection.query(
                 expr=expr,
-                output_fields=_MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS,
+                output_fields=MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS,
                 limit=self.LU_LIMIT_FACTOR,
             )
             if not results:
@@ -175,7 +143,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
                 collection=self._get_lu_collection(),
                 lu_ids=lu_ids,
                 map_to_lexical_units=map_to_lexical_units,
-                output_fields=_MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS,
+                output_fields=MilvusSearchFields.LU_EMBEDDING_OUT_FIELDS,
             )
         except MilvusException as e:
             self.logger.error(
@@ -219,7 +187,7 @@ class MilvusWordNetSearchHandler(MilvusBaseConnector):
                 collection=self._get_lu_examples_collection(),
                 lu_ids=lu_ids,
                 map_to_lexical_units=map_to_lexical_units,
-                output_fields=_MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS,
+                output_fields=MilvusSearchFields.LU_EXAMPLES_OUT_FIELDS,
             )
         except MilvusException as e:
             self.logger.error(

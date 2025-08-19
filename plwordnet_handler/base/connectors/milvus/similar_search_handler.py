@@ -245,7 +245,7 @@ class MilvusWordNetSemanticSearchHandler(MilvusWordNetSearchHandler):
             filter_conditions = []
             for field, value in filters.items():
                 if isinstance(value, str):
-                    filter_conditions.append(f'{field} == "{value}"')
+                    filter_conditions.append(f'{field} LIKE "{value}"')
                 else:
                     filter_conditions.append(f"{field} == {value}")
             expr = " && ".join(filter_conditions)

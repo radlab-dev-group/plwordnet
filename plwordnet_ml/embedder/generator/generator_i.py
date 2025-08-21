@@ -3,12 +3,12 @@ from typing import Dict, Iterator, Any, Optional, List
 
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.utils.logger import prepare_logger
-from plwordnet_trainer.embedder.generator.strategy import (
+from plwordnet_ml.embedder.generator.strategy import (
     EmbeddingBuildStrategy,
     StrategyProcessor,
 )
 
-from plwordnet_trainer.embedder.generator.bi_encoder import (
+from plwordnet_ml.embedder.bi_encoder import (
     BiEncoderEmbeddingGenerator,
 )
 

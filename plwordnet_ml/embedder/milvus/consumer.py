@@ -1,6 +1,6 @@
 from typing import Dict, Any
 
-from plwordnet_trainer.embedder.constants.embedding_types import EmbeddingTypes
+from plwordnet_ml.embedder.constants.embedding_types import EmbeddingTypes
 from plwordnet_handler.base.connectors.milvus.insert_handler import (
     MilvusWordNetInsertHandler,
 )

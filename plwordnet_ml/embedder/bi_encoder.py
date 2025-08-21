@@ -4,7 +4,7 @@ from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
 
 from plwordnet_handler.utils.logger import prepare_logger
-from plwordnet_trainer.embedder.model_config import BiEncoderModelConfig
+from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 
 
 class BiEncoderEmbeddingGenerator:

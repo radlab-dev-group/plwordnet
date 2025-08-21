@@ -3,12 +3,12 @@ from typing import Iterator, Dict, Any, Optional, List
 
 from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
-from plwordnet_trainer.embedder.constants.embedding_types import EmbeddingTypes
-from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
+from plwordnet_ml.embedder.constants.embedding_types import EmbeddingTypes
+from plwordnet_ml.embedder.generator.strategy import EmbeddingBuildStrategy
 from plwordnet_handler.base.connectors.milvus.search_handler import (
     MilvusWordNetSearchHandler,
 )
-from plwordnet_trainer.embedder.generator.generator_i import (
+from plwordnet_ml.embedder.generator.generator_i import (
     _AnySemanticEmbeddingGeneratorBase,
 )
 

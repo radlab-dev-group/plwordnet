@@ -1,7 +1,7 @@
 from plwordnet_handler.utils.logger import prepare_logger
 
-from plwordnet_trainer.cli.argparser import prepare_parser
-from plwordnet_trainer.cli.wrappers import CLIMilvusWrappers, Constants
+from plwordnet_ml.cli.argparser import prepare_parser
+from plwordnet_ml.cli.wrappers import CLIMilvusWrappers, Constants
 
 
 MILVUS_INSERT_BATCH_SIZE = 1000

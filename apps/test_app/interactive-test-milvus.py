@@ -5,9 +5,9 @@ from typing import List
 from transformers import AutoTokenizer
 
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
-from plwordnet_trainer.embedder.model_config import BiEncoderModelConfig
+from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
-from plwordnet_trainer.embedder.bi_encoder import BiEncoderEmbeddingGenerator
+from plwordnet_ml.embedder.bi_encoder import BiEncoderEmbeddingGenerator
 from plwordnet_handler.base.connectors.db.db_loader import connect_to_mysql_database
 from plwordnet_handler.base.connectors.milvus.similar_search_handler import (
     MilvusWordNetSemanticSearchHandler,

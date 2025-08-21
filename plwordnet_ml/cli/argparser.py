@@ -1,8 +1,8 @@
 import argparse
 
-from plwordnet_trainer.cli.example_usage import EXAMPLE_USAGE
+from plwordnet_ml.cli.example_usage import EXAMPLE_USAGE
 from plwordnet_handler.cli.base_argparser import prepare_base_parser
-from plwordnet_trainer.cli.constants import DEFAULT_MILVUS_DB_CFG_PATH
+from plwordnet_ml.cli.constants import DEFAULT_MILVUS_DB_CFG_PATH
 
 
 def prepare_parser() -> argparse.ArgumentParser:

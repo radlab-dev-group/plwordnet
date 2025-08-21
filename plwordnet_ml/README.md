@@ -35,7 +35,7 @@ na zdania, mocno zaleca się wykorzystanie wielowątkowości (przełącznik `--n
 ustawionym `--batch-size`). Dla przykładu (z `--train-ratio=0.93` -- `93%` trening, `7%` walidacja):
 
 ```bash
-python3 plwordnet_trainer/embedder/apps/convert-plwn-dump-to-dataset.py \
+python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py \
 	--jsonl-path=resources/emb_dataset/raw-embedding-dump-ratio-1.2-w-synonymy.jsonl \
 	--output-dir=resources/emb_dataset/embedding-dump-ratio-1.2-w-synonymy/embedder_nosent_train-0.93 \
 	--train-ratio=0.93
@@ -45,7 +45,7 @@ lub z właczaonym podziałem na zdania i wielowątkowością (czas konwersji ~3 
 bez wielowątkości 30-50 godzin):
 
 ```bash
-python3 plwordnet_trainer/embedder/apps/convert-plwn-dump-to-dataset.py \
+python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py \
 	--jsonl-path=resources/emb_dataset/raw-embedding-dump-ratio-1.2-w-synonymy.jsonl \
 	--output-dir=resources/emb_dataset/embedding-dump-ratio-1.2-w-synonymy/embedder_sentsplit_train-0.93 \
 	--train-ratio=0.93 \

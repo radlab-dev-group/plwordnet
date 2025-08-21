@@ -1,5 +1,5 @@
 """
-python3 plwordnet_trainer/embedder/apps/convert-plwn-dump-to-dataset.py
+python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py
     --jsonl-path=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/raw-embedding-dump-ratio-1.2-w-synonymy.jsonl
     --output-dir=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/embedder_sentsplit_train-0.93
     --train-ratio=0.93

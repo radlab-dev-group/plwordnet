@@ -1,14 +1,14 @@
 from typing import Optional
 
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
-from plwordnet_trainer.embedder.bi_encoder import BiEncoderEmbeddingGenerator
+from plwordnet_ml.embedder.bi_encoder import BiEncoderEmbeddingGenerator
 from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
-from plwordnet_trainer.embedder.milvus.consumer import EmbeddingMilvusConsumer
-from plwordnet_trainer.embedder.generator.strategy import EmbeddingBuildStrategy
-from plwordnet_trainer.embedder.generator.base_embeddings.lexical_unit_empty import (
+from plwordnet_ml.embedder.milvus.consumer import EmbeddingMilvusConsumer
+from plwordnet_ml.embedder.generator.strategy import EmbeddingBuildStrategy
+from plwordnet_ml.embedder.generator.base_embeddings.lexical_unit_empty import (
     SemanticEmbeddingGeneratorEmptyLu,
 )
-from plwordnet_trainer.embedder.generator.base_embeddings.synset import (
+from plwordnet_ml.embedder.generator.base_embeddings.synset import (
     SemanticEmbeddingGeneratorSynset,
 )
 from plwordnet_handler.base.connectors.milvus.initializer import (
@@ -18,7 +18,7 @@ from plwordnet_handler.base.connectors.milvus.insert_handler import (
     MilvusWordNetInsertHandler,
 )
 
-from plwordnet_trainer.embedder.generator.base_embeddings.lexical_unit import (
+from plwordnet_ml.embedder.generator.base_embeddings.lexical_unit import (
     SemanticEmbeddingGeneratorLuAndExamples,
 )
 

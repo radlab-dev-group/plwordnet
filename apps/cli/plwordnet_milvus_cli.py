@@ -60,4 +60,9 @@ def main(argv=None):
         if not cli_wrapper.export_relgat_mapping_to_directory():
             logger.error("Error while exporting RelGAT mapping to directory")
 
+    # if --export-relgat-dataset
+    if args.export_relgat_dataset:
+        if not cli_wrapper.export_relgat_dataset_to_directory():
+            logger.error("Error while exporting RelGAT mapping to directory")
+
     return 0

@@ -64,6 +64,7 @@ class MilvusBaseConnector(ABC):
         self.lu_examples_collection = None
 
         self.log_level = log_level
+        self.logger_name = logger_name
         self.logger = prepare_logger(
             logger_name=logger_name or __name__, log_level=log_level
         )

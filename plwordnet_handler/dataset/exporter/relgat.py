@@ -28,8 +28,8 @@ class RelGATExporter:
         self._units_and_synsets = []
         self.logger = prepare_logger(
             logger_name=__name__,
-            log_level=self.plwn_api.log_level,
-            logger_file_name=self.plwn_api.log_file_name,
+            log_level=self.milvus_handler.log_level,
+            logger_file_name=self.milvus_handler.logger_name,
         )
 
     def export(self):
@@ -38,6 +38,8 @@ class RelGATExporter:
         data_aligner = RelGATDatasetIdentifiersAligner(
             plwn_api=self.plwn_api,
             prepare_mapping=True,
+            log_level=self.milvus_handler.log_level,
+            logger_file_name=self.milvus_handler.logger_name,
         )
 
         raise NotImplementedError("Not implemented yet")

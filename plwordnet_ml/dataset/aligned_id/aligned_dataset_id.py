@@ -17,6 +17,8 @@ class RelGATDatasetIdentifiersAligner:
         plwn_api: Optional[PolishWordnet] = None,
         prepare_mapping: bool = False,
         mapping_path: Optional[str] = None,
+        log_level: Optional[str] = "INFO",
+        logger_file_name: Optional[str] = None,
     ):
         self.plwn_api = plwn_api
         self.mapping_path = mapping_path
@@ -39,8 +41,8 @@ class RelGATDatasetIdentifiersAligner:
 
         self.logger = prepare_logger(
             logger_name=__name__,
-            log_level=self.plwn_api.log_level,
-            logger_file_name=self.plwn_api.log_file_name,
+            log_level=log_level,
+            logger_file_name=logger_file_name,
         )
 
         if prepare_mapping:

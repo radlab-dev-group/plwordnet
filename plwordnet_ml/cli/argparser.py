@@ -82,11 +82,18 @@ def prepare_parser() -> argparse.ArgumentParser:
     # -------------------------------------------------------------------------
 
     parser.add_argument(
-        "--export-relgat-mapping-to-directory",
-        dest="export_relgat_mapping_to_directory",
-        type=str,
+        "--export-relgat-mapping",
+        dest="export_relgat_mapping",
+        default=False,
+        action="store_true",
         help="Export dataset to RelGAT (relations embeddings) "
         "training to given output path.",
+    )
+    parser.add_argument(
+        "--relgat-mapping-directory",
+        dest="relgat_mapping_directory",
+        type=str,
+        help="Path to directory with RelGAT mapping.",
     )
 
     # -------------------------------------------------------------------------

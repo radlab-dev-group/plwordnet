@@ -123,13 +123,20 @@ class CLIMilvusWrappers(CLIWrapperBase):
         if args.prepare_base_embeddings_synset:
             opts += 1
 
-        # if --export-relgat-mapping-to-directory
-        if args.export_relgat_mapping_to_directory:
+        # if --export-relgat-mapping
+        if args.export_relgat_mapping:
             if not args.milvus_config:
                 raise TypeError(
                     "--milvus-config option is required for "
-                    "--export-dataset-to-relgat-to-directory"
+                    "--export-relgat-mapping"
                 )
+
+            if not args.relgat_mapping_directory:
+                raise TypeError(
+                    "--relgat-mapping-directory option is required for "
+                    "--export-relgat-mapping"
+                )
+
             opts += 1
 
         if opts == 0:
@@ -171,8 +178,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
         if self.args.prepare_base_embeddings_synset:
             return True
 
-        # --export-dataset-to-relgat-to-directory
-        if self.args.export_relgat_mapping_to_directory:
+        # --export-relgat-mapping
+        if self.args.export_relgat_mapping:
             return True
 
         return False
@@ -340,7 +347,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         self.logger.info(
             f"Exporting RELGat mappings to directory "
-            f"{self.args.export_relgat_mapping_to_directory}"
+            f"{self.args.relgat_mapping_directory}"
         )
         try:
             relgat_exporter = RelGATExporter(
@@ -351,7 +358,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
                     logger_name=Constants.LOG_FILENAME,
                     auto_connect=True,
                 ),
-                out_directory=self.args.export_relgat_mapping_to_directory,
+                out_directory=self.args.relgat_mapping_directory,
             )
             relgat_exporter.export_to_dir()
         except Exception as e:

@@ -1,3 +1,5 @@
+import os
+import json
 from typing import List, Optional
 
 from plwordnet_handler.utils.logger import prepare_logger
@@ -45,11 +47,20 @@ class RelGATDatasetIdentifiersAligner:
             logger_file_name=logger_file_name,
         )
 
+        self._filename_to_mapping = {
+            "lu_align_to_original.json": self._lu_align_to_original,
+            "lu_original_to_align.json": self._lu_original_to_align,
+            "rel_align_to_original.json": self._rel_align_to_original,
+            "rel_original_to_align.json": self._rel_original_to_align,
+            "rel_name_to_aligned_id.json": self._rel_name_to_aligned_id,
+            "aligned_id_to_rel_name.json": self._aligned_id_to_rel_name,
+        }
+
         if prepare_mapping:
             if plwn_api is None:
                 raise Exception("PLWN api is required when prepare_mapping is True!")
 
-            self.logger.info(
+            self.logger.warning(
                 "RelGAT dataset identifier is created with prepare_mapping=True. "
                 "Aligned dataset will be prepared, pleas wait... "
                 "If you have prepared mapping, you should to call the "
@@ -66,6 +77,18 @@ class RelGATDatasetIdentifiersAligner:
                     "in mapping mode (prepare_mapping=False)"
                 )
             self._load_mapping(mapping_path)
+
+    def export_to_dir(self, out_dir: str) -> None:
+        os.makedirs(out_dir, exist_ok=True)
+
+        for f_name, data in self._filename_to_mapping.items():
+            _m_name = f_name.replace(".json", "")
+            out_file_path = os.path.join(out_dir, f_name)
+            self.logger.info(f"Exporting mapping {_m_name} to {out_file_path}")
+            with open(out_file_path, "w", encoding="utf-8") as f:
+                if type(data) in [list, dict]:
+                    data = json.dumps(data, indent=2, ensure_ascii=False)
+                f.write(data)
 
     def _prepare_mapping(self) -> None:
         self.logger.info("Preparing relations and lexical units mapping")

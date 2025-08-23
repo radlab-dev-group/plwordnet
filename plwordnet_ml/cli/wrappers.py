@@ -123,8 +123,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
         if args.prepare_base_embeddings_synset:
             opts += 1
 
-        # if --export-dataset-to-relgat-to-directory
-        if args.export_relgat_dataset_to_directory:
+        # if --export-relgat-mapping-to-directory
+        if args.export_relgat_mapping_to_directory:
             if not args.milvus_config:
                 raise TypeError(
                     "--milvus-config option is required for "
@@ -172,7 +172,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
             return True
 
         # --export-dataset-to-relgat-to-directory
-        if self.args.export_relgat_dataset_to_directory:
+        if self.args.export_relgat_mapping_to_directory:
             return True
 
         return False
@@ -335,12 +335,12 @@ class CLIMilvusWrappers(CLIWrapperBase):
         # Insert missing (from not full batch)
         embedding_consumer.flush()
 
-    def export_relgat_dataset_to_directory(self):
+    def export_relgat_mapping_to_directory(self) -> bool:
         self.__plwn_api_and_milvus_ready()
 
         self.logger.info(
-            f"Exporting RELGat dataset to directory "
-            f"{self.args.export_relgat_dataset_to_directory}"
+            f"Exporting RELGat mappings to directory "
+            f"{self.args.export_relgat_mapping_to_directory}"
         )
         try:
             relgat_exporter = RelGATExporter(
@@ -351,12 +351,13 @@ class CLIMilvusWrappers(CLIWrapperBase):
                     logger_name=Constants.LOG_FILENAME,
                     auto_connect=True,
                 ),
-                out_directory=self.args.export_relgat_dataset_to_directory,
+                out_directory=self.args.export_relgat_mapping_to_directory,
             )
+            relgat_exporter.export_to_dir()
         except Exception as e:
-            raise e
-
-        relgat_exporter.export()
+            self.logger.error(e)
+            return False
+        return True
 
     def __plwn_api_and_milvus_ready(self):
         """

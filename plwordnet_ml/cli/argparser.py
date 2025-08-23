@@ -86,14 +86,30 @@ def prepare_parser() -> argparse.ArgumentParser:
         dest="export_relgat_mapping",
         default=False,
         action="store_true",
+        help="Export RelGAT mappings (lexical units and relations",
+    )
+
+    parser.add_argument(
+        "--export-relgat-dataset",
+        dest="export_relgat_dataset",
+        default=False,
+        action="store_true",
         help="Export dataset to RelGAT (relations embeddings) "
         "training to given output path.",
     )
+
     parser.add_argument(
         "--relgat-mapping-directory",
         dest="relgat_mapping_directory",
         type=str,
         help="Path to directory with RelGAT mapping.",
+    )
+
+    parser.add_argument(
+        "--relgat-dataset-directory",
+        dest="relgat_dataset_directory",
+        type=str,
+        help="Path to RelGAT dataset directory.",
     )
 
     # -------------------------------------------------------------------------

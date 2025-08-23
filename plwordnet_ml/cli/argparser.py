@@ -80,6 +80,16 @@ def prepare_parser() -> argparse.ArgumentParser:
     )
 
     # -------------------------------------------------------------------------
+
+    parser.add_argument(
+        "--export-dataset-to-relgat-to-directory",
+        dest="export_relgat_dataset_to_directory",
+        type=str,
+        help="Export dataset to RelGAT (relations embeddings) "
+        "training to given output path.",
+    )
+
+    # -------------------------------------------------------------------------
     # General, debug options
     parser.add_argument(
         "--device",

@@ -1,7 +1,11 @@
 import os.path
 from typing import Optional
 
+from plwordnet_handler.base.connectors.milvus.search_handler import (
+    MilvusWordNetSearchHandler,
+)
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
+from plwordnet_handler.dataset.exporter.relgat import RelGATExporter
 from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 from plwordnet_ml.embedder.bi_encoder import BiEncoderEmbeddingGenerator
 from plwordnet_ml.embedder.milvus.consumer import EmbeddingMilvusConsumer
@@ -119,6 +123,15 @@ class CLIMilvusWrappers(CLIWrapperBase):
         if args.prepare_base_embeddings_synset:
             opts += 1
 
+        # if --export-dataset-to-relgat-to-directory
+        if args.export_relgat_dataset_to_directory:
+            if not args.milvus_config:
+                raise TypeError(
+                    "--milvus-config option is required for "
+                    "--export-dataset-to-relgat-to-directory"
+                )
+            opts += 1
+
         if opts == 0:
             raise TypeError(
                 "\n\n"
@@ -156,6 +169,10 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         # --prepare-base-embeddings-synset
         if self.args.prepare_base_embeddings_synset:
+            return True
+
+        # --export-dataset-to-relgat-to-directory
+        if self.args.export_relgat_dataset_to_directory:
             return True
 
         return False
@@ -317,6 +334,29 @@ class CLIMilvusWrappers(CLIWrapperBase):
             )
         # Insert missing (from not full batch)
         embedding_consumer.flush()
+
+    def export_relgat_dataset_to_directory(self):
+        self.__plwn_api_and_milvus_ready()
+
+        self.logger.info(
+            f"Exporting RELGat dataset to directory "
+            f"{self.args.export_relgat_dataset_to_directory}"
+        )
+        try:
+            relgat_exporter = RelGATExporter(
+                plwn_api=self.pl_wn,
+                milvus_handler=MilvusWordNetSearchHandler(
+                    milvus_config=self.milvus_config,
+                    log_level=self.log_level,
+                    log_filename=Constants.LOG_FILENAME,
+                    auto_connect=True,
+                ),
+                out_directory=self.args.export_relgat_dataset_to_directory,
+            )
+        except Exception as e:
+            raise e
+
+        relgat_exporter.export()
 
     def __plwn_api_and_milvus_ready(self):
         """

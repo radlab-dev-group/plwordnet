@@ -398,27 +398,33 @@ class CLIMilvusWrappers(CLIWrapperBase):
             f"{self.args.relgat_mapping_directory}"
         )
         try:
-            relgat_mapper = RelGATDatasetIdentifiersAligner(
-                plwn_api=None,
-                prepare_mapping=False,
-                log_level=self.args.log_level,
-                logger_file_name=Constants.LOG_FILENAME,
-                mapping_path=self.args.relgat_mapping_directory,
+            relgat_exporter = RelGATExporter(
+                plwn_api=self.pl_wn,
+                milvus_handler=MilvusWordNetSearchHandler(
+                    config=self.milvus_config,
+                    log_level=self.log_level,
+                    logger_name=Constants.LOG_FILENAME,
+                    auto_connect=True,
+                ),
+                out_directory=self.args.relgat_dataset_directory,
+                aligner=RelGATDatasetIdentifiersAligner(
+                    plwn_api=None,
+                    prepare_mapping=False,
+                    log_level=self.args.log_level,
+                    logger_file_name=Constants.LOG_FILENAME,
+                    mapping_path=self.args.relgat_mapping_directory,
+                ),
+                accept_pos=Constants.ACCEPT_POS,
+                limit=self.args.limit,
             )
-            # relgat_exporter = RelGATExporter(
-            #     plwn_api=self.pl_wn,
-            #     milvus_handler=MilvusWordNetSearchHandler(
-            #         config=self.milvus_config,
-            #         log_level=self.log_level,
-            #         logger_name=Constants.LOG_FILENAME,
-            #         auto_connect=True,
-            #     ),
-            #     out_directory=self.args.relgat_mapping_directory,
-            # )
-            raise NotImplementedError("Not implemented")
+            relgat_exporter.export_to_dir()
         except Exception as e:
             self.logger.error(e)
             return False
+
+        self.logger.info(
+            f"Successfully exported to {self.args.relgat_dataset_directory}"
+        )
         return True
 
     def __plwn_api_and_milvus_ready(self):

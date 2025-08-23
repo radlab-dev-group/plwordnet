@@ -177,7 +177,7 @@ class RelGATTrainer:
         self.edge_index_raw = edge_index_raw
         self.all_node_ids = sorted(node2emb.keys())
         self.node_emb_matrix = torch.stack(
-            [node2emb[i] for i in self.all_node_ids], dim=0
+            [torch.Tensor(node2emb[i]) for i in self.all_node_ids], dim=0
         )
 
         # random division of edges to train/test

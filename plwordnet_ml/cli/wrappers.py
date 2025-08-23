@@ -348,7 +348,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
                 milvus_handler=MilvusWordNetSearchHandler(
                     config=self.milvus_config,
                     log_level=self.log_level,
-                    log_filename=Constants.LOG_FILENAME,
+                    logger_name=Constants.LOG_FILENAME,
                     auto_connect=True,
                 ),
                 out_directory=self.args.export_relgat_dataset_to_directory,

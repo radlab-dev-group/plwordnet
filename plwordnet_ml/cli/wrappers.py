@@ -346,7 +346,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
             relgat_exporter = RelGATExporter(
                 plwn_api=self.pl_wn,
                 milvus_handler=MilvusWordNetSearchHandler(
-                    milvus_config=self.milvus_config,
+                    config=self.milvus_config,
                     log_level=self.log_level,
                     log_filename=Constants.LOG_FILENAME,
                     auto_connect=True,

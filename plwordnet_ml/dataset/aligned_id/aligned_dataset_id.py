@@ -95,11 +95,16 @@ class RelGATDatasetIdentifiersAligner:
         return self._aligned_id_to_rel_name.get(aligned_rel_id, None)
 
     def aligned_relation_name(self, orig_rel_id: Optional[int]) -> Optional[str]:
-        if orig_rel_id is None:
-            return None
-        return self._aligned_id_to_rel_name.get(
-            self.aligned_relation_id(orig_rel_id=orig_rel_id), None
+        aligned_rel_id = (
+            self.aligned_relation_id(orig_rel_id=orig_rel_id)
+            if orig_rel_id
+            else None
         )
+        if aligned_rel_id is None:
+            return None
+
+        a_rel_name = self._aligned_id_to_rel_name.get(str(aligned_rel_id), None)
+        return a_rel_name
 
     def export_to_dir(self, out_directory: str) -> None:
         os.makedirs(out_directory, exist_ok=True)

@@ -55,8 +55,8 @@ def main(argv=None):
             batch_size=MILVUS_INSERT_BATCH_SIZE
         )
 
-    # if --export-relgat-mapping-to-directory
-    if args.export_relgat_mapping_to_directory:
+    # if --export-relgat-mapping
+    if args.export_relgat_mapping:
         if not cli_wrapper.export_relgat_mapping_to_directory():
             logger.error("Error while exporting RelGAT mapping to directory")
 

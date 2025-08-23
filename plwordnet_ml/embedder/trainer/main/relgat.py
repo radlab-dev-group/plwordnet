@@ -20,7 +20,6 @@ plwordnet-milvus \
 
 import argparse
 
-from plwordnet_ml.embedder.trainer.relation.relgat_trainer import RelGATTrainer
 from plwordnet_ml.embedder.trainer.main.parts.relgat import (
     ConstantsRelGATTrainer,
     RelGATMainTrainerHandler,
@@ -79,8 +78,8 @@ def get_args() -> argparse.Namespace:
         help="Weights & Biases run name (optional)",
     )
 
-    # Optional margin argument (kept for backward compatibility)
-    # parser.add_argument("--margin", type=float, default=1.0)
+    # Optional margin argument
+    parser.add_argument("--margin", type=float, default=1.0)
 
     return parser.parse_args()
 
@@ -101,11 +100,11 @@ def main() -> None:
         edge_index_raw=edge_index_raw,
         args=args,
     )
-    #
-    # trainer.train(
-    #     epochs=args.epochs,
-    #     margin=args.margin,
-    # )
+
+    trainer.train(
+        epochs=args.epochs,
+        margin=args.margin,
+    )
 
 
 if __name__ == "__main__":

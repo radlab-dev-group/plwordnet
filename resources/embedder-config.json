@@ -1,10 +1,10 @@
 {
-  "active": "b20igzw4_chk1350000",
+  "active": "b20igzw4_chk2300000",
   "models": {
-    "b20igzw4_chk1350000": {
-      "model_name": "Semantic-v0.1-b20igzw4_chk1350000",
+    "b20igzw4_chk2300000": {
+      "model_name": "Semantic-v0.2-b20igzw4_chk2300000",
       "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/b20igzw4",
-      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.2/EuroBERT-610m/20250812_032338_embedder_sentsplit_train-0.93/checkpoint-1350000",
+      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.2/EuroBERT-610m/20250812_032338_embedder_sentsplit_train-0.93/checkpoint-2300000",
       "comment": "Model z synonimią, checkpoint w trakcie uczenia",
       "vec_size": 1152
     },

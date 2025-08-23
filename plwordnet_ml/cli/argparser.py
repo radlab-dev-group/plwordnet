@@ -2,7 +2,10 @@ import argparse
 
 from plwordnet_ml.cli.example_usage import EXAMPLE_USAGE
 from plwordnet_handler.cli.base_argparser import prepare_base_parser
-from plwordnet_ml.cli.constants import DEFAULT_MILVUS_DB_CFG_PATH
+from plwordnet_ml.cli.constants import (
+    DEFAULT_MILVUS_DB_CFG_PATH,
+    DEFAULT_EMBEDDER_CFG_PATH,
+)
 
 
 def prepare_parser() -> argparse.ArgumentParser:
@@ -30,6 +33,14 @@ def prepare_parser() -> argparse.ArgumentParser:
         type=str,
         default=DEFAULT_MILVUS_DB_CFG_PATH,
         help="Path to JSON file with database configuration.",
+    )
+
+    parser.add_argument(
+        "--embedder-config",
+        dest="embedder_config",
+        type=str,
+        default=DEFAULT_EMBEDDER_CFG_PATH,
+        help="Path to JSON file with embedder configuration.",
     )
 
     # -------------------------------------------------------------------------

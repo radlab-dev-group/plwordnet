@@ -21,7 +21,7 @@ class ConstantsRelGATTrainer:
 
     from plwordnet_ml.embedder.constants.wandb import WandbConfig as _WANDBConfig
     class WandbConfig(_WANDBConfig):
-        PROJECT_NAME = "plwordnet-relgat"
+        PROJECT_NAME = "plWordnet-relgat"
         PROJECT_TAGS = ["relgat", "link-prediction"]
         PREFIX_RUN = "run_"
         BASE_RUN_NAME = "relgat"
@@ -36,16 +36,19 @@ class RelGATMainTrainerHandler:
         print("Loading", path_to_nodes)
         with open(path_to_nodes, "rb") as f:
             _node2emb = pickle.load(f)
+        _node2emb = {int(k) : v for k, v in _node2emb.items()}
 
         # rel2idx – dict[str, int]
         print("Loading", path_to_rels)
         with open(path_to_rels, "r") as f:
             _rel2idx = json.loads(f.read())
+        _rel2idx = {k: int(v) for k, v in _rel2idx.items()}
 
         # edge_index_raw – list[(src, dst, rel_str)]
         print("Loading", path_to_edges)
         with open(path_to_edges, "r") as f:
             _edge_index_raw = json.loads(f.read())
+        _edge_index_raw = [[int(f), int(t), r] for f, t, r in _edge_index_raw]
 
         return _node2emb, _rel2idx, _edge_index_raw
 

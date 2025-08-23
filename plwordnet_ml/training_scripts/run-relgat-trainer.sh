@@ -4,8 +4,12 @@ EPOCHS=12
 BATCH_SIZE=1024
 TRAIN_RATIO="0.9"
 
-DATASET_ROOT="/mnt/data2/data/resources/plwordnet_handler/relgat"
-DATASET_DIR="${DATASET_ROOT}/aligned-dataset-identifiers/dataset__limit_1000"
+DATASET_ROOT="/mnt/data2/data/resources/plwordnet_handler/relgat/aligned-dataset-identifiers"
+# Available datasets:
+#  - FULL: dataset_20250824_full
+#  - SAMPLE: dataset_20250824_limit_1000
+DATASET_DIR="${DATASET_ROOT}/dataset_20250824_full"
+
 LU_EMBEDDING="${DATASET_DIR}/lexical_units_embedding.pickle"
 RELS_MAPPING="${DATASET_DIR}/relation_to_idx.json"
 RELS_TRIPLETS="${DATASET_DIR}/relations_triplets.json"

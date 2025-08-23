@@ -57,7 +57,7 @@ def prepare_base_parser(
     )
 
     # -------------------------------------------------------------------------
-    # General, debug options
+    # General, debug options, limit etc.
     parser.add_argument(
         "--log-level",
         dest="log_level",
@@ -65,6 +65,13 @@ def prepare_base_parser(
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         default=DEFAULT_LOG_LEVEL,
         help="Set the logging level",
+    )
+    parser.add_argument(
+        "--limit",
+        dest="limit",
+        type=int,
+        required=False,
+        help="Limit the number of results to check app is proper working.",
     )
 
     return parser

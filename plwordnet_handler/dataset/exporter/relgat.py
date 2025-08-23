@@ -1,5 +1,4 @@
-from pathlib import Path
-from typing import Union
+from typing import Optional
 
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
@@ -20,7 +19,7 @@ class RelGATExporter:
     ):
         self.plwn_api = plwn_api
         self.milvus_handler = milvus_handler
-        self.out_directory = self._ensure_dir(path=out_directory)
+        self.out_directory = out_directory
 
         self._lu_list = []
         self._rels_list = []
@@ -32,8 +31,14 @@ class RelGATExporter:
             logger_file_name=self.milvus_handler.logger_name,
         )
 
-    def export(self):
-        self.logger.info("Exporting RelGAT dataset")
+    def export_to_dir(self, out_directory: Optional[str] = None) -> None:
+        self.logger.info("Exporting RelGAT mappings")
+        if out_directory is None:
+            out_directory = self.out_directory
+            if out_directory is None:
+                raise TypeError(
+                    "out_directory is required to export RelGAT mappings"
+                )
 
         data_aligner = RelGATDatasetIdentifiersAligner(
             plwn_api=self.plwn_api,
@@ -41,11 +46,4 @@ class RelGATExporter:
             log_level=self.milvus_handler.log_level,
             logger_file_name=self.milvus_handler.logger_name,
         )
-
-        raise NotImplementedError("Not implemented yet")
-
-    @staticmethod
-    def _ensure_dir(path: Union[str, Path]) -> Path:
-        p = Path(path)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        return p
+        data_aligner.export_to_dir(out_dir=out_directory)

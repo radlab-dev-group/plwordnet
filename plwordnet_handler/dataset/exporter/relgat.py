@@ -46,4 +46,4 @@ class RelGATExporter:
             log_level=self.milvus_handler.log_level,
             logger_file_name=self.milvus_handler.logger_name,
         )
-        data_aligner.export_to_dir(out_dir=out_directory)
+        data_aligner.export_to_dir(out_directory=out_directory)

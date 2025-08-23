@@ -76,14 +76,15 @@ class RelGATDatasetIdentifiersAligner:
                     "RelGATDatasetIdentifiersAligner "
                     "in mapping mode (prepare_mapping=False)"
                 )
-            self._load_mapping(mapping_path)
+            self.logger.debug(f"Loading RelGAT mapping from {mapping_path}")
+            self._load_mappings_from_dir(mapping_path=mapping_path)
 
-    def export_to_dir(self, out_dir: str) -> None:
-        os.makedirs(out_dir, exist_ok=True)
+    def export_to_dir(self, out_directory: str) -> None:
+        os.makedirs(out_directory, exist_ok=True)
 
         for f_name, data in self._filename_to_mapping.items():
             _m_name = f_name.replace(".json", "")
-            out_file_path = os.path.join(out_dir, f_name)
+            out_file_path = os.path.join(out_directory, f_name)
             self.logger.info(f"Exporting mapping {_m_name} to {out_file_path}")
             with open(out_file_path, "w", encoding="utf-8") as f:
                 if type(data) in [list, dict]:
@@ -95,8 +96,23 @@ class RelGATDatasetIdentifiersAligner:
         self._prepare_relations()
         self._prepare_lexical_units()
 
-    def _load_mapping(self, mapping_path: str) -> None:
-        raise NotImplementedError("Not implemented yet!")
+    def _load_mappings_from_dir(self, mapping_path: str) -> None:
+        self.logger.info(f"Loading mappings from path {mapping_path}")
+        for f_name in self._filename_to_mapping.keys():
+            _m_name = f_name.replace(".json", "")
+            file_path = os.path.join(mapping_path, f_name)
+
+            if not os.path.exists(file_path):
+                self.logger.error(f"Mapping file {f_name} not found at {file_path}")
+                raise Exception(f"Mapping file {file_path} does not exist!")
+
+            self.logger.debug(f"Loading mapping {_m_name} from {file_path}")
+            if file_path.endswith(".json"):
+                with open(file_path, "r", encoding="utf-8") as f:
+                    self._filename_to_mapping[f_name] = json.load(f)
+            else:
+                self.logger.error(f"Invalid file format: {file_path}")
+                raise Exception(f"Invalid file format: ...{file_path[-4:]}")
 
     def _prepare_relations(self):
         self.logger.info(" - preparing relations mappings")

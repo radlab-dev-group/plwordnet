@@ -1,10 +1,12 @@
+import os.path
 from typing import Optional
 
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
+from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 from plwordnet_ml.embedder.bi_encoder import BiEncoderEmbeddingGenerator
-from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_ml.embedder.milvus.consumer import EmbeddingMilvusConsumer
 from plwordnet_ml.embedder.generator.strategy import EmbeddingBuildStrategy
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_ml.embedder.generator.base_embeddings.lexical_unit_empty import (
     SemanticEmbeddingGeneratorEmptyLu,
 )
@@ -27,23 +29,6 @@ class Constants:
     SPACY_MODEL_NAME = "pl_core_news_sm"
     LOG_FILENAME = "synset-embeddings.log"
     ACCEPT_POS = [1, 2, 3, 4]
-
-
-class BiEncoderModelConfig:
-    """
-    Bi-encoder model spec
-    """
-
-    MODEL_NAME = "Semantic-v0.1-o7reqebo"
-    WANDB = (
-        "http://192.168.100.61:8080/pkedzia/"
-        "plWordnet-semantic-embeddings/runs/o7reqebo"
-    )
-    MODEL_PATH = (
-        "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/"
-        "v0.1/EuroBERT-610m/biencoder/"
-        "20250806_162431_full_dataset_ratio-2.0_train0.9_eval0.1/checkpoint-290268"
-    )
 
 
 class CLIMilvusWrappers(CLIWrapperBase):
@@ -85,6 +70,10 @@ class CLIMilvusWrappers(CLIWrapperBase):
             config_path=args.milvus_config
         )
 
+        self.bi_encoder_model_config = BiEncoderModelConfig.from_json_file(
+            config_path=args.embedder_config
+        )
+
     def are_args_correct(self, args=None):
         """
         Validates the correctness of command-line arguments.
@@ -111,6 +100,19 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         # if --prepare-base-mean-empty-embeddings-lu
         if args.prepare_mean_empty_base_embeddings_lu:
+            if not args.embedder_config:
+                raise TypeError(
+                    "Embedder configuration is required for "
+                    "--prepare-base-mean-empty-embeddings-lu"
+                )
+
+            if not os.path.exists(args.embedder_config):
+                raise TypeError(
+                    f"Embedder configuration not found: {args.embedder_config}\n"
+                    "Embedder config is required for "
+                    "--prepare-base-mean-empty-embeddings-lu"
+                )
+
             opts += 1
 
         # if --prepare-base-embeddings-synset
@@ -209,8 +211,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
         self.logger.info("Preparing base LU/LU examples embeddings generator")
         syn_emb_generator = SemanticEmbeddingGeneratorLuAndExamples(
             generator=BiEncoderEmbeddingGenerator(
-                model_path=BiEncoderModelConfig.MODEL_PATH,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_path=self.bi_encoder_model_config.model_path,
+                model_name=self.bi_encoder_model_config.model_name,
                 device=self.args.device,
                 normalize_embeddings=True,
                 log_level=self.args.log_level,
@@ -230,7 +232,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
             for emb_dict in embeddings:
                 embedding_consumer.add_embedding(
                     embedding_dict=emb_dict,
-                    model_name=BiEncoderModelConfig.MODEL_NAME,
+                    model_name=self.bi_encoder_model_config.model_name,
                 )
 
         # Insert missing (from not full batch)
@@ -272,7 +274,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
         for emb_dict in empty_lu_generator.generate():
             embedding_consumer.add_embedding(
                 embedding_dict=emb_dict,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_name=self.bi_encoder_model_config.model_name,
             )
         # Insert missing (from not full batch)
         embedding_consumer.flush()
@@ -311,7 +313,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
         for emb_dict in syn_emb_generator.generate(split_to_sentences=True):
             embedding_consumer.add_embedding(
                 embedding_dict=emb_dict,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_name=self.bi_encoder_model_config.model_name,
             )
         # Insert missing (from not full batch)
         embedding_consumer.flush()

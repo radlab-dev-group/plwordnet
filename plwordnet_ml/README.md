@@ -1,4 +1,4 @@
-# Opis działania moduły `plwordnet_trainer` oraz `plwordnet-milvus`
+# Opis działania moduły `plwordnet_ml` oraz `plwordnet-milvus`
 
 ## Przygotowywanie zbiorów danych
 
@@ -123,6 +123,68 @@ plwordnet-milvus \
 
 ## Przygotowanie embeddingów
 
+Przygotowanie embeddingów musi być poprzedzone procesem budowy modelu embeddera 
+podstawowego. Proces opisany jest wcześniej. Po wyuczeniu embeddera należy podpiąć
+model do CLI za pomocą pliku konfiguracyjnego `embedder-config.json`, w którym
+podana jest konfiguracja modelu, który uzyty będzie jako **bazowy model** do uczenia
+embeddingów semantycznych. Przykładowy plik konfiguracyjny:
+
+```json
+{
+  "active": "b20igzw4_chk2300000",
+  "models": {
+    "b20igzw4_chk2300000": {
+      "model_name": "Semantic-v0.2-b20igzw4_chk2300000",
+      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/b20igzw4",
+      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.2/EuroBERT-610m/20250812_032338_embedder_sentsplit_train-0.93/checkpoint-2300000",
+      "comment": "Model z synonimią, checkpoint w trakcie uczenia",
+      "vec_size": 1152
+    },
+    "o7reqebo": {
+      "model_name": "Semantic-v0.1-o7reqebo",
+      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/o7reqebo",
+      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.1/EuroBERT-610m/biencoder/20250806_162431_full_dataset_ratio-2.0_train0.9_eval0.1/checkpoint-290268",
+      "comment": "Model bez synonimii",
+      "vec_size": 1152
+    }
+  }
+}
+```
+
+Plik umożliwia definicję wielu modeli oraz wskazanie aktualnie aktywnego `active`.
+Poszczególne pola to:
+ - `models` zawiera zestaw definicji modeli do wykorzystania - słownik z mapowanie:
+   - `nazwa kodowa modelu` -> `{definicja modelu}`, gdzie model definiowany jest za pomocą:
+     - `model_name` - nazwa modelu wykorzystywana w aplikacjach (obowiązkowe)
+     - `model_path` - scieżka do modelu (obowiązkowe)
+     - `vec_size` - rozmiar embeddingu (**UWAGA** Milvus przy tworzeniu kolekcji sprawdza wymiar
+ - `active` wskazuje na `nazwę kodową modelu`, który ładowany będzie jako domyślny
+embeddingu, nie korzysta z tej wartości)
+   - opcjonalnie `wandb_url` dla porządku: użyty model <-> eksperyment
+   - opcjonalny komentarz w polu `comment`
+
+Przykład wykorzystania modułu `BiEncoderModelConfigHandler` do obsługi konfigu embeddera 
+z implementacją w `plwordnet_ml.embedder.model_config.BiEncoderModelConfig`:
+```python
+from plwordnet_ml.embedder.model_config import BiEncoderModelConfigHandler
+
+# Initialize handler with configuration
+handler = BiEncoderModelConfigHandler.from_json_file("embedder-config.json")
+
+# Discover available models
+models = handler.get_available_models()
+print(f"Available models: {list(models.keys())}")
+
+# Switch to a different model
+if handler.set_active_model("alternative_model"):
+    print(f"Switched to: {handler.model_name}")
+
+# Query specific model configuration
+model_config = handler.get_model_config("another_model")
+if model_config:
+    print(f"Vector size: {model_config.get('vec_size')}")
+```
+
 ### Embeddingi podstawowe 
 
 **Embeddingi podstawowe** budowane są na podstawie definicji jednostek leksykalnych.
@@ -136,7 +198,8 @@ dla jednostki leksykalnej, brana jest pod uwagę strategia budowy (domyślnie `M
 Aby przygotować embeddinig podstawowe i zapisać je do Milvusa należy wykonać polecenie:
 ```bash
 plwordnet-milvus \
-  --milvus-config=resources/milvus-config.json 
+  --milvus-config=resources/milvus-config.json \
+  --embedder-config=resources/embedder-config.json \
   --device="cuda:1" \
   --log-level=INFO \
   --prepare-base-embeddings-lu \
@@ -188,6 +251,7 @@ Oczywiście komendy można łączyć i wykonać jedno polecenie:
 ```bash
 plwordnet-milvus \
   --milvus-config=resources/milvus-config-pk.json \
+  --embedder-config=resources/embedder-config.json \
   --device="cuda:1" \
   --log-level=INFO \
   --prepare-database \

@@ -1,6 +1,6 @@
 import os
 import json
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
@@ -79,6 +79,28 @@ class RelGATDatasetIdentifiersAligner:
             self.logger.debug(f"Loading RelGAT mapping from {mapping_path}")
             self._load_mappings_from_dir(mapping_path=mapping_path)
 
+    @property
+    def rel_name_to_aligned_idx_dict(self) -> Dict[str, int]:
+        return self._rel_name_to_aligned_id
+
+    def aligned_lexical_unit_id(self, orig_lu_id: int) -> Optional[int]:
+        return self._lu_original_to_align.get(str(orig_lu_id), None)
+
+    def aligned_relation_id(self, orig_rel_id: int) -> Optional[int]:
+        return self._rel_original_to_align.get(str(orig_rel_id), None)
+
+    def original_relation_name(self, aligned_rel_id: Optional[int]) -> Optional[str]:
+        if aligned_rel_id is None:
+            return None
+        return self._aligned_id_to_rel_name.get(aligned_rel_id, None)
+
+    def aligned_relation_name(self, orig_rel_id: Optional[int]) -> Optional[str]:
+        if orig_rel_id is None:
+            return None
+        return self._aligned_id_to_rel_name.get(
+            self.aligned_relation_id(orig_rel_id=orig_rel_id), None
+        )
+
     def export_to_dir(self, out_directory: str) -> None:
         os.makedirs(out_directory, exist_ok=True)
 
@@ -114,6 +136,25 @@ class RelGATDatasetIdentifiersAligner:
                 self.logger.error(f"Invalid file format: {file_path}")
                 raise Exception(f"Invalid file format: ...{file_path[-4:]}")
 
+        self._lu_align_to_original = self._filename_to_mapping[
+            "lu_align_to_original.json"
+        ]
+        self._lu_original_to_align = self._filename_to_mapping[
+            "lu_original_to_align.json"
+        ]
+        self._rel_align_to_original = self._filename_to_mapping[
+            "rel_align_to_original.json"
+        ]
+        self._rel_original_to_align = self._filename_to_mapping[
+            "rel_original_to_align.json"
+        ]
+        self._rel_name_to_aligned_id = self._filename_to_mapping[
+            "rel_name_to_aligned_id.json"
+        ]
+        self._aligned_id_to_rel_name = self._filename_to_mapping[
+            "aligned_id_to_rel_name.json"
+        ]
+
     def _prepare_relations(self):
         self.logger.info(" - preparing relations mappings")
         self.__align_rel_identifiers(rels_list=self.plwn_api.get_relation_types())
@@ -132,8 +173,8 @@ class RelGATDatasetIdentifiersAligner:
         self._rel_name_to_aligned_id.clear()
         self._aligned_id_to_rel_name.clear()
         for idx, rel in enumerate(rels_list):
-            self._rel_align_to_original[idx] = rel.ID
-            self._rel_original_to_align[rel.ID] = idx
+            self._rel_align_to_original[idx] = int(rel.ID)
+            self._rel_original_to_align[int(rel.ID)] = idx
             self._rel_name_to_aligned_id[rel.name] = idx
             self._aligned_id_to_rel_name[idx] = rel.name
 
@@ -157,8 +198,8 @@ class RelGATDatasetIdentifiersAligner:
         self._lu_align_to_original.clear()
         self._lu_original_to_align.clear()
         for idx, lu in enumerate(lu_list):
-            self._lu_align_to_original[idx] = lu.ID
-            self._lu_original_to_align[lu.ID] = idx
+            self._lu_align_to_original[idx] = int(lu.ID)
+            self._lu_original_to_align[int(lu.ID)] = idx
 
         self.logger.info(
             f"   - aligned lu -> original: {len(self._lu_align_to_original)}"

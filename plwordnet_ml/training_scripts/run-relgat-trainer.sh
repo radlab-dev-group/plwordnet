@@ -17,18 +17,25 @@ TRAIN_EVAL_DATASET_RATIO="0.80"
 EPOCHS=5
 # Tain/eval batch size
 BATCH_SIZE=32
-# Scorer, one of: {distmult, transe}
+# Scorer, one of: [distmult, transe]
 SCORER="distmult"
 # Out RelGAT dimension (for each head)
 GAT_OUT_DIM=300
 # Number of heads (each with projection to GAT_OUT_DIM)
-NUM_OF_HEADS=12
+NUM_OF_HEADS=4
 # Number of negative examples for each positive one
-NUM_NEG_TO_POS=6
+NUM_NEG_TO_POS=2
 # Dropout used while training
-DROPOUT=0.5
+DROPOUT=0.3
 # Logging during training after each n steps
 LOG_EVERY_N_STEPS=10
+# Learning rate
+LEARNING_RATE=0.00001  # 1e^-5
+# Learning rate scheduler, one of: [linear, cosine, constant]
+LR_SCHEDULER="linear"
+# Optional explicit warmup steps (comment out to auto-compute)
+# WARMUP_STEPS=500
+
 
 # =============================================================================
 # =============================================================================
@@ -56,6 +63,9 @@ RELS_TRIPLETS="${DATASET_DIR}/relations_triplets.json"
 # --------------------  APPLICATION CALL
 # =============================================================================
 CUDA_VISIBLE_DEVICES=2 python3 ../embedder/trainer/main/relgat.py \
+  --warmup-steps="${WARMUP_STEPS}" \
+  --lr="${LEARNING_RATE}" \
+  --lr-scheduler="${LR_SCHEDULER}" \
   --num-neg="${NUM_NEG_TO_POS}" \
   --heads="${NUM_OF_HEADS}" \
   --epochs="${EPOCHS}" \
@@ -70,4 +80,5 @@ CUDA_VISIBLE_DEVICES=2 python3 ../embedder/trainer/main/relgat.py \
   --device="${DEVICE}" \
   --log-every-n-steps="${LOG_EVERY_N_STEPS}" \
   --save-dir="${OUT_MODEL_DIR}" \
-  --save-every-n-steps="${SAVE_N_STEPS}"
+  --save-every-n-steps="${SAVE_N_STEPS}" \
+  ${WARMUP_STEPS:+--warmup-steps="${WARMUP_STEPS}"}

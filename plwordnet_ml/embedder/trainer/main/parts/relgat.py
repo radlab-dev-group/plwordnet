@@ -57,7 +57,11 @@ class RelGATMainTrainerHandler:
             "log_every_n_steps": args.log_every_n_steps,
             "out_dir": args.save_dir,
             "save_every_n_steps": args.save_every_n_steps,
+            "lr": args.lr,
+            "lr_scheduler": args.lr_scheduler,
         }
+        if args.warmup_steps is not None:
+            run_cfg["warmup_steps"] = args.warmup_steps
 
         trainer = RelGATTrainer(
             node2emb=node2emb,

@@ -6,7 +6,7 @@
 # =============================================================================
 # Device: {cuda, cpu, cuda:x}
 DEVICE="cuda"
-CUDA_DEVICES="3"
+CUDA_DEVICES="2"
 # Ratio of training data
 TRAIN_EVAL_DATASET_RATIO="0.80"
 #

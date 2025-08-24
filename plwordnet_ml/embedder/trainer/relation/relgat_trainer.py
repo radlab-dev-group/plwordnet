@@ -34,6 +34,7 @@ class RelGATTrainer:
         log_every_n_steps: int = 100,
         save_dir: Optional[str] = None,
         save_every_n_steps: Optional[int] = None,
+        eval_every_n_steps: Optional[int] = None,
     ):
         self.device = device or torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
@@ -68,6 +69,12 @@ class RelGATTrainer:
         self.save_every_n_steps = (
             int(save_every_n_steps)
             if save_every_n_steps is not None and int(save_every_n_steps) > 0
+            else None
+        )
+
+        self.eval_every_n_steps = (
+            int(eval_every_n_steps)
+            if eval_every_n_steps is not None and int(eval_every_n_steps) > 0
             else None
         )
 
@@ -354,6 +361,13 @@ class RelGATTrainer:
                         if self.scheduler is not None
                         else self.optimizer.param_groups[0]["lr"]
                     )
+                    print(
+                        f"\n=== Global step {self.global_step} "
+                        f"(in epoch {step_in_epoch}): "
+                        f"loss_step: {avg_running_loss:.8f} "
+                        f"[lr: {current_lr:.8f}]"
+                    )
+
                     WanDBHandler.log_metrics(
                         metrics={
                             "epoch": epoch,
@@ -366,6 +380,38 @@ class RelGATTrainer:
                     # reset counters
                     running_loss = 0.0
                     running_examples = 0
+
+                # Eval model every n steps
+                if (
+                    self.eval_every_n_steps is not None
+                    and self.global_step % self.eval_every_n_steps == 0
+                ):
+                    avg_train_loss = epoch_loss / len(self.train_dataset)
+                    # ----------------- EVAL -----------------
+                    mrr, hits = self.evaluate(ks=(1, 2, 3))
+                    hits_str = ", ".join(
+                        [f"Hits@{k}: {hits[k]:.4f}" for k in sorted(hits)]
+                    )
+                    print(
+                        f"\n=== Step {self.global_step:12d} – "
+                        f"loss: {epoch_loss:.4f} "
+                        f"[avg. loss: {avg_train_loss:.4f}]"
+                    )
+                    print(f"   - eval – MRR: {mrr:.4f} | {hits_str}")
+                    # ----------------- LOG TO W&B -----------------
+                    WanDBHandler.log_metrics(
+                        metrics={
+                            "epoch": epoch,
+                            "train/loss": avg_train_loss,
+                            "train/epoch_loss": epoch_loss,
+                            "val/mrr": mrr,
+                            "val/hits@1": hits[1],
+                            "val/hits@2": hits[2],
+                            "val/hits@3": hits[3],
+                        },
+                        step=self.global_step,
+                    )
+
                 # saving checkpoints every n steps
                 if (
                     self.save_every_n_steps is not None
@@ -381,27 +427,27 @@ class RelGATTrainer:
                         step=self.global_step,
                     )
 
-            avg_train_loss = epoch_loss / len(self.train_dataset)
-
-            # ----------------- EVAL -----------------
-            mrr, hits = self.evaluate(ks=(1, 2, 3))
-            hits_str = ", ".join([f"Hits@{k}: {hits[k]:.4f}" for k in sorted(hits)])
-
-            print(f"\n=== Epoch {epoch:02d} – loss: {avg_train_loss:.4f}")
-            print(f"   - eval – MRR: {mrr:.4f} | {hits_str}")
-
-            # ----------------- LOG TO W&B -----------------
-            WanDBHandler.log_metrics(
-                metrics={
-                    "epoch": epoch,
-                    "train/loss": avg_train_loss,
-                    "val/mrr": mrr,
-                    "val/hits@1": hits[1],
-                    "val/hits@2": hits[2],
-                    "val/hits@3": hits[3],
-                },
-                step=self.global_step,
-            )
+            if self.eval_every_n_steps is None:
+                avg_train_loss = epoch_loss / len(self.train_dataset)
+                # ----------------- EVAL -----------------
+                mrr, hits = self.evaluate(ks=(1, 2, 3))
+                hits_str = ", ".join(
+                    [f"Hits@{k}: {hits[k]:.4f}" for k in sorted(hits)]
+                )
+                print(f"\n=== Epoch {epoch:02d} – loss: {avg_train_loss:.4f}")
+                print(f"   - eval – MRR: {mrr:.4f} | {hits_str}")
+                # ----------------- LOG TO W&B -----------------
+                WanDBHandler.log_metrics(
+                    metrics={
+                        "epoch": epoch,
+                        "train/loss": avg_train_loss,
+                        "val/mrr": mrr,
+                        "val/hits@1": hits[1],
+                        "val/hits@2": hits[2],
+                        "val/hits@3": hits[3],
+                    },
+                    step=self.global_step,
+                )
 
         # ----------------- SAVE FINAL MODEL  -----------------
         out_model_dir = (

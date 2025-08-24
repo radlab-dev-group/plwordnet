@@ -362,10 +362,10 @@ class RelGATTrainer:
                         else self.optimizer.param_groups[0]["lr"]
                     )
                     print(
-                        f"\n=== Global step {self.global_step} "
-                        f"(in epoch {step_in_epoch}): "
+                        f"\nGlobal step {self.global_step} "
+                        f"/in epoch {step_in_epoch}/ "
                         f"loss_step: {avg_running_loss:.8f} "
-                        f"[lr: {current_lr:.8f}]"
+                        f"lr: {current_lr:.8f}"
                     )
 
                     WanDBHandler.log_metrics(
@@ -402,8 +402,8 @@ class RelGATTrainer:
                     WanDBHandler.log_metrics(
                         metrics={
                             "epoch": epoch,
-                            "train/loss": avg_train_loss,
-                            "train/epoch_loss": epoch_loss,
+                            "eval/loss": avg_train_loss,
+                            "eval/epoch_loss": epoch_loss,
                             "val/mrr": mrr,
                             "val/hits@1": hits[1],
                             "val/hits@2": hits[2],

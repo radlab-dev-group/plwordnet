@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 from tqdm import tqdm
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional, Any
 from torch.utils.data import DataLoader
+from typing import Dict, List, Tuple, Optional, Any
 
 from plwordnet_ml.utils.wandb_handler import WanDBHandler
 from plwordnet_ml.embedder.trainer.relation.model import RelGATModel
@@ -49,6 +49,14 @@ class RelGATTrainer:
         # Logging
         self.global_step = 0
         self.log_every_n_steps = max(1, int(log_every_n_steps))
+
+        # LR/scheduler config
+        self.scheduler = None
+        self.base_lr = float(run_config["lr"])
+        self.scheduler_type = str(run_config["lr_scheduler"]).lower()
+        self.default_warmup_ratio = (
+            ConstantsRelGATTrainer.Default.DEFAULT_WARMUP_RATIO
+        )
 
         # Model saving
         self.save_dir = (
@@ -148,13 +156,17 @@ class RelGATTrainer:
             dropout=self.dropout,
         ).to(self.device)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.base_lr)
 
         # W&B initialization
         self.wandb_config = wandb_config
         self.run_config = run_config
         # keep logging freq in run config for reproducibility/visibility
         self.run_config["log_every_n_steps"] = self.log_every_n_steps
+        # ensure lr and scheduler info are present in run config (for reproducibility)
+        self.run_config["lr"] = self.base_lr
+        self.run_config["lr_scheduler"] = self.scheduler_type
+        #
         self.run_config["save_every_n_steps"] = self.save_every_n_steps
         self.run_config["save_dir"] = str(self.save_dir)
         WanDBHandler.init_wandb(
@@ -223,6 +235,65 @@ class RelGATTrainer:
 
     # The main training loop
     def train(self, epochs: int = 12, margin: float = 1.0):
+        # ---- Scheduler (warmup + selected decay) ----
+        import math
+        import math as _math  # for cosine
+
+        steps_per_epoch = max(
+            1, math.ceil(len(self.train_dataset) / self.train_batch_size)
+        )
+        total_steps = steps_per_epoch * max(1, int(epochs))
+        warmup_steps_cfg = self.run_config.get("warmup_steps", None)
+        if warmup_steps_cfg is None:
+            warmup_steps = int(self.default_warmup_ratio * total_steps)
+        warmup_steps = min(warmup_steps, max(0, total_steps - 1))
+
+        def _lr_lambda_linear(current_step: int):
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+            return max(
+                0.0,
+                float(total_steps - current_step)
+                / float(max(1, total_steps - warmup_steps)),
+            )
+
+        def _lr_lambda_cosine(current_step: int):
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+            progress = float(current_step - warmup_steps) / float(
+                max(1, total_steps - warmup_steps)
+            )
+            return 0.5 * (1.0 + _math.cos(_math.pi * min(1.0, max(0.0, progress))))
+
+        def _lr_lambda_constant(current_step: int):
+            if current_step < warmup_steps:
+                return float(current_step) / float(max(1, warmup_steps))
+            return 1.0
+
+        if self.scheduler_type == "linear":
+            lr_lambda = _lr_lambda_linear
+        elif self.scheduler_type == "cosine":
+            lr_lambda = _lr_lambda_cosine
+        elif self.scheduler_type == "constant":
+            lr_lambda = _lr_lambda_constant
+        else:
+            raise ValueError(f"Unknown lr_scheduler type: {self.scheduler_type}")
+
+        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+            self.optimizer, lr_lambda=lr_lambda
+        )
+
+        # Log scheduler info (once)
+        WanDBHandler.log_metrics(
+            metrics={
+                "sched/total_steps": total_steps,
+                "sched/warmup_steps": warmup_steps,
+                "sched/type": self.scheduler_type,
+                "train/base_lr": self.base_lr,
+            },
+            step=self.global_step,
+        )
+
         for epoch in range(1, epochs + 1):
             self.model.train()
             epoch_loss = 0.0
@@ -262,6 +333,10 @@ class RelGATTrainer:
                 loss.backward()
                 self.optimizer.step()
 
+                # step scheduler after optimizer step
+                if self.scheduler is not None:
+                    self.scheduler.step()
+
                 # loss accumulation
                 loss_item = loss.item()
                 epoch_loss += loss_item * B
@@ -274,18 +349,23 @@ class RelGATTrainer:
                 # logging every n steps
                 if self.global_step % self.log_every_n_steps == 0:
                     avg_running_loss = running_loss / max(1, running_examples)
+                    current_lr = (
+                        self.scheduler.get_last_lr()[0]
+                        if self.scheduler is not None
+                        else self.optimizer.param_groups[0]["lr"]
+                    )
                     WanDBHandler.log_metrics(
                         metrics={
                             "epoch": epoch,
                             "train/loss_step": avg_running_loss,
                             "train/step_in_epoch": step_in_epoch,
+                            "train/lr": current_lr,
                         },
                         step=self.global_step,
                     )
                     # reset counters
                     running_loss = 0.0
                     running_examples = 0
-
                 # saving checkpoints every n steps
                 if (
                     self.save_every_n_steps is not None
@@ -326,7 +406,7 @@ class RelGATTrainer:
         # ----------------- SAVE FINAL MODEL  -----------------
         out_model_dir = (
             f"relgat_{self.scorer_type}"
-            f"_ratio{int(self.run_config.get('train_ratio', 0.9) * 100)}"
+            f"_ratio{int(self.run_config['train_ratio'] * 100)}"
         )
         self._save_checkpoint(subdir=out_model_dir, run_config=self.run_config)
         print(f"\nTrening zakończony – model zapisano pod: {out_model_dir}")

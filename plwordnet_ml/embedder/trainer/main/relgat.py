@@ -118,6 +118,31 @@ def get_args() -> argparse.Namespace:
         help=f"GAT dropout "
         f"(default: {ConstantsRelGATTrainer.Default.GAT_DROPOUT})",
     )
+    parser.add_argument(
+        "--lr",
+        dest="lr",
+        type=float,
+        default=ConstantsRelGATTrainer.Default.LR,
+        help=f"Learning rate base value (with warmup/decay) "
+        f"(default: {ConstantsRelGATTrainer.Default.LR})",
+    )
+    parser.add_argument(
+        "--lr-scheduler",
+        dest="lr_scheduler",
+        type=str,
+        choices=["linear", "cosine", "constant"],
+        default=ConstantsRelGATTrainer.Default.LR_SCHEDULER,
+        help="Learning rate scheduler type: [linear, cosine, constant] "
+        f"(default: {ConstantsRelGATTrainer.Default.LR_SCHEDULER})",
+    )
+    parser.add_argument(
+        "--warmup-steps",
+        dest="warmup_steps",
+        type=int,
+        default=None,
+        help="Warmup steps (if omitted, computed automatically from total steps)",
+    )
+
     # Saving model to dir
     parser.add_argument(
         "--save-dir",

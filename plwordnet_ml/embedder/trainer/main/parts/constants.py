@@ -12,6 +12,13 @@ class ConstantsRelGATTrainer:
         GAT_DROPOUT = 0.25
         GAT_OUT_DIM = 300
 
+        LR = 2e-4
+        # Scheduler: {"linear", "cosine", "constant"}
+        LR_SCHEDULER = "linear"
+        WARMUP_STEPS = None
+        # As default, 10% of training is used to warmup
+        DEFAULT_WARMUP_RATIO = 0.1
+
         # Scorer, one of: {"distmult", "transe"}
         GAT_SCORER = "distmult"
 

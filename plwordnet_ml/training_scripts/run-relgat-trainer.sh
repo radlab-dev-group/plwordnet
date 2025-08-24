@@ -6,6 +6,7 @@
 # =============================================================================
 # Device: {cuda, cpu, cuda:x}
 DEVICE="cuda"
+CUDA_DEVICES="3"
 # Ratio of training data
 TRAIN_EVAL_DATASET_RATIO="0.80"
 #
@@ -22,9 +23,9 @@ SCORER="distmult"
 # Out RelGAT dimension (for each head)
 GAT_OUT_DIM=300
 # Number of heads (each with projection to GAT_OUT_DIM)
-NUM_OF_HEADS=4
+NUM_OF_HEADS=12
 # Number of negative examples for each positive one
-NUM_NEG_TO_POS=2
+NUM_NEG_TO_POS=5
 # Dropout used while training
 DROPOUT=0.3
 # Logging during training after each n steps
@@ -35,7 +36,6 @@ LEARNING_RATE=0.00001  # 1e^-5
 LR_SCHEDULER="linear"
 # Optional explicit warmup steps (comment out to auto-compute)
 # WARMUP_STEPS=500
-
 
 # =============================================================================
 # =============================================================================
@@ -62,7 +62,8 @@ RELS_TRIPLETS="${DATASET_DIR}/relations_triplets.json"
 # =============================================================================
 # --------------------  APPLICATION CALL
 # =============================================================================
-CUDA_VISIBLE_DEVICES=2 python3 ../embedder/trainer/main/relgat.py \
+export CUDA_VISIBLE_DEVICES="${CUDA_DEVICES}"
+python3 ../embedder/trainer/main/relgat.py \
   --warmup-steps="${WARMUP_STEPS}" \
   --lr="${LEARNING_RATE}" \
   --lr-scheduler="${LR_SCHEDULER}" \

@@ -7,7 +7,7 @@
 # Device: {cuda, cpu, cuda:x}
 DEVICE="cuda"
 # Ratio of training data
-TRAIN_RATIO="0.80"
+TRAIN_EVAL_DATASET_RATIO="0.80"
 #
 # =============================================================================
 # =============================================================================
@@ -29,6 +29,14 @@ NUM_NEG_TO_POS=6
 DROPOUT=0.5
 # Logging during training after each n steps
 LOG_EVERY_N_STEPS=10
+
+# =============================================================================
+# =============================================================================
+# --------------------  STORING MODEL WHILE TRAINING
+# Output directory to store the model and checkpoints during training
+OUT_MODEL_DIR="relgat-models/relgat_$(date +%Y%m%d_%H%M%S)"
+# Save model every n steps
+SAVE_N_STEPS=1000
 #
 # =============================================================================
 # =============================================================================
@@ -54,10 +62,12 @@ CUDA_VISIBLE_DEVICES=2 python3 ../embedder/trainer/main/relgat.py \
   --scorer="${SCORER}" \
   --dropout="${DROPOUT}" \
   --gat-out-dim="${GAT_OUT_DIM}" \
-  --train-ratio="${TRAIN_RATIO}" \
+  --train-ratio="${TRAIN_EVAL_DATASET_RATIO}" \
   --batch-size="${BATCH_SIZE}" \
   --nodes-embeddings-path="${LU_EMBEDDING}" \
   --relations-mapping="${RELS_MAPPING}" \
   --relations-triplets="${RELS_TRIPLETS}" \
   --device="${DEVICE}" \
-  --log-every-n-steps="${LOG_EVERY_N_STEPS}"
+  --log-every-n-steps="${LOG_EVERY_N_STEPS}" \
+  --save-dir="${OUT_MODEL_DIR}" \
+  --save-every-n-steps="${SAVE_N_STEPS}"

@@ -28,6 +28,7 @@ class RelGATTrainer:
         scorer_type: str = "distmult",
         gat_out_dim: int = 200,
         gat_heads: int = 6,
+        gat_num_layers: int = 1,
         dropout: float = 0.2,
         device: Optional[torch.device] = None,
         run_name: Optional[str] = None,
@@ -46,6 +47,7 @@ class RelGATTrainer:
         self.gat_heads = gat_heads
         self.dropout = dropout
         self.run_name = run_name
+        self.gat_num_layers = gat_num_layers
 
         # Logging
         self.global_step = 0
@@ -161,6 +163,7 @@ class RelGATTrainer:
             gat_out_dim=self.gat_out_dim,
             gat_heads=self.gat_heads,
             dropout=self.dropout,
+            gat_num_layers=self.gat_num_layers,
         ).to(self.device)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.base_lr)
@@ -293,9 +296,9 @@ class RelGATTrainer:
         # Log scheduler info (once)
         WanDBHandler.log_metrics(
             metrics={
-                "sched/total_steps": total_steps,
-                "sched/warmup_steps": warmup_steps,
-                "sched/type": self.scheduler_type,
+                "scheduler/total_steps": total_steps,
+                "scheduler/warmup_steps": warmup_steps,
+                "scheduler/type": self.scheduler_type,
                 "train/base_lr": self.base_lr,
             },
             step=self.global_step,
@@ -403,11 +406,10 @@ class RelGATTrainer:
                         metrics={
                             "epoch": epoch,
                             "eval/loss": avg_train_loss,
-                            "eval/epoch_loss": epoch_loss,
-                            "val/mrr": mrr,
-                            "val/hits@1": hits[1],
-                            "val/hits@2": hits[2],
-                            "val/hits@3": hits[3],
+                            "eval/mrr": mrr,
+                            "eval/hits@1": hits[1],
+                            "eval/hits@2": hits[2],
+                            "eval/hits@3": hits[3],
                         },
                         step=self.global_step,
                     )
@@ -440,11 +442,11 @@ class RelGATTrainer:
                 WanDBHandler.log_metrics(
                     metrics={
                         "epoch": epoch,
-                        "train/loss": avg_train_loss,
-                        "val/mrr": mrr,
-                        "val/hits@1": hits[1],
-                        "val/hits@2": hits[2],
-                        "val/hits@3": hits[3],
+                        "eval/loss": avg_train_loss,
+                        "eval/mrr": mrr,
+                        "eval/hits@1": hits[1],
+                        "eval/hits@2": hits[2],
+                        "eval/hits@3": hits[3],
                     },
                     step=self.global_step,
                 )

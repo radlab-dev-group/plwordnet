@@ -29,6 +29,7 @@ from plwordnet_ml.embedder.trainer.main.parts.relgat import (
 def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=APP_DESCRIPTION)
 
+    # Dataset
     parser.add_argument(
         "--nodes-embeddings-path",
         type=str,
@@ -49,7 +50,7 @@ def get_args() -> argparse.Namespace:
         "where the single triplet is as follow: [from_lu_idx, to_lu_idx, rel_name]",
     )
 
-    # Optional params
+    # Architecture definition, learning process
     parser.add_argument(
         "--train-ratio",
         type=float,
@@ -72,12 +73,53 @@ def get_args() -> argparse.Namespace:
         f"(default: {ConstantsRelGATTrainer.Default.TRAIN_BATCH_SIZE})",
     )
     parser.add_argument(
+        "--scorer",
+        type=str,
+        choices=["distmult", "transe"],
+        default=ConstantsRelGATTrainer.Default.GAT_SCORER,
+        help="Scorer to use: distmult or transe "
+        f"(default: {ConstantsRelGATTrainer.Default.GAT_SCORER})",
+    )
+    parser.add_argument(
+        "--gat-out-dim",
+        dest="gat_out_dim",
+        type=int,
+        default=ConstantsRelGATTrainer.Default.GAT_OUT_DIM,
+        help=f"GAT output embedding dimension "
+        f"(default: {ConstantsRelGATTrainer.Default.GAT_OUT_DIM})",
+    )
+    parser.add_argument(
+        "--num-neg",
+        dest="num_neg",
+        type=int,
+        default=ConstantsRelGATTrainer.Default.NUM_NEG,
+        help=f"Number of negative samples per positive "
+        f"(default: {ConstantsRelGATTrainer.Default.NUM_NEG})",
+    )
+    parser.add_argument(
+        "--heads",
+        dest="heads",
+        type=int,
+        default=ConstantsRelGATTrainer.Default.GAT_HEADS,
+        help=f"Number of GAT attention heads "
+        f"(default: {ConstantsRelGATTrainer.Default.GAT_HEADS})",
+    )
+    parser.add_argument(
+        "--dropout",
+        dest="dropout",
+        type=float,
+        default=ConstantsRelGATTrainer.Default.GAT_DROPOUT,
+        help=f"GAT dropout "
+        f"(default: {ConstantsRelGATTrainer.Default.GAT_DROPOUT})",
+    )
+
+    # Wandb/device etc.
+    parser.add_argument(
         "--run-name",
         type=str,
         default=None,
         help="Weights & Biases run name (optional)",
     )
-
     parser.add_argument(
         "--device",
         dest="device",

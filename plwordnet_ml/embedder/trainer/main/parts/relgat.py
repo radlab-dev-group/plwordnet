@@ -69,11 +69,11 @@ class RelGATMainTrainerHandler:
             "train_ratio": args.train_ratio,
             "epochs": args.epochs,
             "batch_size": args.batch_size,
-            "scorer": ConstantsRelGATTrainer.Default.GAT_SCORER,
-            "out_dim": ConstantsRelGATTrainer.Default.GAT_OUT_DIM,
-            "num_neg": ConstantsRelGATTrainer.Default.NUM_NEG,
-            "heads": ConstantsRelGATTrainer.Default.GAT_HEADS,
-            "dropout": ConstantsRelGATTrainer.Default.GAT_DROPOUT
+            "scorer": args.scorer,
+            "out_dim": args.gat_out_dim,
+            "num_neg": args.num_neg,
+            "heads": args.heads,
+            "dropout": args.dropout
         }
 
         trainer = RelGATTrainer(

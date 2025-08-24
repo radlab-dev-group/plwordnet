@@ -160,6 +160,15 @@ def get_args() -> argparse.Namespace:
         "in the subdirectory checkpoint-<step>",
     )
 
+    parser.add_argument(
+        "--eval-every-n-steps",
+        dest="eval_every_n_steps",
+        type=int,
+        default=None,
+        help="If > 0: evaluation will be done every N training steps. "
+        "If not given, then evaluation will be done after each epoch.",
+    )
+
     # Wandb/device etc.
     parser.add_argument(
         "--run-name",
@@ -198,6 +207,13 @@ def main() -> None:
         args.warmup_steps = int(args.warmup_steps)
     else:
         args.warmup_steps = None
+
+    if args.eval_every_n_steps is not None and len(
+        str(args.eval_every_n_steps).strip()
+    ):
+        args.eval_every_n_steps = int(args.eval_every_n_steps)
+    else:
+        args.eval_every_n_steps = None
 
     trainer = _hdl.build_trainer(
         node2emb=node2emb,

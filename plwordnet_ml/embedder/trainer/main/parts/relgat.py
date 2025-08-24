@@ -57,6 +57,7 @@ class RelGATMainTrainerHandler:
             "log_every_n_steps": args.log_every_n_steps,
             "out_dir": args.save_dir,
             "save_every_n_steps": args.save_every_n_steps,
+            "eval_every_n_steps": args.eval_every_n_steps,
             "lr": args.lr,
             "lr_scheduler": args.lr_scheduler,
         }
@@ -81,5 +82,6 @@ class RelGATMainTrainerHandler:
             log_every_n_steps=run_cfg["log_every_n_steps"],
             save_dir=run_cfg["out_dir"],
             save_every_n_steps=run_cfg["save_every_n_steps"],
+            eval_every_n_steps=run_cfg["eval_every_n_steps"],
         )
         return trainer

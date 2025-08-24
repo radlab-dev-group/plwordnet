@@ -39,11 +39,13 @@ LR_SCHEDULER="linear"
 
 # =============================================================================
 # =============================================================================
-# --------------------  STORING MODEL WHILE TRAINING
+# --------------------  STORING/EVALUATE MODEL WHILE TRAINING
 # Output directory to store the model and checkpoints during training
 OUT_MODEL_DIR="relgat-models/relgat_$(date +%Y%m%d_%H%M%S)"
 # Save model every n steps
-SAVE_N_STEPS=1000
+SAVE_N_STEPS=2000
+# Optional explicit eval steps, if not given, then eval will be done after each epoch
+EVAL_N_STEPS=1000
 #
 # =============================================================================
 # =============================================================================
@@ -82,4 +84,5 @@ python3 ../embedder/trainer/main/relgat.py \
   --log-every-n-steps="${LOG_EVERY_N_STEPS}" \
   --save-dir="${OUT_MODEL_DIR}" \
   --save-every-n-steps="${SAVE_N_STEPS}" \
+  ${EVAL_N_STEPS:+--eval-every-n-steps="${EVAL_N_STEPS}"} \
   ${WARMUP_STEPS:+--warmup-steps="${WARMUP_STEPS}"}

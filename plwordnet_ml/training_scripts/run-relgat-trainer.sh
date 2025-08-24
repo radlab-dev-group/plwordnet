@@ -22,11 +22,13 @@ SCORER="distmult"
 # Out RelGAT dimension (for each head)
 GAT_OUT_DIM=300
 # Number of heads (each with projection to GAT_OUT_DIM)
-NUM_OF_HEADS=6
+NUM_OF_HEADS=12
 # Number of negative examples for each positive one
 NUM_NEG_TO_POS=6
 # Dropout used while training
-DROPOUT=0.25
+DROPOUT=0.5
+# Logging during training after each n steps
+LOG_EVERY_N_STEPS=10
 #
 # =============================================================================
 # =============================================================================
@@ -57,4 +59,5 @@ CUDA_VISIBLE_DEVICES=2 python3 ../embedder/trainer/main/relgat.py \
   --nodes-embeddings-path="${LU_EMBEDDING}" \
   --relations-mapping="${RELS_MAPPING}" \
   --relations-triplets="${RELS_TRIPLETS}" \
-  --device="${DEVICE}" --help
+  --device="${DEVICE}" \
+  --log-every-n-steps="${LOG_EVERY_N_STEPS}"

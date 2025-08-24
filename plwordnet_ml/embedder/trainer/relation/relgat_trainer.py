@@ -176,17 +176,27 @@ class RelGATTrainer:
         self.rel2idx = rel2idx
         self.edge_index_raw = edge_index_raw
         self.all_node_ids = sorted(node2emb.keys())
+
+        # Embeddubgs id to proper idx
+        self.id2idx = {nid: i for i, nid in enumerate(self.all_node_ids)}
+
         self.node_emb_matrix = torch.stack(
-            [torch.Tensor(node2emb[i]) for i in self.all_node_ids], dim=0
-        )
+            [torch.as_tensor(self.node2emb[nid]) for nid in self.all_node_ids], dim=0
+        ).to(self.device)
 
         # random division of edges to train/test
         random.shuffle(self.edge_index_raw)
         n_edges = len(self.edge_index_raw)
         n_train = int(train_ratio * n_edges)
 
-        self.train_edges = self.edge_index_raw[:n_train]
-        self.eval_edges = self.edge_index_raw[n_train:]
+        # Remap edges on compact indexes
+        def _map_edge(e):
+            s, d, r = e
+            return self.id2idx[s], self.id2idx[d], r
+
+        mapped_edges = [_map_edge(e) for e in self.edge_index_raw]
+        self.train_edges = mapped_edges[:n_train]
+        self.eval_edges = mapped_edges[n_train:]
 
         print(f"Number of edges (relations): {n_edges}")
         print(f" - train: {len(self.train_edges)} ({train_ratio*100:.1f} %)")
@@ -198,37 +208,40 @@ class RelGATTrainer:
             node2emb=self.node2emb,
             rel2idx=self.rel2idx,
             num_neg=self.num_neg,
-            all_node_ids=self.all_node_ids,
+            all_node_ids=list(range(len(self.all_node_ids))),
         )
         self.eval_dataset = EdgeDataset(
             edge_index=self.eval_edges,
             node2emb=self.node2emb,
             rel2idx=self.rel2idx,
             num_neg=self.num_neg,
-            all_node_ids=self.all_node_ids,
+            all_node_ids=list(range(len(self.all_node_ids))),
         )
 
         self.train_loader = DataLoader(
             self.train_dataset,
             batch_size=self.train_batch_size,
             shuffle=True,
-            num_workers=4,
+            num_workers=0,
             collate_fn=lambda batch: batch,
         )
         self.eval_loader = DataLoader(
             self.eval_dataset,
             batch_size=self.train_batch_size,
             shuffle=False,
-            num_workers=4,
+            num_workers=0,
             collate_fn=lambda batch: batch,
         )
 
-        # Graf (constant embeddings)
-        src_list, dst_list, rel_str_list = zip(*self.edge_index_raw)
-        self.edge_index = torch.tensor([src_list, dst_list], dtype=torch.long)
-        self.edge_type = torch.tensor(
-            [self.rel2idx[r] for r in rel_str_list], dtype=torch.long
+        # Mapping lu from triples on compact indexes
+        src_list, dst_list, rel_list = zip(*mapped_edges)
+        self.edge_index = torch.tensor([src_list, dst_list], dtype=torch.long).to(
+            self.device
         )
+        self.edge_type = torch.tensor(
+            [self.rel2idx[r] if isinstance(r, str) else int(r) for r in rel_list],
+            dtype=torch.long,
+        ).to(self.device)
         self.num_rel = len(self.rel2idx)
 
         # Model + optimizer
@@ -298,15 +311,15 @@ class RelGATTrainer:
                 pos_score = scores[:B]
                 neg_score = scores[B:].view(B, self.num_neg)
 
-                for i in range(B):
-                    cand_scores = torch.cat(
-                        [pos_score[i].unsqueeze(0), neg_score[i]], dim=0
-                    )
-                    mrr, hits = self.compute_mrr_hits(cand_scores, true_idx=0, ks=ks)
-                    total_mrr += mrr
-                    for k in ks:
-                        total_hits[k] += hits[k]
-                    n_examples += 1
+            for i in range(B):
+                cand_scores = torch.cat(
+                    [pos_score[i].unsqueeze(0), neg_score[i]], dim=0
+                )
+                mrr, hits = self.compute_mrr_hits(cand_scores, true_idx=0, ks=ks)
+                total_mrr += mrr
+                for k in ks:
+                    total_hits[k] += hits[k]
+                n_examples += 1
 
         avg_mrr = total_mrr / n_examples
         avg_hits = {k: total_hits[k] / n_examples for k in ks}
@@ -352,7 +365,7 @@ class RelGATTrainer:
             avg_train_loss = epoch_loss / len(self.train_dataset)
 
             # ----------------- EVAL -----------------
-            mrr, hits = self.evaluate(ks=(1, 3, 10))
+            mrr, hits = self.evaluate(ks=(1, 2, 3))
             hits_str = ", ".join([f"Hits@{k}: {hits[k]:.4f}" for k in sorted(hits)])
 
             print(f"\n=== Epoch {epoch:02d} – loss: {avg_train_loss:.4f}")
@@ -365,8 +378,8 @@ class RelGATTrainer:
                     "train/loss": avg_train_loss,
                     "val/mrr": mrr,
                     "val/hits@1": hits[1],
+                    "val/hits@2": hits[2],
                     "val/hits@3": hits[3],
-                    "val/hits@10": hits[10],
                 },
                 step=epoch,
             )
@@ -377,5 +390,5 @@ class RelGATTrainer:
         print(f"\nTrening zakończony – model zapisano pod: {model_path}")
 
         # ----------------- ARTIFACT W&B -----------------
-        WanDBHandler.add_model(name=f"relgat-{self.scorer_type}", local_path="..")
+        # WanDBHandler.add_model(name=f"relgat-{self.scorer_type}", local_path="..")
         WanDBHandler.finish_wand()

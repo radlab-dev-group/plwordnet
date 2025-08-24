@@ -4,30 +4,7 @@ import pickle
 import argparse
 
 from plwordnet_ml.embedder.trainer.relation.relgat_trainer import RelGATTrainer
-
-
-class ConstantsRelGATTrainer:
-    class Default:
-        EPOCHS = 12
-        TRAIN_EVAL_RATIO = 0.9
-        TRAIN_BATCH_SIZE = 256
-
-        LOG_EVERY_N_STEPS = 100
-
-        NUM_NEG = 6
-        GAT_HEADS = 12
-        GAT_DROPOUT = 0.25
-        GAT_OUT_DIM = 300
-
-        # Scorer, one of: {"distmult", "transe"}
-        GAT_SCORER = "distmult"
-
-    from plwordnet_ml.embedder.constants.wandb import WandbConfig as _WANDBConfig
-    class WandbConfig(_WANDBConfig):
-        PROJECT_NAME = "plWordnet-relgat"
-        PROJECT_TAGS = ["relgat", "link-prediction"]
-        PREFIX_RUN = "run_"
-        BASE_RUN_NAME = "relgat"
+from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
 
 
 class RelGATMainTrainerHandler:
@@ -78,6 +55,8 @@ class RelGATMainTrainerHandler:
             "dropout": args.dropout,
             "device": args.device,
             "log_every_n_steps": args.log_every_n_steps,
+            "out_dir": args.save_dir,
+            "save_every_n_steps": args.save_every_n_steps,
         }
 
         trainer = RelGATTrainer(
@@ -96,5 +75,7 @@ class RelGATMainTrainerHandler:
             run_name=args.run_name,
             device=torch.device(run_cfg["device"]),
             log_every_n_steps=run_cfg["log_every_n_steps"],
+            save_dir=run_cfg["out_dir"],
+            save_every_n_steps=run_cfg["save_every_n_steps"],
         )
         return trainer

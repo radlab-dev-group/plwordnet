@@ -20,10 +20,8 @@ plwordnet-milvus \
 
 import argparse
 
-from plwordnet_ml.embedder.trainer.main.parts.relgat import (
-    ConstantsRelGATTrainer,
-    RelGATMainTrainerHandler,
-)
+from plwordnet_ml.embedder.trainer.main.parts.relgat import RelGATMainTrainerHandler
+from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
 
 
 def get_args() -> argparse.Namespace:
@@ -120,6 +118,23 @@ def get_args() -> argparse.Namespace:
         help=f"GAT dropout "
         f"(default: {ConstantsRelGATTrainer.Default.GAT_DROPOUT})",
     )
+    # Saving model to dir
+    parser.add_argument(
+        "--save-dir",
+        dest="save_dir",
+        type=str,
+        default=ConstantsRelGATTrainer.Default.DEFAULT_TRAINER_OUT_DIR,
+        help="Directory for saving checkpoints and the final model"
+        f"(default {ConstantsRelGATTrainer.Default.DEFAULT_TRAINER_OUT_DIR})",
+    )
+    parser.add_argument(
+        "--save-every-n-steps",
+        dest="save_every_n_steps",
+        type=int,
+        default=0,
+        help="If > 0: save checkpoint every N training steps "
+        "in the subdirectory checkpoint-<step>",
+    )
 
     # Wandb/device etc.
     parser.add_argument(
@@ -151,6 +166,9 @@ def main() -> None:
         path_to_rels=args.relations_mapping,
         path_to_edges=args.relations_triplets,
     )
+
+    if args.save_every_n_steps is not None and args.save_every_n_steps <= 0:
+        args.save_every_n_steps = None
 
     trainer = _hdl.build_trainer(
         node2emb=node2emb,

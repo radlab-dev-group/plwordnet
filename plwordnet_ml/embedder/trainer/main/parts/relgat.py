@@ -12,6 +12,8 @@ class ConstantsRelGATTrainer:
         TRAIN_EVAL_RATIO = 0.9
         TRAIN_BATCH_SIZE = 256
 
+        LOG_EVERY_N_STEPS = 100
+
         NUM_NEG = 6
         GAT_HEADS = 12
         GAT_DROPOUT = 0.25
@@ -73,7 +75,9 @@ class RelGATMainTrainerHandler:
             "out_dim": args.gat_out_dim,
             "num_neg": args.num_neg,
             "heads": args.heads,
-            "dropout": args.dropout
+            "dropout": args.dropout,
+            "device": args.device,
+            "log_every_n_steps": args.log_every_n_steps,
         }
 
         trainer = RelGATTrainer(
@@ -90,6 +94,7 @@ class RelGATMainTrainerHandler:
             gat_heads=run_cfg["heads"],
             dropout=run_cfg["dropout"],
             run_name=args.run_name,
-            device=torch.device(args.device),
+            device=torch.device(run_cfg["device"]),
+            log_every_n_steps=run_cfg["log_every_n_steps"],
         )
         return trainer

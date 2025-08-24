@@ -6,9 +6,9 @@ from tqdm import tqdm
 from typing import Dict, List, Tuple
 from torch.utils.data import DataLoader
 
-from plwordnet_ml.embedder.trainer.relation.dataset import EdgeDataset
-from plwordnet_ml.embedder.trainer.relation.model import RelGATModel
 from plwordnet_ml.utils.wandb_handler import WanDBHandler
+from plwordnet_ml.embedder.trainer.relation.model import RelGATModel
+from plwordnet_ml.embedder.trainer.relation.dataset import EdgeDataset
 
 
 class RelGATTrainer:
@@ -61,6 +61,7 @@ class RelGATTrainer:
         dropout: float = 0.2,
         device: torch.device | None = None,
         run_name: str | None = None,
+        log_every_n_steps: int = 100,
     ):
         """
         Initialise a full training pipeline for a relation‑aware GAT.
@@ -171,6 +172,10 @@ class RelGATTrainer:
         self.dropout = dropout
         self.run_name = run_name
 
+        # Logging
+        self.global_step = 0
+        self.log_every_n_steps = max(1, int(log_every_n_steps))
+
         # Dataset and dataset division
         self.node2emb = node2emb
         self.rel2idx = rel2idx
@@ -261,6 +266,8 @@ class RelGATTrainer:
         # W&B initialization
         self.wandb_config = wandb_config
         self.run_config = run_config
+        # keep logging freq in run config for reproducibility/visibility
+        self.run_config["log_every_n_steps"] = self.log_every_n_steps
         WanDBHandler.init_wandb(
             wandb_config=self.wandb_config,
             run_config=self.run_config,
@@ -331,11 +338,17 @@ class RelGATTrainer:
             self.model.train()
             epoch_loss = 0.0
 
+            # counter for incremental logging
+            running_loss = 0.0
+            running_examples = 0
             # ----------------- TRAIN -----------------
-            for batch in tqdm(
-                self.train_loader,
-                desc=f"Epoch {epoch:02d} – training",
-                leave=False,
+            for step_in_epoch, batch in enumerate(
+                tqdm(
+                    self.train_loader,
+                    desc=f"Epoch {epoch:02d} – training",
+                    leave=False,
+                ),
+                start=1,
             ):
                 pos, *negs = zip(*batch)
 
@@ -360,7 +373,27 @@ class RelGATTrainer:
                 loss.backward()
                 self.optimizer.step()
 
-                epoch_loss += loss.item() * B
+                # loss accumulation
+                loss_item = loss.item()
+                epoch_loss += loss_item * B
+                running_loss += loss_item * B
+                running_examples += B
+
+                # global step and logging at every N steps
+                self.global_step += 1
+                if self.global_step % self.log_every_n_steps == 0:
+                    avg_running_loss = running_loss / max(1, running_examples)
+                    WanDBHandler.log_metrics(
+                        metrics={
+                            "epoch": epoch,
+                            "train/loss_step": avg_running_loss,
+                            "train/step_in_epoch": step_in_epoch,
+                        },
+                        step=self.global_step,
+                    )
+                    # reset counters
+                    running_loss = 0.0
+                    running_examples = 0
 
             avg_train_loss = epoch_loss / len(self.train_dataset)
 
@@ -381,11 +414,11 @@ class RelGATTrainer:
                     "val/hits@2": hits[2],
                     "val/hits@3": hits[3],
                 },
-                step=epoch,
+                step=self.global_step,
             )
 
         # ----------------- SAVE MODEL  -----------------
-        model_path = f"relgat_{self.scorer_type}_ratio{int(self.run_config.get('train_ratio', 0.9)*100)}.pt"
+        model_path = f"relgat_{self.scorer_type}_ratio{int(self.run_config.get('train_ratio', 0.9) * 100)}.pt"
         torch.save(self.model.state_dict(), model_path)
         print(f"\nTrening zakończony – model zapisano pod: {model_path}")
 

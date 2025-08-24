@@ -73,6 +73,14 @@ def get_args() -> argparse.Namespace:
         f"(default: {ConstantsRelGATTrainer.Default.TRAIN_BATCH_SIZE})",
     )
     parser.add_argument(
+        "--log-every-n-steps",
+        type=int,
+        dest="log_every_n_steps",
+        default=ConstantsRelGATTrainer.Default.LOG_EVERY_N_STEPS,
+        help=f"Batch size "
+        f"(default: {ConstantsRelGATTrainer.Default.LOG_EVERY_N_STEPS})",
+    )
+    parser.add_argument(
         "--scorer",
         type=str,
         choices=["distmult", "transe"],

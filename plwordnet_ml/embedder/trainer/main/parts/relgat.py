@@ -1,4 +1,5 @@
 import json
+import torch
 import pickle
 import argparse
 
@@ -9,12 +10,12 @@ class ConstantsRelGATTrainer:
     class Default:
         EPOCHS = 12
         TRAIN_EVAL_RATIO = 0.9
-        TRAIN_BATCH_SIZE = 1024
+        TRAIN_BATCH_SIZE = 256
 
-        NUM_NEG = 4
-        GAT_HEADS = 6
-        GAT_DROPOUT = 0.2
-        GAT_OUT_DIM = 200
+        NUM_NEG = 6
+        GAT_HEADS = 12
+        GAT_DROPOUT = 0.25
+        GAT_OUT_DIM = 300
 
         # Scorer, one of: {"distmult", "transe"}
         GAT_SCORER = "distmult"
@@ -36,19 +37,23 @@ class RelGATMainTrainerHandler:
         print("Loading", path_to_nodes)
         with open(path_to_nodes, "rb") as f:
             _node2emb = pickle.load(f)
-        _node2emb = {int(k) : v for k, v in _node2emb.items()}
+        _node2emb = {int(k): torch.tensor(v) for k, v in _node2emb.items()}
 
         # rel2idx – dict[str, int]
         print("Loading", path_to_rels)
         with open(path_to_rels, "r") as f:
             _rel2idx = json.loads(f.read())
-        _rel2idx = {k: int(v) for k, v in _rel2idx.items()}
+        _rel2idx = {str(k): int(v) for k, v in _rel2idx.items()}
 
         # edge_index_raw – list[(src, dst, rel_str)]
         print("Loading", path_to_edges)
         with open(path_to_edges, "r") as f:
             _edge_index_raw = json.loads(f.read())
-        _edge_index_raw = [[int(f), int(t), r] for f, t, r in _edge_index_raw]
+        _edge_index_raw = [
+            [int(f), int(t), str(r)]
+            for f, t, r in _edge_index_raw
+            if f in _node2emb and t in _node2emb
+        ]
 
         return _node2emb, _rel2idx, _edge_index_raw
 
@@ -85,5 +90,6 @@ class RelGATMainTrainerHandler:
             gat_heads=run_cfg["heads"],
             dropout=run_cfg["dropout"],
             run_name=args.run_name,
+            device=torch.device(args.device),
         )
         return trainer

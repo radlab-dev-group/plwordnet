@@ -78,6 +78,14 @@ def get_args() -> argparse.Namespace:
         help="Weights & Biases run name (optional)",
     )
 
+    parser.add_argument(
+        "--device",
+        dest="device",
+        type=str,
+        default="cpu",
+        help="Device to use (cpu, cuda, cuda:0) - depends on machine",
+    )
+
     # Optional margin argument
     parser.add_argument("--margin", type=float, default=1.0)
 

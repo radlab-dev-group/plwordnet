@@ -84,14 +84,16 @@ class EdgeDataset(Dataset):
             and the following elements are tuples for each negative sample
             ``(src_emb, rel_id, corrupt_dst_emb, torch.tensor(0.0))``.
         """
-
         src, dst, rel = self.edges[idx]
-        src_emb = self.node2emb[src]
-        dst_emb = self.node2emb[dst]
-        rel_id = self.rel2idx[rel]
+        rel_id = self.rel2idx[rel] if isinstance(rel, str) else int(rel)
 
-        # Positive pair
-        pos = (src_emb, rel_id, dst_emb, torch.tensor(1.0))
+        # Positive example (rel_id as a long tensor with shape[1])
+        pos = (
+            torch.tensor([src], dtype=torch.long),
+            torch.tensor([rel_id], dtype=torch.long),
+            torch.tensor([dst], dtype=torch.long),
+            torch.tensor(1.0),
+        )
 
         # Negative examples (corrupted destination)
         neg = []
@@ -100,9 +102,13 @@ class EdgeDataset(Dataset):
             corrupt_dst = random.choice(self.all_node_ids)
             while corrupt_dst == dst:
                 corrupt_dst = random.choice(self.all_node_ids)
+            neg.append(
+                (
+                    torch.tensor([src], dtype=torch.long),
+                    torch.tensor([rel_id], dtype=torch.long),
+                    torch.tensor([corrupt_dst], dtype=torch.long),
+                    torch.tensor(0.0),
+                )
+            )
 
-            neg_dst_emb = self.node2emb[corrupt_dst]
-            neg.append((src_emb, rel_id, neg_dst_emb, torch.tensor(0.0)))
-
-        # Return a list of samples; DataLoader will flatten this list
         return pos, *neg

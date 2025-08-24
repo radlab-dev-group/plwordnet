@@ -1,14 +1,17 @@
+import json
 import torch
 import random
 import torch.nn.functional as F
 
 from tqdm import tqdm
-from typing import Dict, List, Tuple
+from pathlib import Path
+from typing import Dict, List, Tuple, Optional, Any
 from torch.utils.data import DataLoader
 
 from plwordnet_ml.utils.wandb_handler import WanDBHandler
 from plwordnet_ml.embedder.trainer.relation.model import RelGATModel
 from plwordnet_ml.embedder.trainer.relation.dataset import EdgeDataset
+from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
 
 
 class RelGATTrainer:
@@ -29,6 +32,8 @@ class RelGATTrainer:
         device: torch.device | None = None,
         run_name: str | None = None,
         log_every_n_steps: int = 100,
+        save_dir: Optional[str] = None,
+        save_every_n_steps: int | None = None,
     ):
         self.device = device or torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
@@ -45,13 +50,26 @@ class RelGATTrainer:
         self.global_step = 0
         self.log_every_n_steps = max(1, int(log_every_n_steps))
 
+        # Model saving
+        self.save_dir = (
+            Path(save_dir)
+            if save_dir is not None
+            else Path(ConstantsRelGATTrainer.Default.DEFAULT_TRAINER_OUT_DIR)
+        )
+        self.save_dir.mkdir(parents=True, exist_ok=True)
+        self.save_every_n_steps = (
+            int(save_every_n_steps)
+            if save_every_n_steps is not None and int(save_every_n_steps) > 0
+            else None
+        )
+
         # Dataset and dataset division
         self.node2emb = node2emb
         self.rel2idx = rel2idx
         self.edge_index_raw = edge_index_raw
         self.all_node_ids = sorted(node2emb.keys())
 
-        # Embeddubgs id to proper idx
+        # Embeddings id to proper idx
         self.id2idx = {nid: i for i, nid in enumerate(self.all_node_ids)}
 
         self.node_emb_matrix = torch.stack(
@@ -137,6 +155,8 @@ class RelGATTrainer:
         self.run_config = run_config
         # keep logging freq in run config for reproducibility/visibility
         self.run_config["log_every_n_steps"] = self.log_every_n_steps
+        self.run_config["save_every_n_steps"] = self.save_every_n_steps
+        self.run_config["save_dir"] = str(self.save_dir)
         WanDBHandler.init_wandb(
             wandb_config=self.wandb_config,
             run_config=self.run_config,
@@ -250,6 +270,8 @@ class RelGATTrainer:
 
                 # global step and logging at every N steps
                 self.global_step += 1
+
+                # logging every n steps
                 if self.global_step % self.log_every_n_steps == 0:
                     avg_running_loss = running_loss / max(1, running_examples)
                     WanDBHandler.log_metrics(
@@ -263,6 +285,21 @@ class RelGATTrainer:
                     # reset counters
                     running_loss = 0.0
                     running_examples = 0
+
+                # saving checkpoints every n steps
+                if (
+                    self.save_every_n_steps is not None
+                    and self.global_step % self.save_every_n_steps == 0
+                ):
+                    chk_dir_name = f"checkpoint-{self.global_step}"
+                    self._save_checkpoint(
+                        subdir=chk_dir_name, run_config=self.run_config
+                    )
+                    # log saved checkpoint to w&b
+                    WanDBHandler.log_metrics(
+                        metrics={"checkpoint/step": self.global_step},
+                        step=self.global_step,
+                    )
 
             avg_train_loss = epoch_loss / len(self.train_dataset)
 
@@ -286,11 +323,35 @@ class RelGATTrainer:
                 step=self.global_step,
             )
 
-        # ----------------- SAVE MODEL  -----------------
-        model_path = f"relgat_{self.scorer_type}_ratio{int(self.run_config.get('train_ratio', 0.9) * 100)}.pt"
-        torch.save(self.model.state_dict(), model_path)
-        print(f"\nTrening zakończony – model zapisano pod: {model_path}")
+        # ----------------- SAVE FINAL MODEL  -----------------
+        out_model_dir = (
+            f"relgat_{self.scorer_type}"
+            f"_ratio{int(self.run_config.get('train_ratio', 0.9) * 100)}"
+        )
+        self._save_checkpoint(subdir=out_model_dir, run_config=self.run_config)
+        print(f"\nTrening zakończony – model zapisano pod: {out_model_dir}")
 
         # ----------------- ARTIFACT W&B -----------------
         # WanDBHandler.add_model(name=f"relgat-{self.scorer_type}", local_path="..")
         WanDBHandler.finish_wand()
+
+    def _save_checkpoint(
+        self, subdir: str, run_config: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Saves model state_dict into self.save_dir/subdir/OUT_MODEL_NAME
+        Returns saved file path.
+        """
+        out_dir = self.save_dir / subdir
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_path = out_dir / ConstantsRelGATTrainer.Default.OUT_MODEL_NAME
+        torch.save(self.model.state_dict(), out_path)
+
+        if run_config is not None and len(run_config):
+            out_cfg_path = (
+                out_dir / ConstantsRelGATTrainer.Default.TRAINING_CONFIG_FILE_NAME
+            )
+            with open(out_cfg_path, "w") as f:
+                f.write(json.dumps(run_config, indent=2, ensure_ascii=False))
+
+        return str(out_path)

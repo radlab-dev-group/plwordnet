@@ -95,6 +95,14 @@ def get_args() -> argparse.Namespace:
         f"(default: {ConstantsRelGATTrainer.Default.GAT_OUT_DIM})",
     )
     parser.add_argument(
+        "--gat-num-layers",
+        dest="gat_num_layers",
+        type=int,
+        default=ConstantsRelGATTrainer.Default.GAT_NUM_LAYERS,
+        help=f"Number of stacked RelGAT layers "
+        f"(default: {ConstantsRelGATTrainer.Default.GAT_NUM_LAYERS})",
+    )
+    parser.add_argument(
         "--num-neg",
         dest="num_neg",
         type=int,

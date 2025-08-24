@@ -9,6 +9,7 @@ class ConstantsRelGATTrainer:
 
         NUM_NEG = 6
         GAT_HEADS = 12
+        GAT_NUM_LAYERS = 1
         GAT_DROPOUT = 0.25
         GAT_OUT_DIM = 300
 

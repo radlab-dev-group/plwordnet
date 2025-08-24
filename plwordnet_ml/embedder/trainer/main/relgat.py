@@ -138,7 +138,6 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--warmup-steps",
         dest="warmup_steps",
-        type=int,
         default=None,
         help="Warmup steps (if omitted, computed automatically from total steps)",
     )
@@ -194,6 +193,11 @@ def main() -> None:
 
     if args.save_every_n_steps is not None and args.save_every_n_steps <= 0:
         args.save_every_n_steps = None
+
+    if args.warmup_steps is not None and len(str(args.warmup_steps).strip()):
+        args.warmup_steps = int(args.warmup_steps)
+    else:
+        args.warmup_steps = None
 
     trainer = _hdl.build_trainer(
         node2emb=node2emb,

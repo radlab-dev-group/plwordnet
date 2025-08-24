@@ -29,11 +29,11 @@ class RelGATTrainer:
         gat_out_dim: int = 200,
         gat_heads: int = 6,
         dropout: float = 0.2,
-        device: torch.device | None = None,
-        run_name: str | None = None,
+        device: Optional[torch.device] = None,
+        run_name: Optional[str] = None,
         log_every_n_steps: int = 100,
         save_dir: Optional[str] = None,
-        save_every_n_steps: int | None = None,
+        save_every_n_steps: Optional[int] = None,
     ):
         self.device = device or torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"

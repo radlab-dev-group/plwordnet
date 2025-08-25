@@ -1,4 +1,3 @@
-
 class ConstantsRelGATTrainer:
     class Default:
         EPOCHS = 12
@@ -29,6 +28,7 @@ class ConstantsRelGATTrainer:
         TRAINING_CONFIG_FILE_NAME = "training-config.json"
 
     from plwordnet_ml.embedder.constants.wandb import WandbConfig as _WANDBConfig
+
     class WandbConfig(_WANDBConfig):
         PROJECT_NAME = "plWordnet-relgat"
         PROJECT_TAGS = ["relgat", "link-prediction"]

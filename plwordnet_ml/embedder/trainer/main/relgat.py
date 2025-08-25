@@ -20,8 +20,8 @@ plwordnet-milvus \
 
 import argparse
 
-from plwordnet_ml.embedder.trainer.main.parts.relgat import RelGATMainTrainerHandler
-from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
+from plwordnet_ml.embedder.trainer.main.part.relgat import RelGATMainTrainerHandler
+from plwordnet_ml.embedder.trainer.main.part.constants import ConstantsRelGATTrainer
 
 
 def get_args() -> argparse.Namespace:

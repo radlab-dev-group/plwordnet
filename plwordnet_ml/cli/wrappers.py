@@ -1,10 +1,19 @@
+import os.path
 from typing import Optional
 
+from plwordnet_handler.base.connectors.milvus.search_handler import (
+    MilvusWordNetSearchHandler,
+)
 from plwordnet_handler.cli.base_wrapper import CLIWrapperBase
+from plwordnet_handler.dataset.exporter.relgat import RelGATExporter
+from plwordnet_ml.dataset.aligned_id.aligned_dataset_id import (
+    RelGATDatasetIdentifiersAligner,
+)
+from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 from plwordnet_ml.embedder.bi_encoder import BiEncoderEmbeddingGenerator
-from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_ml.embedder.milvus.consumer import EmbeddingMilvusConsumer
 from plwordnet_ml.embedder.generator.strategy import EmbeddingBuildStrategy
+from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_ml.embedder.generator.base_embeddings.lexical_unit_empty import (
     SemanticEmbeddingGeneratorEmptyLu,
 )
@@ -27,23 +36,6 @@ class Constants:
     SPACY_MODEL_NAME = "pl_core_news_sm"
     LOG_FILENAME = "synset-embeddings.log"
     ACCEPT_POS = [1, 2, 3, 4]
-
-
-class BiEncoderModelConfig:
-    """
-    Bi-encoder model spec
-    """
-
-    MODEL_NAME = "Semantic-v0.1-o7reqebo"
-    WANDB = (
-        "http://192.168.100.61:8080/pkedzia/"
-        "plWordnet-semantic-embeddings/runs/o7reqebo"
-    )
-    MODEL_PATH = (
-        "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/"
-        "v0.1/EuroBERT-610m/biencoder/"
-        "20250806_162431_full_dataset_ratio-2.0_train0.9_eval0.1/checkpoint-290268"
-    )
 
 
 class CLIMilvusWrappers(CLIWrapperBase):
@@ -85,6 +77,10 @@ class CLIMilvusWrappers(CLIWrapperBase):
             config_path=args.milvus_config
         )
 
+        self.bi_encoder_model_config = BiEncoderModelConfig.from_json_file(
+            config_path=args.embedder_config
+        )
+
     def are_args_correct(self, args=None):
         """
         Validates the correctness of command-line arguments.
@@ -111,23 +107,70 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         # if --prepare-base-mean-empty-embeddings-lu
         if args.prepare_mean_empty_base_embeddings_lu:
+            if not args.embedder_config:
+                raise TypeError(
+                    "Embedder configuration is required for "
+                    "--prepare-base-mean-empty-embeddings-lu"
+                )
+
+            if not os.path.exists(args.embedder_config):
+                raise TypeError(
+                    f"Embedder configuration not found: {args.embedder_config}\n"
+                    "Embedder config is required for "
+                    "--prepare-base-mean-empty-embeddings-lu"
+                )
+
             opts += 1
 
         # if --prepare-base-embeddings-synset
         if args.prepare_base_embeddings_synset:
             opts += 1
 
+        # if --export-relgat-mapping
+        if args.export_relgat_mapping:
+            if not args.relgat_mapping_directory:
+                raise TypeError(
+                    "--relgat-mapping-directory option is required for "
+                    "--export-relgat-mapping"
+                )
+
+            opts += 1
+
+        # if --export-relgat-dataset
+        if args.export_relgat_dataset:
+            if not args.milvus_config:
+                raise TypeError(
+                    "--milvus-config option is required for "
+                    "--export-relgat-dataset"
+                )
+
+            if not args.relgat_mapping_directory:
+                raise TypeError(
+                    "--relgat-mapping-directory option is required for "
+                    "--export-relgat-dataset"
+                )
+
+            if not args.relgat_dataset_directory:
+                raise TypeError(
+                    "--relgat-dataset-directory option is required for "
+                    "--export-relgat-dataset"
+                )
+
+            opts += 1
+
         if opts == 0:
             raise TypeError(
                 "\n\n"
-                "No one option is given, please choose: \n"
+                "No one option is given, please choose:\n"
                 "  --prepare-database - to prepare database,\n"
                 "  --prepare-base-embeddings-lu - to prepare base "
                 "embeddings for lexical units, based on the examples,\n"
                 "  --prepare-base-mean-empty-embeddings-lu - insert mean-embeddings "
                 "for empty lu (without examples/base embedding)\n"
                 "  --prepare-base-embeddings-synset - to prepare base "
-                "synset embeddings using synonymy relation and weighted mean."
+                "synset embeddings using synonymy relation and weighted mean.\n"
+                " --export-relgat-mapping - to export RelGAT mappings\n"
+                " --export-relgat-dataset - to export RelGAT dataset\n"
                 "  (...) \n"
                 "  --help to show all available options"
             )
@@ -154,6 +197,14 @@ class CLIMilvusWrappers(CLIWrapperBase):
 
         # --prepare-base-embeddings-synset
         if self.args.prepare_base_embeddings_synset:
+            return True
+
+        # --export-relgat-mapping
+        if self.args.export_relgat_mapping:
+            return True
+
+        # --export-relgat-dataset
+        if self.args.export_relgat_dataset:
             return True
 
         return False
@@ -209,8 +260,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
         self.logger.info("Preparing base LU/LU examples embeddings generator")
         syn_emb_generator = SemanticEmbeddingGeneratorLuAndExamples(
             generator=BiEncoderEmbeddingGenerator(
-                model_path=BiEncoderModelConfig.MODEL_PATH,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_path=self.bi_encoder_model_config.model_path,
+                model_name=self.bi_encoder_model_config.model_name,
                 device=self.args.device,
                 normalize_embeddings=True,
                 log_level=self.args.log_level,
@@ -230,7 +281,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
             for emb_dict in embeddings:
                 embedding_consumer.add_embedding(
                     embedding_dict=emb_dict,
-                    model_name=BiEncoderModelConfig.MODEL_NAME,
+                    model_name=self.bi_encoder_model_config.model_name,
                 )
 
         # Insert missing (from not full batch)
@@ -272,7 +323,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
         for emb_dict in empty_lu_generator.generate():
             embedding_consumer.add_embedding(
                 embedding_dict=emb_dict,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_name=self.bi_encoder_model_config.model_name,
             )
         # Insert missing (from not full batch)
         embedding_consumer.flush()
@@ -311,10 +362,70 @@ class CLIMilvusWrappers(CLIWrapperBase):
         for emb_dict in syn_emb_generator.generate(split_to_sentences=True):
             embedding_consumer.add_embedding(
                 embedding_dict=emb_dict,
-                model_name=BiEncoderModelConfig.MODEL_NAME,
+                model_name=self.bi_encoder_model_config.model_name,
             )
         # Insert missing (from not full batch)
         embedding_consumer.flush()
+
+    def export_relgat_mapping_to_directory(self) -> bool:
+        self.__plwn_api_and_milvus_ready()
+
+        self.logger.info(
+            f"Exporting RELGat mappings to directory "
+            f"{self.args.relgat_mapping_directory}"
+        )
+        try:
+            relgat_mapper = RelGATDatasetIdentifiersAligner(
+                plwn_api=self.pl_wn,
+                prepare_mapping=True,
+                log_level=self.args.log_level,
+                logger_file_name=Constants.LOG_FILENAME,
+                mapping_path=None,
+            )
+            relgat_mapper.export_to_dir(
+                out_directory=self.args.relgat_mapping_directory,
+            )
+        except Exception as e:
+            self.logger.error(e)
+            return False
+        return True
+
+    def export_relgat_dataset_to_directory(self) -> bool:
+        self.__plwn_api_and_milvus_ready()
+
+        self.logger.info(
+            f"Exporting RELGat dataset to directory "
+            f"{self.args.relgat_mapping_directory}"
+        )
+        try:
+            relgat_exporter = RelGATExporter(
+                plwn_api=self.pl_wn,
+                milvus_handler=MilvusWordNetSearchHandler(
+                    config=self.milvus_config,
+                    log_level=self.log_level,
+                    logger_name=Constants.LOG_FILENAME,
+                    auto_connect=True,
+                ),
+                out_directory=self.args.relgat_dataset_directory,
+                aligner=RelGATDatasetIdentifiersAligner(
+                    plwn_api=None,
+                    prepare_mapping=False,
+                    log_level=self.args.log_level,
+                    logger_file_name=Constants.LOG_FILENAME,
+                    mapping_path=self.args.relgat_mapping_directory,
+                ),
+                accept_pos=Constants.ACCEPT_POS,
+                limit=self.args.limit,
+            )
+            relgat_exporter.export_to_dir()
+        except Exception as e:
+            self.logger.error(e)
+            return False
+
+        self.logger.info(
+            f"Successfully exported to {self.args.relgat_dataset_directory}"
+        )
+        return True
 
     def __plwn_api_and_milvus_ready(self):
         """

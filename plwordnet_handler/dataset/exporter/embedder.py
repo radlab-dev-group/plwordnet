@@ -9,6 +9,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Dict, Optional, Iterator, List, Tuple
 
+from plwordnet_handler.base.structure.elems.rel_type import SYNONYMY_ID
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 from plwordnet_handler.base.structure.elems.lu_in_synset import (
@@ -331,16 +332,17 @@ class WordnetToEmbedderConverter:
         """
         Generate synonymy relations between lexical units within the same synsets.
 
-        Creates fake relations representing synonymy between all pairs of lexical units
-        that belong to the same synset. Each lexical unit is connected to every other
-        lexical unit in its synset with a synonymy relation type (REL_ID = 30).
+        Creates fake relations representing synonymy between all pairs
+        of lexical units that belong to the same synset. Each lexical unit
+        is connected to every other lexical unit in its synset with a synonymy
+        relation type (REL_ID = SYNONYMY_ID).
 
         Args:
             limit: Maximum number of unit-synset relationships to process
 
         Yields:
             LexicalUnitAndSynsetFakeRelation: Fake relation objects
-            with synonymy relation type (REL_ID=30) connecting
+            with synonymy relation type (REL_ID=SYNONYMY_ID) connecting
             lexical units within the same synsets
         """
         syn_lu_ids = self.pl_wordnet.get_units_and_synsets(
@@ -352,7 +354,7 @@ class WordnetToEmbedderConverter:
                     yield LexicalUnitAndSynsetFakeRelation(
                         PARENT_ID=lu_parent,
                         CHILD_ID=lu_child,
-                        REL_ID=30,  # 30 - synonymy
+                        REL_ID=SYNONYMY_ID,
                     )
 
     def __extract_all_texts_from(

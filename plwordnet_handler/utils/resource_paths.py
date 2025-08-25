@@ -13,6 +13,7 @@ class ResourcePaths:
 
     DEFAULT_PLWN_DB_CONFIG = "plwordnet-mysql-db.json"
     DEFAULT_PLWN_MILVUS_CONFIG = "milvus-config.json"
+    DEFAULT_EMBEDDER_MODEL_CONFIG = "embedder-config.json"
 
     PACKAGE_NAME = "plwordnet_handler"
     RESOURCES_SUBDIR = "resources"
@@ -165,6 +166,25 @@ class ResourcePaths:
             return None
         return res_path / cls.DEFAULT_PLWN_MILVUS_CONFIG
 
+    @classmethod
+    def get_default_embedder_model_config(cls) -> Optional[Path]:
+        """
+        Get the default Embedder model configuration file path.
+
+        Retrieves the path to the default PLWordNet Embedder model
+        configuration file by combining the installed resources
+        path with the default Embedder model config filename.
+
+        Returns:
+            Optional[Path]: Path to the default Embedder model configuration
+            file, or None if the resource path cannot be determined
+        """
+
+        res_path = cls.get_installed_resources_path()
+        if res_path is None:
+            return None
+        return res_path / cls.DEFAULT_EMBEDDER_MODEL_CONFIG
+
 
 def get_default_graph_path(prefer_full: bool = True) -> Optional[str]:
     """
@@ -216,3 +236,13 @@ def get_default_milvus_db_config_path() -> Optional[Path]:
         Path to a default Milvus connection config file
     """
     return ResourcePaths.get_default_milvus_db_config()
+
+
+def get_default_embedder_model_config_path() -> Optional[Path]:
+    """
+    Get a default Embedder config path.
+
+    Returns:
+        Path to a default embedder model config file
+    """
+    return ResourcePaths.get_default_embedder_model_config()

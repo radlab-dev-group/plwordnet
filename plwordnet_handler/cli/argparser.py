@@ -81,13 +81,6 @@ def prepare_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Show progress bar",
     )
-    parser.add_argument(
-        "--limit",
-        dest="limit",
-        type=int,
-        required=False,
-        help="Limit the number of results to check app is proper working.",
-    )
 
     # -------------------------------------------------------------------------
     # Test connection

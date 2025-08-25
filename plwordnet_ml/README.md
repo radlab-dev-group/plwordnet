@@ -265,3 +265,37 @@ czyli:
  - `--prepare-base-embeddings-lu` -- przygotuje embeddinig podstawowe dla jednostek
  - `--insert-base-mean-empty-embeddings-lu` -- przygotuje podstawowe fake embeddingi dla jednostek
  - `--prepare-base-embeddings-synset` -- przygotowuje podstawowe embeddingi synsetów
+
+
+### Model transformacji jednostek -- RelGAT
+
+Model ten (oznaczmy go jako `RelGAT`) działa jako przekształcenie wymiarów 
+embeddingu `E1` (jednostki 1) do embeddngu `E2` (jednostki 2) przy pomocy relacji `R`
+zachodzącej między nimi. Model `RelGAT` to wyuczony model przekształceń
+w taki sposób aby :`E1-R->E2: RelGAT(E1) ~ E2`. Model ten zostanie wykorzystany jako
+macierz przekształceń w trakcie fuzji znaczeń, również w trakcie fuzji znaczeń 
+niereprezentowanych za pomocą _base embeddingów_. 
+
+**Przygotowanie danycj do RelGAT** - to pierwszy krok przed uczeniem modelu relacji.
+W ramach tego kroku należy utworzyć mapowanie identyfikatorów typów relacji 
+i jednostek leksykalnych na wartości od `0` do `|liczby elementów|`. Robimy to po to, 
+że w trakcie uczenia modelu translacyjnego
+
+```bash
+plwordnet-milvus \
+  --milvus-config=resources/milvus-config-pk.json \
+  --embedder-config=resources/embedder-config.json \
+  --nx-graph-dir=/mnt/data2/data/resources/plwordnet_handler/20250811/slowosiec_full/nx/graphs \
+  --relgat-mapping-directory=resources/aligned-dataset-identifiers/ \
+  --relgat-dataset-directory=resources/aligned-dataset-identifiers/dataset \
+  --export-relgat-dataset \
+  --export-relgat-mapping
+```
+
+wywołanie:
+ - wyseksportuje mapowanie bazowe `--export-relgat-mapping` do katalogu
+`resources/aligned-dataset-identifiers/`
+ - przygotuje zbiór danych do uczenia modelu RelGAT (`--export-relgat-dataset`)
+i wyeksportuje go do katalogu
+`resources/aligned-dataset-identifiers/dataset`
+ - do katalogu `--relgat-mapping-directory`

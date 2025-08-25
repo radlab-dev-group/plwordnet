@@ -6,30 +6,49 @@
 # =============================================================================
 # Device: {cuda, cpu, cuda:x}
 DEVICE="cuda"
-CUDA_DEVICES="2"
+CUDA_DEVICES="0"
 # Ratio of training data
 TRAIN_EVAL_DATASET_RATIO="0.80"
+
+ARCHITECTURE="medium"
 #
 # =============================================================================
 # =============================================================================
 # --------------------  TRAINING PARAMETERS
 # =============================================================================
+if [[ "${ARCHITECTURE}" == "small" ]]
+then
+  # Tain/eval batch size
+  BATCH_SIZE=64
+  # Out RelGAT dimension (for each head)
+  GAT_OUT_DIM=200
+  # Number of layers
+  NUM_OF_LAYERS=3
+  # Number of heads (each with projection to GAT_OUT_DIM)
+  NUM_OF_HEADS=8
+elif [[ "${ARCHITECTURE}" == "medium" ]]
+then
+  # Tain/eval batch size
+  BATCH_SIZE=64
+  # Out RelGAT dimension (for each head)
+  GAT_OUT_DIM=200
+  # Number of layers
+  NUM_OF_LAYERS=4
+  # Number of heads (each with projection to GAT_OUT_DIM)
+  NUM_OF_HEADS=12
+else
+  echo "Supported architectures: [small, medium]"
+  exit 1
+fi
+
 # Number of epochs
-EPOCHS=15
-# Tain/eval batch size
-BATCH_SIZE=32
+EPOCHS=10
 # Scorer, one of: [distmult, transe]
 SCORER="distmult"
-# Out RelGAT dimension (for each head)
-GAT_OUT_DIM=200
-# Number of layers
-NUM_OF_LAYERS=1
-# Number of heads (each with projection to GAT_OUT_DIM)
-NUM_OF_HEADS=12
-# Number of negative examples for each positive one
-NUM_NEG_TO_POS=4
 # Dropout used while training
 DROPOUT=0.3
+# Number of negative examples for each positive one
+NUM_NEG_TO_POS=4
 # Logging during training after each n steps
 LOG_EVERY_N_STEPS=10
 # Learning rate
@@ -43,7 +62,7 @@ LR_SCHEDULER="linear"
 # =============================================================================
 # --------------------  STORING/EVALUATE MODEL WHILE TRAINING
 # Output directory to store the model and checkpoints during training
-OUT_MODEL_DIR="relgat-models/relgat_$(date +%Y%m%d_%H%M%S)"
+OUT_MODEL_DIR="relgat-models/relgat-${ARCHITECTURE}_$(date +%Y%m%d_%H%M%S)"
 # Save model every n steps
 SAVE_N_STEPS=2000
 # Optional explicit eval steps, if not given, then eval will be done after each epoch

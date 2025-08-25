@@ -4,7 +4,7 @@ import pickle
 import argparse
 
 from plwordnet_ml.embedder.trainer.relation.relgat_trainer import RelGATTrainer
-from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
+from plwordnet_ml.embedder.trainer.main.part.constants import ConstantsRelGATTrainer
 
 
 class RelGATMainTrainerHandler:

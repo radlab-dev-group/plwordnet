@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple, Optional, Any
 from plwordnet_ml.utils.wandb_handler import WanDBHandler
 from plwordnet_ml.embedder.trainer.relation.model import RelGATModel
 from plwordnet_ml.embedder.trainer.relation.dataset import EdgeDataset
-from plwordnet_ml.embedder.trainer.main.parts.constants import ConstantsRelGATTrainer
+from plwordnet_ml.embedder.trainer.main.part.constants import ConstantsRelGATTrainer
 
 
 class RelGATTrainer:

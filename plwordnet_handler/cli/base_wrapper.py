@@ -36,7 +36,9 @@ class CLIWrapperBase(ABC):
         """
 
         self.args = args
+        self.log_name = log_name
         self.log_level = log_level
+        self.log_filename = log_filename
         self.logger = prepare_logger(
             logger_name=log_name, log_level=log_level, logger_file_name=log_filename
         )

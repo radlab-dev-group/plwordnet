@@ -2,7 +2,10 @@ import argparse
 
 from plwordnet_ml.cli.example_usage import EXAMPLE_USAGE
 from plwordnet_handler.cli.base_argparser import prepare_base_parser
-from plwordnet_ml.cli.constants import DEFAULT_MILVUS_DB_CFG_PATH
+from plwordnet_ml.cli.constants import (
+    DEFAULT_MILVUS_DB_CFG_PATH,
+    DEFAULT_EMBEDDER_CFG_PATH,
+)
 
 
 def prepare_parser() -> argparse.ArgumentParser:
@@ -30,6 +33,14 @@ def prepare_parser() -> argparse.ArgumentParser:
         type=str,
         default=DEFAULT_MILVUS_DB_CFG_PATH,
         help="Path to JSON file with database configuration.",
+    )
+
+    parser.add_argument(
+        "--embedder-config",
+        dest="embedder_config",
+        type=str,
+        default=DEFAULT_EMBEDDER_CFG_PATH,
+        help="Path to JSON file with embedder configuration.",
     )
 
     # -------------------------------------------------------------------------
@@ -66,6 +77,39 @@ def prepare_parser() -> argparse.ArgumentParser:
         default=False,
         action="store_true",
         help="If option is given the base embeddings for synset will be prepared.",
+    )
+
+    # -------------------------------------------------------------------------
+
+    parser.add_argument(
+        "--export-relgat-mapping",
+        dest="export_relgat_mapping",
+        default=False,
+        action="store_true",
+        help="Export RelGAT mappings (lexical units and relations",
+    )
+
+    parser.add_argument(
+        "--export-relgat-dataset",
+        dest="export_relgat_dataset",
+        default=False,
+        action="store_true",
+        help="Export dataset to RelGAT (relations embeddings) "
+        "training to given output path.",
+    )
+
+    parser.add_argument(
+        "--relgat-mapping-directory",
+        dest="relgat_mapping_directory",
+        type=str,
+        help="Path to directory with RelGAT mapping.",
+    )
+
+    parser.add_argument(
+        "--relgat-dataset-directory",
+        dest="relgat_dataset_directory",
+        type=str,
+        help="Path to RelGAT dataset directory.",
     )
 
     # -------------------------------------------------------------------------

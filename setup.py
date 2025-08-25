@@ -23,7 +23,7 @@ class _SetupConfiguration:
     @dataclass
     class SetupConfig:
         module_name: str = "plwordnet-handler"
-        module_version: str = "1.4.0"
+        module_version: str = "1.4.1"
         handler_module_name: str = "plwordnet_handler"
         short_description: str = "Narzędzie do pracy ze Słowosiecią"
 

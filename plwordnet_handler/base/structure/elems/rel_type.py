@@ -4,6 +4,10 @@ from typing import Dict, Any, List, Optional
 from plwordnet_handler.base.structure.elems.general_mapper import GeneralMapper
 
 
+# ID of Synonymy in Słosowiseć (plWordnet)
+SYNONYMY_ID = 30
+
+
 @dataclass
 class RelationType:
     """

@@ -67,11 +67,23 @@ class WanDBHandler:
         wandb.log_artifact(artifact)
 
     @staticmethod
+    def log_metrics(metrics: dict, step: int | None = None):
+        """
+        Log a dictionary of scalar metrics to wandb.
+
+        Args:
+            metrics: Mapping name → value (float, int, …).
+            step: Optional global step that will be attached to the log.
+        """
+        wandb.log(metrics, step=step)
+
+    @staticmethod
     def finish_wand():
         """
         Finish the current wandb run and clean up resources.
         """
-        wandb.run.finish()
+        if wandb.run is not None:
+            wandb.run.finish()
 
     @staticmethod
     def prepare_run_tags(run_tags):

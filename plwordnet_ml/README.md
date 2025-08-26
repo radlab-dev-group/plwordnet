@@ -269,17 +269,13 @@ czyli:
 
 ### Model transformacji jednostek -- RelGAT
 
-Model ten (oznaczmy go jako `RelGAT`) działa jako przekształcenie wymiarów 
-embeddingu `E1` (jednostki 1) do embeddngu `E2` (jednostki 2) przy pomocy relacji `R`
-zachodzącej między nimi. Model `RelGAT` to wyuczony model przekształceń
-w taki sposób aby :`E1-R->E2: RelGAT(E1) ~ E2`. Model ten zostanie wykorzystany jako
-macierz przekształceń w trakcie fuzji znaczeń, również w trakcie fuzji znaczeń 
-niereprezentowanych za pomocą _base embeddingów_. 
+Model ten (oznaczmy go jako `RelGAT`) działa jako przekształcenie embeddingu `E1` (jednostki 1) 
+do embeddngu `E2` (jednostki 2) przy pomocy relacji `R` zachodzącej między nimi. 
+Model `RelGAT` to wyuczony model przekształceń w taki sposób aby :`E1-R->E2: RelGAT(E1) ~ E2`. 
+Model ten zostanie wykorzystany jako macierz przekształceń w trakcie fuzji znaczeń, 
+również w trakcie fuzji znaczeń niereprezentowanych za pomocą _base embeddingów_. 
 
-**Przygotowanie danycj do RelGAT** - to pierwszy krok przed uczeniem modelu relacji.
-W ramach tego kroku należy utworzyć mapowanie identyfikatorów typów relacji 
-i jednostek leksykalnych na wartości od `0` do `|liczby elementów|`. Robimy to po to, 
-że w trakcie uczenia modelu translacyjnego
+Repozytorium opisujące model [relgat-lmm](https://github.com/radlab-dev-group/relgat-llm).
 
 ```bash
 plwordnet-milvus \

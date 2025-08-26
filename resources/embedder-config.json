@@ -1,18 +1,12 @@
 {
-  "active": "b20igzw4_chk2300000",
+  "active": "wtcsnxj9",
   "models": {
-    "b20igzw4_chk2300000": {
-      "model_name": "Semantic-v0.2-b20igzw4_chk2300000",
-      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/b20igzw4",
-      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.2/EuroBERT-610m/20250812_032338_embedder_sentsplit_train-0.93/checkpoint-2300000",
-      "comment": "Model z synonimią, checkpoint w trakcie uczenia",
-      "vec_size": 1152
-    },
-    "o7reqebo": {
-      "model_name": "Semantic-v0.1-o7reqebo",
-      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/o7reqebo",
-      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/plwn-semantic-embeddingss/v0.1/EuroBERT-610m/biencoder/20250806_162431_full_dataset_ratio-2.0_train0.9_eval0.1/checkpoint-290268",
-      "comment": "Model bez synonimii",
+    "wtcsnxj9":{
+      "model_name": "Semantic-v0.2-wtcsnxj9",
+      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/wtcsnxj9",
+      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/semantic-euro-bert-encoder/v0.2/EuroBERT-610m/20250812_021454_embedder_sentsplit_train-0.93/semantic-euro-bert-encoder-v1",
+      "hf_model": "radlab/semantic-euro-bert-encoder-v1",
+      "comment": "Model z synonimią i z datasetem z WIKI z podziałem na zdania.",
       "vec_size": 1152
     }
   }

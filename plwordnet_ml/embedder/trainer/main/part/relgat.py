@@ -61,6 +61,14 @@ class RelGATMainTrainerHandler:
             "eval_every_n_steps": args.eval_every_n_steps,
             "lr": args.lr,
             "lr_scheduler": args.lr_scheduler,
+            "weight_decay": args.weight_decay,
+            "grad_clip_norm": args.grad_clip_norm,
+            "early_stop_patience": args.early_stop_patience,
+            "use_amp": args.use_amp,
+            "seed": args.seed,
+            "max_checkpoints": args.max_checkpoints,
+            "lr_decay": args.lr_decay,
+            "disable_edge_type_mask": args.disable_edge_type_mask,
         }
         if args.warmup_steps is not None:
             run_cfg["warmup_steps"] = args.warmup_steps
@@ -85,5 +93,16 @@ class RelGATMainTrainerHandler:
             save_dir=run_cfg["out_dir"],
             save_every_n_steps=run_cfg["save_every_n_steps"],
             eval_every_n_steps=run_cfg["eval_every_n_steps"],
+            weight_decay=run_cfg["weight_decay"],
+            grad_clip_norm=run_cfg["grad_clip_norm"],
+            early_stop_patience=run_cfg["early_stop_patience"],
+            use_amp=run_cfg["use_amp"],
+            seed=run_cfg["seed"],
+            max_checkpoints=run_cfg["max_checkpoints"],
+            lr_decay=run_cfg["lr_decay"],
+            lr=run_cfg["lr"],
+            log_grad_norm=True,
+            disable_edge_type_mask=run_cfg["disable_edge_type_mask"],
+            profile_steps=run_cfg["log_every_n_steps"],
         )
         return trainer

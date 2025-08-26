@@ -1,4 +1,9 @@
 import json
+import shutil
+import time
+from collections import deque
+
+import numpy as np
 import torch
 import random
 import torch.nn.functional as F
@@ -30,6 +35,17 @@ class RelGATTrainer:
         gat_heads: int = 6,
         gat_num_layers: int = 1,
         dropout: float = 0.2,
+        weight_decay: float = 0.0,
+        grad_clip_norm: Optional[float] = None,
+        early_stop_patience: Optional[int] = None,
+        use_amp: bool = False,
+        seed: int = 42,
+        max_checkpoints: int = 5,
+        lr: float = 0.0001,
+        lr_decay: float = 1.0,
+        log_grad_norm: bool = False,
+        disable_edge_type_mask: bool = False,
+        profile_steps: int = 0,
         device: Optional[torch.device] = None,
         run_name: Optional[str] = None,
         log_every_n_steps: int = 100,
@@ -37,6 +53,39 @@ class RelGATTrainer:
         save_every_n_steps: Optional[int] = None,
         eval_every_n_steps: Optional[int] = None,
     ):
+        # Reproducibility – seed
+        self.seed = seed
+        random.seed(self.seed)
+        np.random.seed(self.seed)
+        torch.manual_seed(self.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(self.seed)
+
+        self._no_improve_steps = 0
+        self.log_grad_norm = log_grad_norm
+        self.weight_decay = weight_decay
+        self.early_stop_patience = early_stop_patience
+
+        self.use_amp = use_amp
+        if self.use_amp:
+            self.scaler = torch.cuda.amp.GradScaler()
+        else:
+            self.scaler = None
+
+        self.lr_decay = lr_decay
+        self.grad_clip_norm = grad_clip_norm
+        self.profile_steps = profile_steps
+        self.early_stop_patience = early_stop_patience
+        self.max_checkpoints = max_checkpoints
+        self.disable_edge_type_mask = disable_edge_type_mask
+
+        # Model saving – list of best checkpoints
+        self.best_mrr = -float("inf")
+        self.best_ckpt_dir: Path | None = None
+
+        # Fifo queue
+        self.saved_checkpoints: deque[Path] = deque()
+
         self.device = device or torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
@@ -55,7 +104,7 @@ class RelGATTrainer:
 
         # LR/scheduler config
         self.scheduler = None
-        self.base_lr = float(run_config["lr"])
+        self.base_lr = lr
         self.scheduler_type = str(run_config["lr_scheduler"]).lower()
         self.default_warmup_ratio = (
             ConstantsRelGATTrainer.Default.DEFAULT_WARMUP_RATIO
@@ -166,7 +215,11 @@ class RelGATTrainer:
             gat_num_layers=self.gat_num_layers,
         ).to(self.device)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.base_lr)
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(),
+            lr=self.base_lr,
+            weight_decay=self.weight_decay,
+        )
 
         # W&B initialization
         self.wandb_config = wandb_config
@@ -212,6 +265,9 @@ class RelGATTrainer:
 
         with torch.no_grad():
             for batch in tqdm(self.eval_loader, desc="Evaluation", leave=False):
+                if not batch:
+                    continue
+
                 pos, *negs = zip(*batch)
 
                 src_ids = torch.cat(
@@ -229,16 +285,17 @@ class RelGATTrainer:
                 pos_score = scores[:B]
                 neg_score = scores[B:].view(B, self.num_neg)
 
-            for i in range(B):
-                cand_scores = torch.cat(
-                    [pos_score[i].unsqueeze(0), neg_score[i]], dim=0
-                )
-                mrr, hits = self.compute_mrr_hits(cand_scores, true_idx=0, ks=ks)
-                total_mrr += mrr
-                for k in ks:
-                    total_hits[k] += hits[k]
-                n_examples += 1
+                for i in range(B):
+                    cand_scores = torch.cat(
+                        [pos_score[i].unsqueeze(0), neg_score[i]], dim=0
+                    )
+                    mrr, hits = self.compute_mrr_hits(cand_scores, true_idx=0, ks=ks)
+                    total_mrr += mrr
+                    for k in ks:
+                        total_hits[k] += hits[k]
+                    n_examples += 1
 
+        n_examples = max(1, n_examples)
         avg_mrr = total_mrr / n_examples
         avg_hits = {k: total_hits[k] / n_examples for k in ks}
         return avg_mrr, avg_hits
@@ -289,9 +346,23 @@ class RelGATTrainer:
         else:
             raise ValueError(f"Unknown lr_scheduler type: {self.scheduler_type}")
 
-        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
-            self.optimizer, lr_lambda=lr_lambda
-        )
+        if self.lr_decay != 1.0:
+            # after the warm-up phase, each step is additionally
+            # multiplied by the decay-factor.
+            base_lambda = lr_lambda
+
+            def lr_lambda(step: int):
+                return base_lambda(step) * (
+                    self.lr_decay ** max(0, step - warmup_steps)
+                )
+
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+                self.optimizer, lr_lambda=lr_lambda
+            )
+        else:
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+                self.optimizer, lr_lambda=lr_lambda
+            )
 
         # Log scheduler info (once)
         WanDBHandler.log_metrics(
@@ -320,6 +391,7 @@ class RelGATTrainer:
                 ),
                 start=1,
             ):
+                step_start = time.time()
                 pos, *negs = zip(*batch)
 
                 src_ids = torch.cat(
@@ -332,16 +404,39 @@ class RelGATTrainer:
                     [p[2] for p in pos] + [n[2] for n in sum(negs, ())], dim=0
                 ).to(self.device)
 
-                scores = self.model(src_ids, rel_ids, dst_ids)
-                B = len(pos)
-                pos_score = scores[:B]
-                neg_score = scores[B:].view(B, self.num_neg)
+                # use auto casting
+                with torch.amp.autocast("cuda", enabled=self.use_amp):
+                    # zero grads before backward
+                    self.optimizer.zero_grad(set_to_none=True)
+                    scores = self.model(src_ids, rel_ids, dst_ids)
+                    B = len(pos)
+                    pos_score = scores[:B]
+                    neg_score = scores[B:].view(B, self.num_neg)
+                    loss = self.margin_ranking_loss(
+                        pos_score, neg_score, margin=margin
+                    )
 
-                loss = self.margin_ranking_loss(pos_score, neg_score, margin=margin)
+                # scaler backward if enabled
+                if self.use_amp:
+                    self.scaler.scale(loss).backward()
+                else:
+                    loss.backward()
 
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
+                # gradient clipping (if enabled)
+                if self.grad_clip_norm is not None:
+                    if self.use_amp:
+                        self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(
+                        self.model.parameters(),
+                        max_norm=self.grad_clip_norm,
+                    )
+
+                # optimizer step
+                if self.use_amp:
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
+                else:
+                    self.optimizer.step()
 
                 # step scheduler after optimizer step
                 if self.scheduler is not None:
@@ -358,17 +453,31 @@ class RelGATTrainer:
 
                 # logging every n steps
                 if self.global_step % self.log_every_n_steps == 0:
+                    step_end = time.time()
+                    step_time = step_end - step_start
+
+                    grad_norm = -float("inf")
+                    if self.log_grad_norm:
+                        total_norm = 0.0
+                        for p in self.model.parameters():
+                            if p.grad is not None:
+                                param_norm = p.grad.detach().data.norm(2)
+                                total_norm += param_norm.item() ** 2
+                        grad_norm = total_norm**0.5
+
                     avg_running_loss = running_loss / max(1, running_examples)
                     current_lr = (
                         self.scheduler.get_last_lr()[0]
                         if self.scheduler is not None
                         else self.optimizer.param_groups[0]["lr"]
                     )
+
                     print(
                         f"\nGlobal step {self.global_step} "
-                        f"/in epoch {step_in_epoch}/ "
+                        f"grad_norm {grad_norm:.8f} "
                         f"loss_step: {avg_running_loss:.8f} "
-                        f"lr: {current_lr:.8f}"
+                        f"lr: {current_lr:.8f} "
+                        f"step_time {step_time}"
                     )
 
                     WanDBHandler.log_metrics(
@@ -376,7 +485,9 @@ class RelGATTrainer:
                             "epoch": epoch,
                             "train/loss_step": avg_running_loss,
                             "train/step_in_epoch": step_in_epoch,
+                            "train/grad_norm": grad_norm,
                             "train/lr": current_lr,
+                            "train/step_time": step_time,
                         },
                         step=self.global_step,
                     )
@@ -414,20 +525,40 @@ class RelGATTrainer:
                         step=self.global_step,
                     )
 
-                # saving checkpoints every n steps
-                if (
-                    self.save_every_n_steps is not None
-                    and self.global_step % self.save_every_n_steps == 0
-                ):
-                    chk_dir_name = f"checkpoint-{self.global_step}"
-                    self._save_checkpoint(
-                        subdir=chk_dir_name, run_config=self.run_config
-                    )
-                    # log saved checkpoint to w&b
-                    WanDBHandler.log_metrics(
-                        metrics={"checkpoint/step": self.global_step},
-                        step=self.global_step,
-                    )
+                    # Save
+                    current_mrr = mrr
+                    if current_mrr > self.best_mrr:
+                        self.best_mrr = current_mrr
+                        if (
+                            self.save_every_n_steps is not None
+                            and self.global_step % self.save_every_n_steps == 0
+                        ):
+                            self.best_ckpt_dir = (
+                                f"best_checkpoint_{self.global_step}"
+                            )
+                            self._save_checkpoint(
+                                subdir=self.best_ckpt_dir, run_config=self.run_config
+                            )
+                            self._prune_checkpoints()
+
+                            # log saved checkpoint to w&b
+                            WanDBHandler.log_metrics(
+                                metrics={"checkpoint/step": self.global_step},
+                                step=self.global_step,
+                            )
+                        self._no_improve_steps = 0
+                    else:
+                        self._no_improve_steps += 1
+
+                    if (
+                        self.early_stop_patience is not None
+                        and self._no_improve_steps >= self.early_stop_patience
+                    ):
+                        print(
+                            "\n  Early‑stopping triggered – no improvement for "
+                            f"{self.early_stop_patience} evaluation steps."
+                        )
+                        break
 
             if self.eval_every_n_steps is None:
                 avg_train_loss = epoch_loss / len(self.train_dataset)
@@ -457,7 +588,7 @@ class RelGATTrainer:
             f"_ratio{int(self.run_config['train_ratio'] * 100)}"
         )
         self._save_checkpoint(subdir=out_model_dir, run_config=self.run_config)
-        print(f"\nTrening zakończony – model zapisano pod: {out_model_dir}")
+        print(f"\nTraining finished – model saved to: {out_model_dir}")
 
         # ----------------- ARTIFACT W&B -----------------
         # WanDBHandler.add_model(name=f"relgat-{self.scorer_type}", local_path="..")
@@ -483,3 +614,16 @@ class RelGATTrainer:
                 f.write(json.dumps(run_config, indent=2, ensure_ascii=False))
 
         return str(out_path)
+
+    def _prune_checkpoints(self) -> None:
+        """
+        Keeps a maximum of max_checkpoints most recent (or best) checkpoints.
+        The oldest ones are deleted from the disc.
+        """
+        while len(self.saved_checkpoints) > self.max_checkpoints:
+            oldest = self.saved_checkpoints.popleft()
+            try:
+                shutil.rmtree(oldest)
+                print(f"️ Removed old checkpoint: {oldest}")
+            except Exception as exc:
+                print(f" Could not delete {oldest}: {exc}")

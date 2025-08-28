@@ -68,9 +68,8 @@ class RelGATExporter:
 
     def _prepare_data(self):
         self.logger.info("Preparing data to export")
-        self._prepare_rel_to_idx()
-        self._prepare_relations()
         self._prepare_embeddings(limit=self.limit)
+        self._prepare_relations()
 
     def _export_data_to_dir(self, out_directory: str) -> None:
         self.logger.info(f"Storing RelGAT mappings to {out_directory}")
@@ -96,26 +95,38 @@ class RelGATExporter:
                     f"Only [json, pickle] are supported!"
                 )
 
-    def _prepare_rel_to_idx(self) -> None:
-        self.logger.info(" - preparing relation name to aligned id mapping")
-        self._rel_to_idx = self.aligner.rel_name_to_aligned_idx_dict.copy()
-
     def _prepare_relations(self) -> None:
         self.logger.info(
             " - preparing relation triplets (src_idx, dst_idx, rel_name)"
         )
 
-        lu_relations = self._prepare_relations_from_list(
-            rel_list=self.plwn_api.get_lexical_relations()
+        lu_relations_clear = self._prepare_relations_from_list(
+            rel_list=self.plwn_api.get_lexical_relations(), check_embedding=True
         )
-        self.logger.info(f"   - lexical units: {len(lu_relations)}")
-
-        syn_rels = self._prepare_relations_from_list(
-            rel_list=self._synonymy_as_relations()
+        self.logger.info(
+            f"   - relations with both embeddings : {len(lu_relations_clear)}"
         )
-        self.logger.info(f"   - synonyms: {len(syn_rels)}")
 
-        self._relations = lu_relations + syn_rels
+        synonymy_name = self.aligner.aligned_relation_name(orig_rel_id=SYNONYMY_ID)
+        if synonymy_name is None:
+            raise RuntimeError(f"Cannot find mapping for synonymy id={SYNONYMY_ID}")
+
+        syn_rels_clear = self._prepare_relations_from_list(
+            rel_list=self._synonymy_as_relations(), check_embedding=True
+        )
+        self.logger.info(
+            f"   - synonyms with both embeddings : {len(syn_rels_clear)}"
+        )
+
+        found_rels_names = set()
+        for p, ch, rel_name in lu_relations_clear:
+            found_rels_names.add(rel_name)
+        found_rels_names.add(synonymy_name)
+
+        self._rel_to_idx = {n: idx for idx, n in enumerate(sorted(found_rels_names))}
+        self.logger.info(f"   - found different relations: {len(self._rel_to_idx)}")
+
+        self._relations = lu_relations_clear + syn_rels_clear
         self.logger.info(f"   - all relations: {len(self._relations)}")
 
     def _prepare_embeddings(self, limit: Optional[int] = None) -> None:
@@ -127,6 +138,7 @@ class RelGATExporter:
             all_lexical_units = [
                 lu for lu in all_lexical_units if lu.pos in self.accept_pos
             ]
+
         self.logger.info(f"  -> number of lexical units: {len(all_lexical_units)}")
         if limit is not None and limit > 0:
             all_lexical_units = all_lexical_units[:limit]
@@ -138,20 +150,14 @@ class RelGATExporter:
             total=len(all_lexical_units), desc="Retrieving embeddings from Milvus"
         ) as pbar:
             for lu in all_lexical_units:
+                pbar.update(1)
                 lu_emb = self.milvus_handler.get_lexical_unit_embedding(lu_id=lu.ID)
                 if not lu_emb:
                     continue
-                a_lu_id = self.aligner.aligned_lexical_unit_id(orig_lu_id=lu.ID)
-                if a_lu_id is None:
-                    continue
-
-                self._lu_to_emb[a_lu_id] = lu_emb["embedding"]
-
+                self._lu_to_emb[lu.ID] = lu_emb["embedding"]
                 if limit is not None and limit > 0:
                     if len(self._lu_to_emb) >= limit:
                         break
-
-                pbar.update(1)
 
     def _synonymy_as_relations(self) -> List[LexicalUnitAndSynsetFakeRelation]:
         synonymy_rels = []
@@ -177,23 +183,9 @@ class RelGATExporter:
                     )
         return synonymy_rels
 
-    def _prepare_relations_from_list(self, rel_list) -> List:
-        lu_relations = []
+    def _prepare_relations_from_list(self, rel_list, check_embedding: bool) -> List:
+        relations_list = []
         for rel in rel_list:
-            p_id = self.aligner.aligned_lexical_unit_id(orig_lu_id=rel.PARENT_ID)
-            if p_id is None:
-                self.logger.warning(
-                    f"Cannot find mapping for LU {rel.PARENT_ID}. Skipping relation."
-                )
-                continue
-
-            ch_id = self.aligner.aligned_lexical_unit_id(orig_lu_id=rel.CHILD_ID)
-            if ch_id is None:
-                self.logger.warning(
-                    f"Cannot find mapping for LU {rel.CHILD_ID}. Skipping relation."
-                )
-                continue
-
             rel_name = self.aligner.aligned_relation_name(orig_rel_id=rel.REL_ID)
             if rel_name is None:
                 self.logger.warning(
@@ -201,5 +193,11 @@ class RelGATExporter:
                 )
                 continue
 
-            lu_relations.append([p_id, ch_id, rel_name])
-        return lu_relations
+            if check_embedding:
+                if rel.PARENT_ID not in self._lu_to_emb:
+                    continue
+                if rel.CHILD_ID not in self._lu_to_emb:
+                    continue
+
+            relations_list.append([rel.PARENT_ID, rel.CHILD_ID, rel_name])
+        return relations_list

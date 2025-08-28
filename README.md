@@ -17,6 +17,22 @@ Module documentation:
 
 ## Installation
 
+> **Prerequisite**: `radlab-ml-utils`
+>
+> This project uses the 
+> [radlab-ml-utils](https://github.com/radlab-dev-group/radlab-ml-utils) 
+> library for machine learning utilities 
+> (e.g., experiment/result logging with Weights & Biases/wandb).
+> Install it before working with ML-related parts:
+>
+> ```bash
+> pip install git+https://github.com/radlab-dev-group/radlab-ml-utils.git
+> ```
+>
+> For more options and details, see the library README: 
+> https://github.com/radlab-dev-group/radlab-ml-utils
+
+
 Use a virtual environment (virtualenv) for isolation.
 ``` bash
 python3 -m venv .venv
@@ -25,9 +41,9 @@ pip install -U pip wheel
 pip install -e .
 ```
 
-Optional graph download during install via environment variables:
-- PLWORDNET_DOWNLOAD_TEST=1 — downloads a small test graph,
-- PLWORDNET_DOWNLOAD_FULL=1 — downloads the full production graph.
+Optional graph download during installation via environment variables:
+- `PLWORDNET_DOWNLOAD_TEST=1` — downloads a small test graph,
+- `PLWORDNET_DOWNLOAD_FULL=1` — downloads the full production graph.
 
 Example:
 ``` bash

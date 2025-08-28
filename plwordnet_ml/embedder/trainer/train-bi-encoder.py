@@ -8,7 +8,9 @@ from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
 from sentence_transformers.similarity_functions import SimilarityFunction
 
 
-from plwordnet_ml.utils.wandb_handler import WanDBHandler
+# Wandb logging dependency
+from rdl_ml_utils.handlers.wandb import WanDBHandler
+
 from plwordnet_ml.embedder.constants.wandb import WandbConfig
 from plwordnet_ml.utils.training_handler import TrainingHandler
 from plwordnet_ml.utils.argument_parser import (

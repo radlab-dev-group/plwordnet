@@ -21,6 +21,35 @@ from plwordnet_handler.base.structure.elems.lu_in_synset import (
 
 
 class RelGATExporter:
+    """
+    Exporter that prepares data required for training a Relational Graph
+    Attention Network (RelGAT) model.
+
+    The exporter collects lexical‑unit embeddings from a Milvus vector store,
+    builds relation triplets (source index, destination index, relation name)
+    and writes three files to an output directory:
+
+    * ``lexical_units_embedding.pickle`` – mapping ``lu_id → embedding``.
+    * ``relation_to_idx.json`` – mapping ``relation_name → integer id``.
+    * ``relations_triplets.json`` – list of ``(src_idx, dst_idx, rel_name)``.
+
+    Parameters
+    ----------
+    plwn_api : PolishWordnet
+        API wrapper for the Polish WordNet database.
+    milvus_handler : MilvusWordNetSearchHandler
+        Handler that retrieves pre‑computed embeddings from Milvus.
+    aligner : RelGATDatasetIdentifiersAligner
+        Utility that maps original relation identifiers to consecutive indices.
+    out_directory : str, optional
+        Default directory where exported files will be written.
+    accept_pos : list[int], optional
+        If provided, only lexical units whose part‑of‑speech tag is in this
+        list are processed.
+    limit : int, optional
+        Upper bound on the number of lexical units processed.
+    """
+
     LU_EMBEDDING_FILENAME = "lexical_units_embedding.pickle"
     RELATION_MAPPING_FILENAME = "relation_to_idx.json"
     ALL_RELATIONS_TRIPLETS = "relations_triplets.json"
@@ -53,6 +82,25 @@ class RelGATExporter:
         )
 
     def export_to_dir(self, out_directory: Optional[str] = None) -> None:
+        """
+        Export all prepared RelGAT data to ``out_directory``.
+
+        If ``out_directory`` is not supplied, the instance's ``self.out_directory``
+        value is used.  The method creates the directory (if necessary),
+        prepares embeddings and relation triplets, and finally writes the three
+        output files.
+
+        Parameters
+        ----------
+        out_directory : str, optional
+            Destination directory.  Must be provided either here or at
+            construction time.
+
+        Raises
+        ------
+        TypeError
+            If no output directory is available.
+        """
         self.logger.info("Exporting RelGAT mappings")
         if out_directory is None:
             out_directory = self.out_directory
@@ -67,11 +115,36 @@ class RelGATExporter:
         self._export_data_to_dir(out_directory=out_directory)
 
     def _prepare_data(self):
+        """
+        Orchestrate the preparation of all data required for export.
+
+        This method sequentially calls ``_prepare_embeddings`` to get
+        lexical‑unit embeddings and ``_prepare_relations`` to build the
+        relation triplet list.
+        """
+
         self.logger.info("Preparing data to export")
         self._prepare_embeddings(limit=self.limit)
         self._prepare_relations()
 
     def _export_data_to_dir(self, out_directory: str) -> None:
+        """
+        Write the prepared data structures to files inside ``out_directory``.
+
+        The method iterates over a list of ``(filename, data)`` pairs and
+        serializes each one using the appropriate format (JSON for dictionaries
+        and lists, pickle for the embedding mapping).
+
+        Parameters
+        ----------
+        out_directory : str
+            Directory that already exists (or has just been created).
+
+        Raises
+        ------
+        NotImplementedError
+            If a filename does not end with ``.json`` or ``.pickle``.
+        """
         self.logger.info(f"Storing RelGAT mappings to {out_directory}")
 
         data_export = [
@@ -96,6 +169,15 @@ class RelGATExporter:
                 )
 
     def _prepare_relations(self) -> None:
+        """
+        Build relation triplets ``(src_idx, dst_idx, rel_name)``.
+
+        The method extracts lexical‑unit relations from the WordNet API,
+        adds synonymy relations generated from synsets, and finally maps the
+        original relation identifiers to consecutive indices using the
+        supplied ``aligner``.  All resulting triplets are stored in
+        ``self.relations``.
+        """
         self.logger.info(
             " - preparing relation triplets (src_idx, dst_idx, rel_name)"
         )
@@ -130,6 +212,18 @@ class RelGATExporter:
         self.logger.info(f"   - all relations: {len(self._relations)}")
 
     def _prepare_embeddings(self, limit: Optional[int] = None) -> None:
+        """
+        Retrieve embeddings for lexical units and store them in ``self._lu_to_emb``.
+
+        The method queries ``milvus_handler`` for each lexical unit that
+        satisfies the optional ``accept_pos`` filter and respects the ``limit``
+        parameter.  Retrieved embeddings are stored in a dictionary
+        ``{lu_id: embedding}`` and later pickled.
+
+        Side Effects
+        -------------
+        Populates ``self.embeddings`` with the mapping ``lu_id → embedding``.
+        """
         self.logger.info(" - preparing embeddings for each lexical unit")
         self._lu_to_emb = {}
 
@@ -160,6 +254,20 @@ class RelGATExporter:
                         break
 
     def _synonymy_as_relations(self) -> List[LexicalUnitAndSynsetFakeRelation]:
+        """
+        Generate fake synonymy relations between lexical units that belong
+        to the same synset.
+
+        For every synset, each lexical unit is paired with every other
+        lexical unit from the same synset, using the constant ``SYNONYMY_ID``
+        as the relation identifier.  The resulting objects are yielded as
+        ``LexicalUnitAndSynsetFakeRelation`` instances.
+
+        Yields
+        ------
+        LexicalUnitAndSynsetFakeRelation
+            Fake synonymy relation connecting two lexical units.
+        """
         synonymy_rels = []
         _uas = self.plwn_api.get_units_and_synsets(return_mapping=True)
         for s_id, lu_list in _uas.items():
@@ -168,8 +276,8 @@ class RelGATExporter:
                 continue
 
             lu_list = list(lu_list)
-            for _p in range(len(lu_list)):
-                for _ch in range(_p, len(lu_list)):
+            for _p in lu_list:
+                for _ch in lu_list:
                     if _p == _ch:
                         # Skip self-synonymy link
                         continue
@@ -184,6 +292,60 @@ class RelGATExporter:
         return synonymy_rels
 
     def _prepare_relations_from_list(self, rel_list, check_embedding: bool) -> List:
+        """
+        Convert a raw list of relation objects into a clean list of triplets
+        ``[parent_id, child_id, relation_name]`` that can be written to the
+        RelGAT output files.
+
+        The method performs three distinct steps for each relation in ``rel_list``:
+
+        1. **Relation‑name resolution** – The original relation identifier
+           (``rel.REL_ID``) is translated to the aligned, human‑readable name
+           using the ``RelGATDatasetIdentifiersAligner`` instance stored in
+           ``self.aligner``.  If no mapping exists, the relation is skipped and a
+           warning is emitted.
+
+        2. **Embedding‑availability check (optional)** – When ``check_embedding`` is
+           ``True``, the method verifies that both the parent and child lexical‑unit
+           identifiers are present in the internal embedding dictionary
+           ``self._lu_to_emb`` (populated earlier by ``_prepare_embeddings``).
+           Relations that reference a missing embedding are silently dropped.
+
+        3. **Triplet construction** – For relations that pass the previous checks,
+           a three‑element list ``[parent_id, child_id, relation_name]`` is appended
+           to the result collection.
+
+        Parameters
+        ----------
+        rel_list : Iterable
+            An iterable of objects that expose the attributes ``PARENT_ID``,
+            ``CHILD_ID`` and ``REL_ID``.  These objects typically represent
+            lexical‑unit relations, synset‑derived fake relations, or synonymy
+            relations.
+
+        check_embedding : bool
+            If ``True`` the method ensures that both endpoints of the relation
+            have embeddings available in ``self._lu_to_emb``.  When ``False`` the
+            embedding check is skipped, allowing the generation of a full relation
+            list regardless of embedding completeness.
+
+        Returns
+        -------
+        List[ List[int | str] ]
+            A list where each element is a three‑item list consisting of:
+            ``[parent_id (int), child_id (int), relation_name (str)]``.
+            The order of elements mirrors the order of the input ``rel_list`` after
+            filtering.
+
+        Notes
+        -----
+        * The method does **not** modify ``rel_list``; it only reads from it.
+        * All warnings about missing relation‑name mappings are logged via the
+          instance's ``logger`` attribute.
+        * The function is deliberately tolerant: relations that fail any check are
+          simply omitted rather than raising an exception.  This behaviour ensures
+          that a partially‑complete dataset can still be exported.
+        """
         relations_list = []
         for rel in rel_list:
             rel_name = self.aligner.aligned_relation_name(orig_rel_id=rel.REL_ID)

@@ -100,42 +100,33 @@ class RelGATExporter:
             " - preparing relation triplets (src_idx, dst_idx, rel_name)"
         )
 
-        lu_relations = self._prepare_relations_from_list(
-            rel_list=self.plwn_api.get_lexical_relations()
+        lu_relations_clear = self._prepare_relations_from_list(
+            rel_list=self.plwn_api.get_lexical_relations(), check_embedding=True
         )
-        self.logger.info(f"   - all lexical unit relations: {len(lu_relations)}")
-
-        found_rels_names = set()
-        found_rels_triplets = []
-        for p, ch, rel_name in lu_relations:
-            if p not in self._lu_to_emb:
-                continue
-            if ch not in self._lu_to_emb:
-                continue
-            found_rels_names.add(rel_name)
-            found_rels_triplets.append([p, ch, rel_name])
-        lu_relations = found_rels_triplets
         self.logger.info(
-            f"   - relations with both embeddings : {len(lu_relations)}"
+            f"   - relations with both embeddings : {len(lu_relations_clear)}"
         )
 
         synonymy_name = self.aligner.aligned_relation_name(orig_rel_id=SYNONYMY_ID)
         if synonymy_name is None:
             raise RuntimeError(f"Cannot find mapping for synonymy id={SYNONYMY_ID}")
-        self.logger.info(
-            f"   - found synonymy id map, adding synonymy to found relations"
+
+        syn_rels_clear = self._prepare_relations_from_list(
+            rel_list=self._synonymy_as_relations(), check_embedding=True
         )
+        self.logger.info(
+            f"   - synonyms with both embeddings : {len(syn_rels_clear)}"
+        )
+
+        found_rels_names = set()
+        for p, ch, rel_name in lu_relations_clear:
+            found_rels_names.add(rel_name)
         found_rels_names.add(synonymy_name)
 
-        self.logger.info(f"   - found different relations: {len(found_rels_names)}")
-        self._rel_to_idx = {idx: n for idx, n in enumerate(sorted(found_rels_names))}
+        self._rel_to_idx = {n: idx for idx, n in enumerate(sorted(found_rels_names))}
+        self.logger.info(f"   - found different relations: {len(self._rel_to_idx)}")
 
-        syn_rels = self._prepare_relations_from_list(
-            rel_list=self._synonymy_as_relations()
-        )
-        self.logger.info(f"   - synonyms: {len(syn_rels)}")
-
-        self._relations = lu_relations + syn_rels
+        self._relations = lu_relations_clear + syn_rels_clear
         self.logger.info(f"   - all relations: {len(self._relations)}")
 
     def _prepare_embeddings(self, limit: Optional[int] = None) -> None:
@@ -192,8 +183,8 @@ class RelGATExporter:
                     )
         return synonymy_rels
 
-    def _prepare_relations_from_list(self, rel_list) -> List:
-        lu_relations = []
+    def _prepare_relations_from_list(self, rel_list, check_embedding: bool) -> List:
+        relations_list = []
         for rel in rel_list:
             rel_name = self.aligner.aligned_relation_name(orig_rel_id=rel.REL_ID)
             if rel_name is None:
@@ -201,5 +192,12 @@ class RelGATExporter:
                     f"Cannot find mapping for relation {rel.REL_ID}. Skipping."
                 )
                 continue
-            lu_relations.append([rel.PARENT_ID, rel.CHILD_ID, rel_name])
-        return lu_relations
+
+            if check_embedding:
+                if rel.PARENT_ID not in self._lu_to_emb:
+                    continue
+                if rel.CHILD_ID not in self._lu_to_emb:
+                    continue
+
+            relations_list.append([rel.PARENT_ID, rel.CHILD_ID, rel_name])
+        return relations_list

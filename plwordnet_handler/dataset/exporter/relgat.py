@@ -284,8 +284,8 @@ class RelGATExporter:
 
                     synonymy_rels.append(
                         LexicalUnitAndSynsetFakeRelation(
-                            PARENT_ID=lu_list[_p],
-                            CHILD_ID=lu_list[_ch],
+                            PARENT_ID=_p,
+                            CHILD_ID=_ch,
                             REL_ID=SYNONYMY_ID,
                         )
                     )

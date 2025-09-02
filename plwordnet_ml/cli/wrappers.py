@@ -420,7 +420,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
             relgat_exporter.export_to_dir()
         except Exception as e:
             self.logger.error(e)
-            return False
+            # return False
+            raise e
 
         self.logger.info(
             f"Successfully exported to {self.args.relgat_dataset_directory}"

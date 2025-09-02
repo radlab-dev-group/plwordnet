@@ -8,12 +8,10 @@ from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
 from sentence_transformers.similarity_functions import SimilarityFunction
 
 
-# Wandb logging dependency
-from rdl_ml_utils.handlers.wandb import WanDBHandler
-
-from plwordnet_ml.embedder.constants.wandb import WandbConfig
-from plwordnet_ml.utils.training_handler import TrainingHandler
-from plwordnet_ml.utils.argument_parser import (
+# Wandb logging/dataset/args dependency
+from rdl_ml_utils.handlers.wandb_handler import WanDBHandler
+from rdl_ml_utils.handlers.training_handler import TrainingHandler
+from rdl_ml_utils.utils.argument_parser import (
     BASE_MODEL_REQUIRED,
     OUTPUT_DIR_REQUIRED,
     TRAIN_INPUT_FILE_REQUIRED,
@@ -21,6 +19,8 @@ from plwordnet_ml.utils.argument_parser import (
     WANDB_BOOLEAN_FULL,
     prepare_parser_for_fields,
 )
+
+from plwordnet_ml.embedder.constants.wandb import WandbConfig
 
 
 def main(argv=None):

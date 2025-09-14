@@ -13,6 +13,7 @@ provided XML file into memory and offers simple search utilities:
 """
 
 import os
+import html
 
 from lxml import etree
 from typing import Any, Dict, List, Optional
@@ -50,7 +51,7 @@ class EnglishWordnetConnector:
     def find_lexical_entries(
         self,
         lemma: str,
-        pos: str,
+        pos: Optional[str | int] = None,
         variant: Optional[str] = None,
     ) -> List[LexicalEntryDict]:
         """
@@ -61,7 +62,7 @@ class EnglishWordnetConnector:
         ----------
         lemma: str
             Lemma to search for.
-        pos: str
+        pos: Optional[str | int]
             Part of speech abbreviation (e.g. `n` for noun).
         variant: Optional[str]
             Optional variant attribute present in the source XML.
@@ -72,16 +73,24 @@ class EnglishWordnetConnector:
             Matching lexical entries.
         """
         lemma_norm = lemma.lower()
-        pos_norm = pos.lower()
-        results: List[LexicalEntryDict] = []
+        pos_norm = self._normalize_pos_if_needed(pos=pos)
 
+        results: List[LexicalEntryDict] = []
         for entry in self._lexical_entries:
             if (
-                entry["lemma"].lower() == lemma_norm
-                and entry["pos"].lower() == pos_norm
-                and (variant is None or entry["variant"] == variant)
+                lemma is not None
+                and len(lemma)
+                and entry["lemma"].lower() != lemma_norm
             ):
-                results.append(entry)
+                continue
+
+            if pos_norm is not None and entry["pos"].lower() != pos_norm:
+                continue
+
+            if variant is not None and entry["variant"] != variant:
+                continue
+
+            results.append(entry)
 
         return results
 
@@ -170,7 +179,7 @@ class EnglishWordnetConnector:
 
             entry: LexicalEntryDict = {
                 "id": le_id,
-                "lemma": lemma_el.get("writtenForm"),
+                "lemma": self._unescape_text(lemma_el.get("writtenForm")),
                 "pos": lemma_el.get("partOfSpeech"),
                 "synset": sense_el.get("synset"),
                 "variant": le.get("variant"),  # optional, may be None
@@ -202,3 +211,78 @@ class EnglishWordnetConnector:
                 "relations": relations,
             }
             self._synsets.append(synset)
+
+    @staticmethod
+    def _normalize_pos_if_needed(pos: Optional[str | int] = None) -> Optional[str]:
+        """
+        Normalize a part‑of‑speech (POS) identifier to the WordNet POS tag.
+
+        Parameters
+        ----------
+        pos : Optional[str | int], default=None
+            The POS value to normalize. It can be:
+            * ``None`` – the function returns ``None``.
+            * a string – the value is lower‑cased and returned unchanged.
+            * an integer – interpreted as a WordNet POS code where
+              5 → `'v'` (verb),
+              6 → `'n'` (noun),
+              7 → `'r'` (adverb),
+              8 → `'a'` (adjective).
+
+        Any other integer raises ``NotImplementedError``.
+
+        Returns
+        -------
+        Optional[str]
+            The normalized POS tag (`'n'`, `'v'`, `'a'`, `'r'`) or the
+            lower‑cased string version of the input. Returns `None` when the
+            input is `None`.
+
+        Raises
+        ------
+        NotImplementedError
+            If `pos` is an integer that does not correspond to a known POS code.
+        """
+
+        if pos is None:
+            return None
+
+        if type(pos) == str:
+            pos_norm = pos.lower()
+        else:
+            if pos == 8:
+                pos_norm = "a"
+            elif pos == 7:
+                pos_norm = "r"
+            elif pos == 6:
+                pos_norm = "n"
+            elif pos == 5:
+                pos_norm = "v"
+            else:
+                raise NotImplementedError(f"Unknown POS {pos}")
+        return pos_norm
+
+    @staticmethod
+    def _unescape_text(text: Optional[str]) -> str:
+        """
+        Convert XML/HTML character entity references to their literal characters.
+
+        The WordNet LMF files sometimes contain escaped entities such as
+        `&apos;`, `&quot;`, `&lt;`, `&gt;` or `&amp;` inside attribute
+        values (e.g. `writtenForm="&apos;hood"`).  `html.unescape` safely
+        expands all known entities to their textual representation.
+
+        Parameters
+        ----------
+        text: Optional[str]
+            Text possibly containing entity references.
+            `None` is treated as an empty string.
+
+        Returns
+        -------
+        str
+            The unescaped version of *text*.
+        """
+        if text is None:
+            return ""
+        return html.unescape(text)

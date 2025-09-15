@@ -21,14 +21,23 @@ from typing import Any, Dict, List, Optional
 # {"id": str, "lemma": str, "pos": str, "synset": str, "variant": Optional[str]}
 LexicalEntryDict = Dict[str, Any]
 
-# {"id": str, "definition": str, "pos": str, "relations": List[Dict[str, str]]}
+# {"id": str, "definition": str, "pos": str,
+# "relations": List[Dict[str, str]], "examples": List[str]}
 SynsetDict = Dict[str, Any]
 
 
 class EnglishWordnetConnector:
     """
     Loads an English Wordnet XML‑LMF file and provides lookup methods.
+
+    Handle POS mapping (to be consistent with Polish Wordnet):
+        5 → `'v'` (verb),
+        6 → `'n'` (noun),
+        7 → `'r'` (adverb),
+        8 → `'a'` (adjective).
     """
+
+    EN_WN_POS_LIST = [5, 6, 7, 8, "v", "n", "r", "a"]
 
     def __init__(self, xml_path: str) -> None:
         """
@@ -50,7 +59,7 @@ class EnglishWordnetConnector:
 
     def find_lexical_entries(
         self,
-        lemma: str,
+        lemma: Optional[str] = None,
         pos: Optional[str | int] = None,
         variant: Optional[str] = None,
     ) -> List[LexicalEntryDict]:
@@ -124,8 +133,8 @@ class EnglishWordnetConnector:
 
     def find_synsets_by_lemma(
         self,
-        lemma: str,
-        pos: str,
+        lemma: Optional[str] = None,
+        pos: Optional[str] = None,
         variant: Optional[str] = None,
     ) -> List[SynsetDict]:
         """
@@ -204,11 +213,18 @@ class EnglishWordnetConnector:
                     }
                 )
 
+            # Gather all Example children
+            examples: List[str] = []
+            for ex in syn.xpath("Example"):
+                if ex.text:
+                    examples.append(ex.text)
+
             synset: SynsetDict = {
                 "id": syn.get("id"),
                 "pos": syn.get("partOfSpeech"),
                 "definition": definition,
                 "relations": relations,
+                "examples": examples,
             }
             self._synsets.append(synset)
 

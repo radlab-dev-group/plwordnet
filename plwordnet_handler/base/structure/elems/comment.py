@@ -267,11 +267,41 @@ class CommentParser:
 
     def _extract_definition(self, comment: str) -> Optional[str]:
         """
-        Extract definition from ##D|W|S tag.
+        Extract the definition part of a plWordnet comment.
+
+        The standard format places the definition after a `##D`, `##W` or
+        `##S` tag, e.g.:
+
+            ##D:   a small, domesticated carnivorous mammal
+
+        In practice many comments omit those tags – the definition is simply the
+        raw text of the comment.  When the regular `definition_pattern` does
+        **not** match, we now treat the whole comment as a candidate definition
+        and run it through the same cleaning/validation pipeline that a tagged
+        definition would use.
+
+        Returns
+        -------
+        Optional[str]
+            * The cleaned definition string when a tag is found **or** when the
+              fallback succeeds.
+            * `None` when the comment is empty, consists only of noise
+              (e.g. “brak danych”), or is shorter than `MIN_EXAMPLE_LENGTH`.
         """
+        # Try regex “##D/##W/##S” extraction.
         match = re.search(self.definition_pattern, comment)
         if match:
             return self.__clear_textual_data(text=match.group(1).strip())
+
+        # No regex tag -> fall back to the entire comment.
+        #    This is useful for legacy entries that never received a tag.
+        #    We still apply the same sanitising steps so that the result
+        #    respects the project's quality rules.
+        cleaned = self.__clear_textual_data(text=comment.strip())
+        if cleaned:
+            return cleaned
+
+        # 3️⃣ Nothing usable was found.
         return None
 
     def _extract_sentiment_annotations(

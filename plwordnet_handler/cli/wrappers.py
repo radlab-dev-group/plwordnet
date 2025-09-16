@@ -141,7 +141,7 @@ class CLIWrappers(CLIWrapperBase):
             return False
         return True
 
-    def dump_embedder_dataset_to_file(self):
+    def dump_embedder_dataset_to_file(self, cut_weight: float = 0.14):
         """
         Dumps embedder dataset to a file using WordNet relations and weights.
 
@@ -150,6 +150,10 @@ class CLIWrappers(CLIWrapperBase):
         database connection is available, then initializes a converter with the
         configured Excel relations weights file and database connector, and finally
         exports the dataset with the specified parameters.
+
+        Arguments:
+            cut_weight: Weight of relation-value to determine which example is "low"
+            Low example is below `cut_weight`.
 
         Returns:
             bool: True if the dataset was successfully exported, False if the
@@ -173,6 +177,7 @@ class CLIWrappers(CLIWrapperBase):
             output_file=self.args.dump_embedder_dataset_to_file,
             limit=self.args.limit,
             low_high_ratio=self.args.embedder_low_high_ratio,
+            cut_weight=cut_weight,
         )
 
     def test_plwordnet(self) -> bool:

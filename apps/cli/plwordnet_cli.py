@@ -51,7 +51,7 @@ def main(argv=None):
 
     # Dump embedder dataset if --dump-embedder-dataset-to-file is given
     if args.dump_embedder_dataset_to_file:
-        if not cli_wrapper.dump_embedder_dataset_to_file():
+        if not cli_wrapper.dump_embedder_dataset_to_file(cut_weight=0.14):
             logger.error("Could not dump embedder dataset!")
             return 1
 

@@ -10,21 +10,115 @@ python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py
 
 import os
 import json
+import datetime
+
 import spacy
 import random
 import argparse
+import threading
 
 from tqdm import tqdm
 from functools import partial
-from typing import List, Dict, Any
 from multiprocessing import cpu_count
+from typing import List, Dict, Any, Optional
 from concurrent.futures import ProcessPoolExecutor, as_completed
+
+from rdl_ml_utils.handlers.prompt_handler import PromptHandler
+from rdl_ml_utils.handlers.openapi_handler import OpenAPIClient
+
+GLOBAL_CORRECTED_TEXTS = {}
+GLOBAL_LOCK_CORRECTED_TEXTS = threading.Lock()
+
+
+def correct_if_necessary(
+    text_str: str, open_api: OpenAPIClient, prompt_str: str
+) -> str | None:
+    """
+    Return a corrected version of *text_str* using the provided OpenAPI client
+    and prompt, caching results to avoid duplicate API calls.
+
+    The function performs the following steps:
+
+    1. **Input validation** – If *text_str* is `None` or an empty string,
+       the original value is returned unchanged.
+    2. **Cache lookup** – A global, thread‑safe cache (`GLOBAL_CORRECTED_TEXTS`)
+       is consulted under `GLOBAL_LOCK_CORRECTED_TEXTS`.  If a corrected
+       version of *text_str* is already stored, that cached value is returned
+       immediately.
+    3. **API generation** – When the text is not cached, the function calls
+       `open_api.generate` with *text_str* as the message, *prompt_str* as the
+       system prompt, and a `max_tokens` limit set to twice the length of the
+       input text.  This yields a corrected string.
+    4. **Fallback handling** – If the API returns `None` or an empty/whitespace‑only
+       string, the original *text_str* is used as the corrected result.
+    5. **Cache insertion** – The (potentially corrected) result is stored in the
+       global cache under the original *text_str* key, again protected by the
+       lock, so subsequent calls can reuse it.
+    6. **Return value** – The corrected (or original) string is returned.  The
+       return type is `str`; `None` is only possible when the caller
+       explicitly passes `None` as *text_str*.
+
+    Parameters
+    ----------
+    text_str : str
+        The raw text that may need correction.  `None` or an empty string is
+        treated as a no‑op and returned unchanged.
+    open_api : OpenAPIClient
+        An instantiated client capable of generating corrected text via its
+        `generate` method.
+    prompt_str : str
+        The system prompt that guides the correction performed by the OpenAPI
+        model.
+
+    Returns
+    -------
+    str | None
+        The corrected text if a correction was performed, otherwise the
+        original *text_str*.  `None` is returned only when the input was
+        `None`.
+
+    Notes
+    -----
+    The function relies on two global objects that must be defined elsewhere in
+    the module:
+
+    * `GLOBAL_CORRECTED_TEXTS` – a `dict` that maps original texts to their
+      corrected versions.
+    * `GLOBAL_LOCK_CORRECTED_TEXTS` – a `threading.Lock` (or similar) used
+      to protect concurrent access to the cache.
+
+    This design makes the correction step safe for use in multi‑process or
+    multi‑threaded environments, avoiding redundant API calls and reducing
+    latency.
+    """
+    if text_str is None or not len(text_str):
+        return text_str
+
+    clear_s = None
+    with GLOBAL_LOCK_CORRECTED_TEXTS:
+        clear_s = GLOBAL_CORRECTED_TEXTS.get(text_str)
+    if clear_s is not None:
+        return clear_s
+
+    clear_s = open_api.generate(
+        message=text_str, system_prompt=prompt_str, max_tokens=len(text_str) * 2
+    )
+    if clear_s is None or not len(clear_s.strip()):
+        clear_s = text_str
+
+    with GLOBAL_LOCK_CORRECTED_TEXTS:
+        GLOBAL_CORRECTED_TEXTS[text_str] = clear_s
+    return clear_s
 
 
 def process_sample_batch(
     batch: List[Dict[Any, Any]],
     split_to_sentences: bool,
     spacy_model_name: str = "pl_core_news_sm",
+    open_api_config_path: Optional[str] = None,
+    correct_text: bool = False,
+    prompts_dir: Optional[str] = None,
+    prompt_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Process a batch of samples in a separate process.
@@ -33,10 +127,39 @@ def process_sample_batch(
         batch: List of samples to process
         split_to_sentences: Whether to split text into sentences
         spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
+        open_api_config_path: Path to config file to use for text correct
+        (default: None) this option is required when correct_text is True
+        correct_text: Option to enable text correction, if enabled, then
+        open_api_config_path, prompts_dir, prompt_to_correct must be provided.
+        prompts_dir: Directory where prompts files are located.
+        prompt_name: Name of prompt used to correct the text
 
     Returns:
         List of converted samples
     """
+    open_api = None
+    prompt_str = None
+    if correct_text:
+        if open_api_config_path is None:
+            raise RuntimeError(
+                "If correct_text is True, open_api_config_path must be provided"
+            )
+        if prompts_dir is None:
+            raise RuntimeError(
+                "If correct_text is True, prompts_dir must be provided"
+            )
+        if prompt_name is None:
+            raise RuntimeError(
+                "If correct_text is True, prompt_name must be provided"
+            )
+
+        open_api = OpenAPIClient(open_api_config=open_api_config_path)
+        try:
+            with PromptHandler(base_dir=prompts_dir) as prompt_handler:
+                prompt_str = prompt_handler.get_prompt(key=prompt_name)
+        except KeyError as e:
+            raise RuntimeError(f"Prompt {prompt_name} not found. {e}")
+
     # Load spaCy model in each process
     nlp = spacy.load(spacy_model_name)
 
@@ -55,6 +178,18 @@ def process_sample_batch(
     for s in batch:
         _s1 = s["text_parent"]
         _s2 = s["text_child"]
+        if correct_text:
+            print("_s1 before", datetime.datetime.now())
+            _s1 = correct_if_necessary(
+                text_str=_s1, open_api=open_api, prompt_str=prompt_str
+            )
+            print("_s1 after", datetime.datetime.now())
+
+            print("_s2 before", datetime.datetime.now())
+            _s2 = correct_if_necessary(
+                text_str=_s2, open_api=open_api, prompt_str=prompt_str
+            )
+            print("_s2 after", datetime.datetime.now())
 
         if split_to_sentences:
             s1_list = split_text_to_sentences(_s1)
@@ -93,6 +228,10 @@ class EmbedderDatasetConverter:
         spacy_model_name: str = "pl_core_news_sm",
         n_workers: int = None,
         batch_size: int = None,
+        correct_texts: bool = False,
+        prompts_dir: Optional[str] = None,
+        prompt_name: Optional[str] = None,
+        open_api_config_path: Optional[str] = None,
     ):
         """
         Initialize the dataset converter with configuration parameters.
@@ -108,13 +247,27 @@ class EmbedderDatasetConverter:
             n_workers: Number of parallel workers. Defaults to cpu_count()
             batch_size: Size of batches for parallel processing.
             Auto-calculated if None
+            correct_texts: If option is set to `True` then text correction
+            will be run before splitting text to sentences. Defaults to False.
+            prompts_dir: Directory where prompts files are located (default: None,
+            required when `correct_text` is True).
+            prompt_name: Name of prompt used to correct the text. Defaults to None,
+            required when `correct_text` is True.
+            open_api_config_path: Path to config file to use for text correct.
+            Defaults to None, required when `correct_text` is True.
         """
-        self.nlp = spacy.load(spacy_model_name)
+        self.seed = seed
+
         self.jsonl_path = jsonl_path
         self.output_dir = output_dir
         self.train_ratio = train_ratio
+
+        self.prompts_dir = prompts_dir
+        self.prompt_name = prompt_name
+        self.correct_texts = correct_texts
+        self.open_api_config_path = open_api_config_path
         self.split_to_sentences = split_to_sentences
-        self.seed = seed
+
         self.spacy_model_name = spacy_model_name
         self.n_workers = n_workers or cpu_count()
         self.batch_size = batch_size
@@ -159,6 +312,10 @@ class EmbedderDatasetConverter:
                 process_sample_batch,
                 split_to_sentences=self.split_to_sentences,
                 spacy_model_name=self.spacy_model_name,
+                open_api_config_path=self.open_api_config_path,
+                correct_text=self.correct_texts,
+                prompts_dir=self.prompts_dir,
+                prompt_name=self.prompt_name,
             )
 
             # Submit all batches for processing
@@ -191,22 +348,6 @@ class EmbedderDatasetConverter:
             samples[i : i + self.batch_size]
             for i in range(0, len(samples), self.batch_size)
         ]
-
-    def split_text_to_sentences(self, text_str: str) -> List[str]:
-        """
-        Splits text into individual sentences using basic punctuation rules.
-
-        Note: This method is kept for backward compatibility but is now
-        primarily used in the main process for single-threaded operations.
-        """
-        if not text_str or not text_str.strip():
-            return []
-
-        doc = self.nlp(text_str.strip())
-        sentences = [
-            sent.text.strip() for sent in doc.sents if len(sent.text.strip())
-        ]
-        return sentences
 
     def split_samples(self, samples):
         """
@@ -306,6 +447,39 @@ def parse_args():
         default=False,
         help="Optional flag to split samples into sentences",
     )
+
+    parser.add_argument(
+        "--correct-texts",
+        dest="correct_texts",
+        action="store_true",
+        default=False,
+        help="Optional flag to correct text before splitting to sentences",
+    )
+    parser.add_argument(
+        "--prompts-dir",
+        dest="prompts_dir",
+        type=str,
+        default=None,
+        help="Path to directory containing prompts files (*.prompt). "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--prompt-name",
+        dest="prompt_name",
+        type=str,
+        default=None,
+        help="Prompt name used to prepare correct version of text. "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--openapi-config",
+        dest="openapi_config",
+        type=str,
+        default=None,
+        help="Path to config with generative models available with OpenAPI. "
+        "This option is required when --correct-texts",
+    )
+
     parser.add_argument(
         "--n-workers",
         dest="n_workers",
@@ -323,8 +497,39 @@ def parse_args():
     return parser.parse_args()
 
 
+def check_args(app_args: argparse.Namespace):
+    """
+    Validate command‑line arguments related to text correction.
+
+    This function ensures that when the `--correct-texts` flag is set, the required
+    `--prompts-dir`, `--prompt-name` and `--openapi-config` arguments
+    are also provided.  If either is missing a `ValueError` with a
+    clear message is raised.
+
+    Args:
+        app_args: `argparse.Namespace` containing the parsed command‑line
+            arguments.
+
+    Returns:
+        The same `app_args` namespace if validation succeeds.
+    """
+
+    if app_args.correct_texts:
+        if app_args.prompts_dir is None:
+            raise ValueError("--correct-texts requires --prompts-dir")
+
+        if app_args.prompt_name is None:
+            raise ValueError("--correct-texts requires --prompts-dir")
+
+        if app_args.openapi_config is None:
+            raise ValueError("--correct-texts requires --openapi-config")
+
+    return app_args
+
+
 if __name__ == "__main__":
-    args = parse_args()
+    args = check_args(parse_args())
+
     converter = EmbedderDatasetConverter(
         jsonl_path=args.jsonl_path,
         output_dir=args.output_dir,
@@ -333,5 +538,9 @@ if __name__ == "__main__":
         split_to_sentences=args.split_to_sentences,
         n_workers=args.n_workers,
         batch_size=args.batch_size,
+        correct_texts=args.correct_texts,
+        prompts_dir=args.prompts_dir,
+        prompt_name=args.prompt_name,
+        open_api_config_path=args.openapi_config,
     )
     converter.run()

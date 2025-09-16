@@ -819,6 +819,9 @@ class WordnetToEmbedderConverter:
         self.logger.info(f"  - high-weighted examples: {h_count}")
         self.logger.info(f"  - low-weighted examples: {l_count}")
 
+        if l_count == 0:
+            l_count = 1
+
         add_examples = (
             int(low_to_high_ratio * (l_count * (h_count / l_count))) - l_count
         )

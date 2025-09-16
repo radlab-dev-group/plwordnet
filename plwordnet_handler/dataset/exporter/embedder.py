@@ -679,6 +679,11 @@ class WordnetToEmbedderConverter:
                 f"There are no low_examples: {len(l_examples)} "
                 f"or not high_examples: {len(h_examples)}"
             )
+
+        if not len(l_examples) and not len(h_examples):
+            self.logger.warning(
+                f"There are no low_examples and not high_examples. Skip."
+            )
             return None
 
         all_h_examples = []

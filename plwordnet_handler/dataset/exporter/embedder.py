@@ -159,6 +159,7 @@ class WordnetToEmbedderConverter:
         limit: Optional[int] = None,
         out_type: str = "jsonl",
         low_high_ratio: float = 2.0,
+        cut_weight: float = 1.4,
     ) -> bool:
         """
         Export embedder samples to JSONL file.
@@ -168,6 +169,8 @@ class WordnetToEmbedderConverter:
             limit: Optional limit on the number of samples to export
             out_type: Optional output type
             low_high_ratio: Ratio between low and high-weighted samples
+            cut_weight: Weight of relation-value to determine which example is "low"
+            Low example is below `cut_weight`.
 
         Returns:
             bool: True if export successful, False otherwise
@@ -193,6 +196,7 @@ class WordnetToEmbedderConverter:
             w2examples=w2examples,
             weights_relations=weights_relations,
             low_high_ratio=low_high_ratio,
+            cut_weight=cut_weight,
         )
 
         all_examples = []
@@ -890,6 +894,7 @@ class WordnetToEmbedderConverter:
         w2examples,
         weights_relations,
         low_high_ratio,
+        cut_weight,
     ) -> Tuple[Dict, Dict]:
         """
         Balances negative samples by generating additional
@@ -910,7 +915,7 @@ class WordnetToEmbedderConverter:
             dictionaries containing the newly balanced sample distributions
 
         Note:
-            Uses a cut_weight threshold of 0.5 to determine what constitutes
+            Uses a cut_weight threshold to determine what constitutes
             low-weight relations. Generated samples are added to existing
             collections and logged for verification.
         """
@@ -931,7 +936,7 @@ class WordnetToEmbedderConverter:
         low_examples = self.__align_relations__low(
             w2s=w2s,
             w2examples=w2examples,
-            cut_weight=0.5,
+            cut_weight=cut_weight,
             low_to_high_ratio=low_high_ratio,
         )
 

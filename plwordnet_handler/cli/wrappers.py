@@ -173,6 +173,7 @@ class CLIWrappers(CLIWrapperBase):
             output_file=self.args.dump_embedder_dataset_to_file,
             limit=self.args.limit,
             low_high_ratio=self.args.embedder_low_high_ratio,
+            cut_weight=1.4,
         )
 
     def test_plwordnet(self) -> bool:

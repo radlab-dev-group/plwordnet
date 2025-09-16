@@ -1,0 +1,7 @@
+{
+  "base_url_66": "http://192.168.100.66:11434",
+  "base_url": "http://192.168.100.71:11434",
+  "model": "gpt-oss:20b",
+  "api_key": null,
+  "system_prompt": "Jesteś przyjaznym i pomocnym asystentem AI."
+}

@@ -1,30 +1,312 @@
 """
-python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py
-    --jsonl-path=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/raw-embedding-dump-ratio-1.2-w-synonymy.jsonl
-    --output-dir=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/embedder_sentsplit_train-0.93
-    --train-ratio=0.93
-    --split-to-sentences
-    --n-workers=32
-    --batch-size=1000
+python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py \
+    --jsonl-path=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/raw-embedding-dump-ratio-1.2-w-synonymy.jsonl \
+    --output-dir=/mnt/data2/data/datasets/radlab-semantic-embeddings/20250811/embedding-dump-ratio-1.2-w-synonymy/embedder_sentsplit_train-0.93 \
+    --train-ratio=0.93 \
+    --split-to-sentences \
+    --n-workers=28 \
+    --batch-size=100 \
+    --correct-texts \
+    --prompts-dir=resources/prompts \
+    --prompt-name="ollama/correct_text" \
+    --openapi-configs-dir=resources/configs/ollama/
+
 """
 
 import os
 import json
+import datetime
+
 import spacy
 import random
 import argparse
+import threading
+import multiprocessing
 
 from tqdm import tqdm
 from functools import partial
-from typing import List, Dict, Any
-from multiprocessing import cpu_count
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from typing import List, Dict, Any, Optional
+from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
+
+from rdl_ml_utils.handlers.prompt_handler import PromptHandler
+from rdl_ml_utils.utils.openapi_queue_manager import OpenAPIQueue
+
+
+OPEN_API = None
+GLOBAL_CORRECTED_TEXTS = {}
+GLOBAL_LOCK_CORRECTED_TEXTS = threading.Lock()
+
+
+def _generate_with_retries(
+    message: str, system_prompt: str, max_tokens: int, retries: int = 3
+) -> Optional[str]:
+    """
+    Call OPEN_API.generate with basic retry logic.
+
+    The function attempts to generate a response using the global OPEN_API
+    client up to `retries` times. Any exceptions raised by the client are
+    caught and ignored to allow subsequent attempts. If all attempts fail,
+    the function returns None.
+
+    Parameters
+    ----------
+    message : str
+        The user message (input text) to send to the generator.
+    system_prompt : str
+        The system prompt guiding the generation.
+    max_tokens : int
+        The maximum number of tokens to generate.
+    retries : int, optional
+        Number of attempts before giving up (default: 3).
+
+    Returns
+    -------
+    Optional[str]
+        The generated string on success; None if all attempts failed.
+
+    Notes
+    -----
+    - This function relies on the global `OPEN_API` object exposing a
+      `generate(message, system_prompt, max_tokens)` method.
+    - Exceptions from OPEN_API.generate are intentionally silenced.
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            return OPEN_API.generate(
+                message=message,
+                system_prompt=system_prompt,
+                max_tokens=max_tokens,
+            )
+        except Exception as e:
+            pass
+    return None
+
+
+def pre_correct_samples_in_main_process(
+    samples: List[Dict[str, Any]],
+    prompts_dir: str,
+    prompt_name: str,
+    max_workers: int = 16,
+) -> List[Dict[str, Any]]:
+    """
+    Pre-correct unique text fields in samples using the global
+    OPEN_API in the main process.
+
+    This function:
+    1) Loads the prompt identified by `prompt_name` from `prompts_dir`.
+    2) Deduplicates all non-empty "text_parent" and "text_child"
+       values across `samples`.
+    3) Uses a thread pool to call `_generate_with_retries` for each unique text,
+       with the loaded prompt as `system_prompt`. If generation fails or returns
+       an empty string, the original text is kept.
+    4) Updates the input `samples` in place with the corrected strings
+       and returns them.
+
+    Parameters
+    ----------
+    samples : List[Dict[str, Any]]
+        A list of sample dicts expected to contain "text_parent" and "text_child" keys.
+    prompts_dir : str
+        Directory containing prompt files; used by PromptHandler to load the prompt.
+    prompt_name : str
+        The key/name of the prompt to use as the system prompt for correction.
+    max_workers : int, optional
+        Maximum number of threads used for parallel correction (default: 16).
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        The same list instance with "text_parent" and "text_child" values replaced
+        by their corrected versions when available.
+
+    Raises
+    ------
+    RuntimeError
+        If the global `OPEN_API` is not initialized in the main process.
+    KeyError
+        If the specified `prompt_name` cannot be found by the PromptHandler.
+
+    Notes
+    -----
+    - Requires the global `OPEN_API` to be initialized before calling.
+    - Corrections are computed only once per unique text and reused for all samples.
+    - Updates happen in place; the returned list is the input `samples`.
+    """
+
+    if OPEN_API is None:
+        raise RuntimeError(
+            "OPEN_API must be initialized in main process for pre-correction"
+        )
+
+    with PromptHandler(base_dir=prompts_dir) as prompt_handler:
+        prompt_str = prompt_handler.get_prompt(key=prompt_name)
+
+    uniq_texts = set()
+    for s in samples:
+        t1 = s.get("text_parent", "")
+        t2 = s.get("text_child", "")
+        if t1:
+            uniq_texts.add(t1)
+        if t2:
+            uniq_texts.add(t2)
+
+    uniq_texts = list(uniq_texts)
+    corrected_map: Dict[str, str] = {}
+    lock_map = threading.Lock()
+
+    def _work(txt: str):
+        res = _generate_with_retries(
+            message=txt,
+            system_prompt=prompt_str,
+            max_tokens=max(len(txt) * 2, 128),
+        )
+        if res is None or not str(res).strip():
+            res = txt
+        with lock_map:
+            corrected_map[txt] = res
+
+    max_workers = max(1, max_workers)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        list(
+            tqdm(
+                pool.map(_work, uniq_texts),
+                total=len(uniq_texts),
+                desc="Pre-correcting texts",
+            )
+        )
+
+    for s in samples:
+        if s.get("text_parent"):
+            s["text_parent"] = corrected_map.get(s["text_parent"], s["text_parent"])
+        if s.get("text_child"):
+            s["text_child"] = corrected_map.get(s["text_child"], s["text_child"])
+
+    return samples
+
+
+def correct_if_necessary(text_str: str, prompt_str: str) -> str | None:
+    """
+    Return a corrected version of *text_str* using the provided OpenAPI client
+    and prompt, caching results to avoid duplicate API calls.
+
+    The function performs the following steps:
+
+    1. **Input validation** – If *text_str* is `None` or an empty string,
+       the original value is returned unchanged.
+    2. **Cache lookup** – A global, thread‑safe cache (`GLOBAL_CORRECTED_TEXTS`)
+       is consulted under `GLOBAL_LOCK_CORRECTED_TEXTS`.  If a corrected
+       version of *text_str* is already stored, that cached value is returned
+       immediately.
+    3. **API generation** – When the text is not cached, the function calls
+       `open_api.generate` with *text_str* as the message, *prompt_str* as the
+       system prompt, and a `max_tokens` limit set to twice the length of the
+       input text.  This yields a corrected string.
+    4. **Fallback handling** – If the API returns `None` or an empty/whitespace‑only
+       string, the original *text_str* is used as the corrected result.
+    5. **Cache insertion** – The (potentially corrected) result is stored in the
+       global cache under the original *text_str* key, again protected by the
+       lock, so subsequent calls can reuse it.
+    6. **Return value** – The corrected (or original) string is returned.  The
+       return type is `str`; `None` is only possible when the caller
+       explicitly passes `None` as *text_str*.
+
+    Parameters
+    ----------
+    text_str : str
+        The raw text that may need correction.  `None` or an empty string is
+        treated as a no‑op and returned unchanged.
+    prompt_str : str
+        The system prompt that guides the correction performed by the OpenAPI
+        model.
+
+    Returns
+    -------
+    str | None
+        The corrected text if a correction was performed, otherwise the
+        original *text_str*.  `None` is returned only when the input was
+        `None`.
+
+    Notes
+    -----
+    The function relies on two global objects that must be defined elsewhere in
+    the module:
+
+    * `GLOBAL_CORRECTED_TEXTS` – a `dict` that maps original texts to their
+      corrected versions.
+    * `GLOBAL_LOCK_CORRECTED_TEXTS` – a `threading.Lock` (or similar) used
+      to protect concurrent access to the cache.
+
+    This design makes the correction step safe for use in multi‑process or
+    multi‑threaded environments, avoiding redundant API calls and reducing
+    latency.
+    """
+    if text_str is None or not len(text_str):
+        return text_str
+
+    clear_s = None
+    with GLOBAL_LOCK_CORRECTED_TEXTS:
+        clear_s = GLOBAL_CORRECTED_TEXTS.get(text_str)
+    if clear_s is not None:
+        return clear_s
+
+    if OPEN_API is None:
+        raise RuntimeError(f"Global OPEN_API is not Initialized!")
+
+    clear_s = OPEN_API.generate(
+        message=text_str, system_prompt=prompt_str, max_tokens=len(text_str) * 2
+    )
+    if clear_s is None or not len(clear_s.strip()):
+        clear_s = text_str
+
+    with GLOBAL_LOCK_CORRECTED_TEXTS:
+        GLOBAL_CORRECTED_TEXTS[text_str] = clear_s
+    return clear_s
+
+
+def list_json_openapi_configs(look_dir: str) -> List[str]:
+    """
+    Return absolute paths of JSON OpenAPI configuration files in a directory.
+
+    Parameters
+    ----------
+    look_dir : str
+        Path to the directory to scan for JSON configuration files.
+
+    Returns
+    -------
+    List[str]
+        A list of absolute file paths for all entries whose names end with
+        ".json" (case-insensitive) found directly in `look_dir`. The order
+        reflects the underlying directory listing and is not guaranteed.
+
+    Raises
+    ------
+    FileNotFoundError
+        If `look_dir` does not exist or is not a directory.
+
+    Notes
+    -----
+    Only files with names ending in ".json" (case-insensitive) are included.
+    Paths in the returned list are absolute.
+    """
+    if not os.path.isdir(look_dir):
+        raise FileNotFoundError(f"Directory not found: {look_dir}")
+
+    json_paths = [
+        os.path.abspath(os.path.join(look_dir, filename))
+        for filename in os.listdir(look_dir)
+        if filename.lower().endswith(".json")
+    ]
+    return json_paths
 
 
 def process_sample_batch(
     batch: List[Dict[Any, Any]],
     split_to_sentences: bool,
     spacy_model_name: str = "pl_core_news_sm",
+    correct_text: bool = False,
+    prompts_dir: Optional[str] = None,
+    prompt_name: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Process a batch of samples in a separate process.
@@ -33,15 +315,38 @@ def process_sample_batch(
         batch: List of samples to process
         split_to_sentences: Whether to split text into sentences
         spacy_model_name: Name of the spacy model to use (default: pl_core_news_sm)
+        correct_text: Option to enable text correction, if enabled, then
+        prompts_dir, prompt_to_correct must be provided.
+        prompts_dir: Directory where prompts files are located.
+        prompt_name: Name of prompt used to correct the text
 
     Returns:
         List of converted samples
     """
+    prompt_str = None
+    if correct_text:
+        if prompts_dir is None:
+            raise RuntimeError(
+                "If correct_text is True, prompts_dir must be provided"
+            )
+        if prompt_name is None:
+            raise RuntimeError(
+                "If correct_text is True, prompt_name must be provided"
+            )
+
+        try:
+            with PromptHandler(base_dir=prompts_dir) as prompt_handler:
+                prompt_str = prompt_handler.get_prompt(key=prompt_name)
+        except KeyError as e:
+            raise RuntimeError(f"Prompt {prompt_name} not found. {e}")
+
     # Load spaCy model in each process
     nlp = spacy.load(spacy_model_name)
 
     def split_text_to_sentences(text_str: str) -> List[str]:
-        """Split text into sentences using spaCy."""
+        """
+        Split text into sentences using spaCy.
+        """
         if not text_str or not text_str.strip():
             return []
 
@@ -55,6 +360,14 @@ def process_sample_batch(
     for s in batch:
         _s1 = s["text_parent"]
         _s2 = s["text_child"]
+        if correct_text:
+            print("_s1 before", datetime.datetime.now())
+            _s1 = correct_if_necessary(text_str=_s1, prompt_str=prompt_str)
+            print("_s1 after", datetime.datetime.now())
+
+            print("_s2 before", datetime.datetime.now())
+            _s2 = correct_if_necessary(text_str=_s2, prompt_str=prompt_str)
+            print("_s2 after", datetime.datetime.now())
 
         if split_to_sentences:
             s1_list = split_text_to_sentences(_s1)
@@ -93,6 +406,10 @@ class EmbedderDatasetConverter:
         spacy_model_name: str = "pl_core_news_sm",
         n_workers: int = None,
         batch_size: int = None,
+        correct_texts: bool = False,
+        prompts_dir: Optional[str] = None,
+        prompt_name: Optional[str] = None,
+        openapi_config_paths: Optional[List[str]] = None,
     ):
         """
         Initialize the dataset converter with configuration parameters.
@@ -108,16 +425,32 @@ class EmbedderDatasetConverter:
             n_workers: Number of parallel workers. Defaults to cpu_count()
             batch_size: Size of batches for parallel processing.
             Auto-calculated if None
+            correct_texts: If option is set to `True` then text correction
+            will be run before splitting text to sentences. Defaults to False.
+            prompts_dir: Directory where prompts files are located (default: None,
+            required when `correct_text` is True).
+            prompt_name: Name of prompt used to correct the text. Defaults to None,
+            required when `correct_text` is True.
+            openapi_config_paths: List of OpenAPI config file paths used by workers
         """
-        self.nlp = spacy.load(spacy_model_name)
+        self.seed = seed
+
         self.jsonl_path = jsonl_path
         self.output_dir = output_dir
         self.train_ratio = train_ratio
+
+        self.prompts_dir = prompts_dir
+        self.prompt_name = prompt_name
+        self.correct_texts = correct_texts
         self.split_to_sentences = split_to_sentences
-        self.seed = seed
+
         self.spacy_model_name = spacy_model_name
-        self.n_workers = n_workers or cpu_count()
+        self.n_workers = n_workers or multiprocessing.cpu_count()
         self.batch_size = batch_size
+        self.openapi_config_paths = openapi_config_paths
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def read_jsonl(self):
         """
@@ -140,7 +473,6 @@ class EmbedderDatasetConverter:
 
         # Auto-calculate batch size if not provided
         if self.batch_size is None:
-            # Aim for reasonable batch sizes - not too small (overhead) or too large (memory)
             self.batch_size = max(1, len(samples) // (self.n_workers * 4))
             self.batch_size = min(self.batch_size, 1000)
 
@@ -152,22 +484,24 @@ class EmbedderDatasetConverter:
         )
 
         converted = []
-        # Process batches in parallel
+
+        # Uwaga: po pre-korekcji nie używamy OPEN_API w workerach,
+        # więc nie przekazujemy initializerów ani kolejek.
         with ProcessPoolExecutor(max_workers=self.n_workers) as executor:
-            # Create a partial function with fixed arguments
             process_func = partial(
                 process_sample_batch,
                 split_to_sentences=self.split_to_sentences,
                 spacy_model_name=self.spacy_model_name,
+                correct_text=False,  # KOREKCJA wykonana wcześniej
+                prompts_dir=None,
+                prompt_name=None,
             )
 
-            # Submit all batches for processing
             future_to_batch = {
                 executor.submit(process_func, batch): i
                 for i, batch in enumerate(batches)
             }
 
-            # Collect results with progress bar
             with tqdm(total=len(batches), desc="Converting sample batches") as pbar:
                 for future in as_completed(future_to_batch):
                     try:
@@ -175,9 +509,7 @@ class EmbedderDatasetConverter:
                         converted.extend(batch_result)
                         pbar.update(1)
                     except Exception as exc:
-                        batch_idx = future_to_batch[future]
-                        print(f"Batch {batch_idx} generated an exception: {exc}")
-                        pbar.update(1)
+                        raise exc
 
         return converted
 
@@ -191,22 +523,6 @@ class EmbedderDatasetConverter:
             samples[i : i + self.batch_size]
             for i in range(0, len(samples), self.batch_size)
         ]
-
-    def split_text_to_sentences(self, text_str: str) -> List[str]:
-        """
-        Splits text into individual sentences using basic punctuation rules.
-
-        Note: This method is kept for backward compatibility but is now
-        primarily used in the main process for single-threaded operations.
-        """
-        if not text_str or not text_str.strip():
-            return []
-
-        doc = self.nlp(text_str.strip())
-        sentences = [
-            sent.text.strip() for sent in doc.sents if len(sent.text.strip())
-        ]
-        return sentences
 
     def split_samples(self, samples):
         """
@@ -236,33 +552,6 @@ class EmbedderDatasetConverter:
             os.path.join(self.output_dir, filename), "w", encoding="utf-8"
         ) as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-
-    def run(self):
-        """
-        Executes the complete conversion pipeline:
-            load,
-            convert,
-            split,
-            and save the dataset.
-        """
-
-        if not os.path.exists(self.output_dir):
-            os.makedirs(self.output_dir)
-
-        print("Loading jsonl...")
-        raw_samples = self.read_jsonl()
-
-        print("Converting samples...")
-        converted = self.convert_samples(raw_samples)
-
-        print("Split to train test")
-        train, test = self.split_samples(converted)
-
-        print("Writing dataset...")
-        self.write_json(train, "train.json")
-        self.write_json(test, "test.json")
-
-        print(f"Done. Train: {len(train)} samples, Test: {len(test)} samples.")
 
 
 def parse_args():
@@ -306,12 +595,45 @@ def parse_args():
         default=False,
         help="Optional flag to split samples into sentences",
     )
+
+    parser.add_argument(
+        "--correct-texts",
+        dest="correct_texts",
+        action="store_true",
+        default=False,
+        help="Optional flag to correct text before splitting to sentences",
+    )
+    parser.add_argument(
+        "--prompts-dir",
+        dest="prompts_dir",
+        type=str,
+        default=None,
+        help="Path to directory containing prompts files (*.prompt). "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--prompt-name",
+        dest="prompt_name",
+        type=str,
+        default=None,
+        help="Prompt name used to prepare correct version of text. "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--openapi-configs-dir",
+        dest="openapi_configs_dir",
+        type=str,
+        default=None,
+        help="Path to config with generative models available with OpenAPI. "
+        "This option is required when --correct-texts",
+    )
+
     parser.add_argument(
         "--n-workers",
         dest="n_workers",
         type=int,
         default=None,
-        help=f"Number of parallel workers (default: {cpu_count()})",
+        help=f"Number of parallel workers (default: {multiprocessing.cpu_count()})",
     )
     parser.add_argument(
         "--batch-size",
@@ -323,8 +645,42 @@ def parse_args():
     return parser.parse_args()
 
 
+def check_args(app_args: argparse.Namespace):
+    """
+    Validate command‑line arguments related to text correction.
+
+    This function ensures that when the `--correct-texts` flag is set, the required
+    `--prompts-dir`, `--prompt-name` and `--openapi-config` arguments
+    are also provided.  If either is missing a `ValueError` with a
+    clear message is raised.
+
+    Args:
+        app_args: `argparse.Namespace` containing the parsed command‑line
+            arguments.
+
+    Returns:
+        The same `app_args` namespace if validation succeeds.
+    """
+    if app_args.correct_texts:
+        if app_args.prompts_dir is None:
+            raise ValueError("--correct-texts requires --prompts-dir")
+
+        if app_args.prompt_name is None:
+            raise ValueError("--correct-texts requires --prompts-dir")
+
+        if app_args.openapi_configs_dir is None:
+            raise ValueError("--correct-texts requires --openapi-configs-dir")
+
+    return app_args
+
+
 if __name__ == "__main__":
-    args = parse_args()
+    args = check_args(parse_args())
+
+    if args.correct_texts:
+        config_paths = list_json_openapi_configs(args.openapi_configs_dir)
+        OPEN_API = OpenAPIQueue(config_paths=config_paths)
+
     converter = EmbedderDatasetConverter(
         jsonl_path=args.jsonl_path,
         output_dir=args.output_dir,
@@ -333,5 +689,34 @@ if __name__ == "__main__":
         split_to_sentences=args.split_to_sentences,
         n_workers=args.n_workers,
         batch_size=args.batch_size,
+        correct_texts=False,
+        prompts_dir=args.prompts_dir,
+        prompt_name=args.prompt_name,
+        openapi_config_paths=None,
     )
-    converter.run()
+
+    print("Loading jsonl...")
+    raw_samples = converter.read_jsonl()
+
+    if args.correct_texts:
+        print("Pre-correcting samples in main process...")
+        o_configs = list_json_openapi_configs(args.openapi_configs_dir)
+
+        raw_samples = pre_correct_samples_in_main_process(
+            samples=raw_samples,
+            prompts_dir=args.prompts_dir,
+            prompt_name=args.prompt_name,
+            max_workers=len(o_configs),
+        )
+
+    print("Converting samples...")
+    converted = converter.convert_samples(raw_samples)
+
+    print("Split to train test")
+    train, test = converter.split_samples(converted)
+
+    print("Writing dataset...")
+    converter.write_json(train, "train.json")
+    converter.write_json(test, "test.json")
+
+    print(f"Done. Train: {len(train)} samples, Test: {len(test)} samples.")

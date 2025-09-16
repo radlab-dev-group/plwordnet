@@ -1,3 +1,4 @@
+import os
 import logging
 
 from typing import List, Optional, Dict
@@ -139,6 +140,16 @@ class RelationTypesExporter:
 
         self.logger.info("Retrieving synset relation counts...")
         synset_relation_counts = self.get_synset_relation_counts(limit=limit)
+
+        # Create out dir (path.dirname)
+        output_dir = os.path.dirname(output_file)
+        if output_dir and not os.path.isdir(output_dir):
+            try:
+                os.makedirs(output_dir, exist_ok=True)
+                self.logger.info(f"Created output directory: {output_dir}")
+            except Exception as e:
+                self.logger.error(f"Failed to create directory {output_dir}: {e}")
+                raise
 
         try:
             workbook = Workbook()

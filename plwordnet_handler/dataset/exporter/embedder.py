@@ -159,7 +159,7 @@ class WordnetToEmbedderConverter:
         limit: Optional[int] = None,
         out_type: str = "jsonl",
         low_high_ratio: float = 2.0,
-        cut_weight: float = 1.4,
+        cut_weight: float = 0.14,
     ) -> bool:
         """
         Export embedder samples to JSONL file.

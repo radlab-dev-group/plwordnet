@@ -677,7 +677,7 @@ class WordnetToEmbedderConverter:
         if not len(l_examples) or not len(h_examples):
             self.logger.warning(
                 f"There are no low_examples: {len(l_examples)} "
-                f"or not high_examples: {len(h_examples)}"
+                f"or not high_examples (weights count): {len(h_examples)}"
             )
 
         if not len(l_examples) and not len(h_examples):
@@ -696,15 +696,96 @@ class WordnetToEmbedderConverter:
             all_l_examples.extend(samples)
         random.shuffle(all_l_examples)
 
-        new_examples = []
-        for l_e in all_l_examples:
-            _h_examples = random.sample(all_h_examples, l_h_ratio)
-            _e = self.__merge_to_embedder_sample(
-                example=l_e, negatives=_h_examples, low_value=0.05
-            )
-            if len(_e):
-                new_examples.extend(_e)
+        new_examples = self.__rand_low_examples(
+            h_examples=all_h_examples,
+            n_examples=all_h_examples,
+            l_h_ratio=l_h_ratio,
+            low_value=0.005,
+        )
+
+        if len(new_examples):
+            random.shuffle(new_examples)
+
         return new_examples[:new_examples_count]
+
+    def __rand_low_examples(
+        self, h_examples, n_examples, l_h_ratio: int, low_value: float
+    ):
+        """
+        Generate low‑weight (negative) embedder samples by pairing existing
+        high‑weight examples.
+
+        This helper creates new training samples that simulate weak or
+        unrelated relationships.  It works by shuffling the supplied high‑weight
+        examples (`h_examples`) together with an optional additional set
+        (`n_examples`), forming pairs of examples. Each pair is examined and,
+        if the combination does not already exist in the high‑weight set, a
+        low‑weight sample is produced by merging the parent text from the first
+        example with the child text from the second example.
+
+        Parameters
+        ----------
+        h_examples : list[EmbedderSample]
+            List of high‑weight examples that will be used as the source pool.
+        n_examples : list[EmbedderSample] or None
+            Optional additional examples to include in the pool.  If `None`,
+            an empty list is assumed.
+        l_h_ratio : int
+            Ratio of high‑weight examples to generate per low‑weight example.
+            Determines how many pairs are created from the shuffled pool.
+        low_value : float
+            Weight value assigned to the generated low‑weight samples.
+
+        Returns
+        -------
+        list[EmbedderSample]
+            A list of newly created low‑weight `EmbedderSample` objects.
+            The list may be empty if the input pools are not enough to form
+            any valid pairs.
+
+        Notes
+        -----
+        * The method skips pairs that already exist in `h_examples` in both
+          directions (parent‑child and child‑parent) to avoid duplicate
+          training data.
+        * If both `h_examples` and `n_examples` are empty, the function
+          returns an empty list without raising an error.
+        """
+        if n_examples is None:
+            n_examples = []
+
+        if h_examples is None:
+            h_examples = []
+
+        all_examples = h_examples + n_examples
+        if not len(all_examples):
+            return []
+        random.shuffle(all_examples)
+
+        e_count = int(
+            min(len(all_examples) / 2 - 1, (len(h_examples) * l_h_ratio - 1) / 2)
+        )
+        examples_pairs = [
+            (all_examples[i], all_examples[i + 1]) for i in range(0, 2 * e_count, 2)
+        ]
+
+        new_examples = []
+        h_examples_uniq = set(_h.text_parent + _h.text_child for _h in h_examples)
+        for e1, e2 in examples_pairs:
+            # Skip pair when exists in high_examples in both ways:
+            #  e1.parent + e2.child
+            if e1.text_parent + e2.text_child in h_examples_uniq:
+                continue
+            #  e1.child + e2.parent
+            if e1.text_child + e2.text_parent in h_examples_uniq:
+                continue
+
+            low_example = self.__merge_to_embedder_sample(
+                example=e1, negatives=[e2], low_value=low_value
+            )
+            if len(low_example):
+                new_examples.extend(low_example)
+        return new_examples
 
     def __merge_to_embedder_sample(
         self,
@@ -828,7 +909,7 @@ class WordnetToEmbedderConverter:
             l_count = 1
 
         add_examples = (
-            int(low_to_high_ratio * (l_count * (h_count / l_count))) - l_count
+            int(low_to_high_ratio * (l_count * (h_count / l_count)) + 1) - l_count
         )
         self.logger.info(f"  + {add_examples} low-weighted examples will be added")
 

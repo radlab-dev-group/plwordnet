@@ -734,7 +734,7 @@ if __name__ == "__main__":
             prompts_dir=args.prompts_dir,
             prompt_name=args.prompt_name,
             max_workers=len(o_configs),
-            workdir="./work_dir_cache"
+            workdir="./work_dir_cache",
         )
 
     print("Converting samples...")

@@ -3,7 +3,7 @@
 OUT_DIR="resources/plwordnet_4_5/full"
 NX_GRAPH_DIR="${OUT_DIR}/graphs/full"
 
-MYSQL_DB_FILE=resources/plwordnet-mysql-db.json
+MYSQL_DB_FILE=resources/configs/plwordnet-mysql-db-pk.json
 
 # Convert db to networkx file (with wikipedia extraction)
 plwordnet-cli \

@@ -171,6 +171,7 @@ class CommentParser:
         "{##L:",
         "##K:",
         "##L:",
+        "##DD:",
         "##D:",
         "#P:",
         "##A1:",
@@ -183,6 +184,13 @@ class CommentParser:
         "#P",
         "http://pl.wikipedia.org/wiki",
         "https://pl.wikipedia.org/wiki",
+        "<##REF: LEKS-NAUK-TECH-1984>",
+        "<##aDD>",
+        "<##VLC: ZD>",
+        "<##VLC: CZ>",
+        "<##VLC: CZ, ZD>",
+        "} : 0 : 0",
+        ": 0 : 0",
     ]
 
     def __init__(self):
@@ -304,7 +312,7 @@ class CommentParser:
         # Try regex “##D/##W/##S” extraction.
         match = re.search(self.definition_pattern, comment)
         if match:
-            return self.__clear_textual_data(text=match.group(1).strip())
+            return self.__clear_textual_data(text=match.group(1).strip(), min_len=15)
 
         # No regex tag -> fall back to the entire comment.
         #    This is useful for legacy entries that never received a tag.

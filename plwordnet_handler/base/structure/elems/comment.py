@@ -168,19 +168,37 @@ class CommentParser:
         "##Szekspir-Paszkowski:",
         "##Wassermann-Mirandola:",
         "## MSZ:",
+        "{##L:",
+        "##K:",
+        "##L:",
+        "##DD:",
+        "##D:",
         "#P:",
+        "##A1:",
+        "##A2:",
+        "##A3:",
         "#W:",
         "#Ko:",
         "##Ko",
         "##P",
         "#P",
+        "http://pl.wikipedia.org/wiki",
+        "https://pl.wikipedia.org/wiki",
+        "<##REF: LEKS-NAUK-TECH-1984>",
+        "<##aDD>",
+        "<##VLC: ZD>",
+        "<##VLC: CZ>",
+        "<##VLC: CZ, ZD>",
+        "} : 0 : 0",
+        ": 0 : 0",
     ]
 
     def __init__(self):
         # Regex patterns for different comment elements
-        self.base_domain_pattern = r"#[#]?K:\s*([^#]+?)(?=\s*##|$)"
+        self.base_domain_pattern = r"#[#]?K:\s*([^#]+?)(?=\s*##|$|\.)"
         self.definition_pattern = r"#[#]?[DPW][':]?\s*([^#\[{]+?)(?=\s*\[|##|{|$)"
-        self.external_url_pattern = r"{##L:\s*([^}]+?)}"
+        # self.external_url_pattern = r"{##L:\s*([^}]+?)}"
+        self.external_url_pattern = r"{##L:\s*([^}]+?)(?:\s|})"
 
         # Sentiment annotation pattern to capture strength
         self.sentiment_annotation_pattern = (
@@ -262,7 +280,10 @@ class CommentParser:
         """
         match = re.search(self.base_domain_pattern, comment)
         if match:
-            return self.__clear_textual_data(text=match.group(1).strip())
+            domain_str = match.group(1).strip()
+            if not domain_str.endswith("."):
+                domain_str += "."
+            return self.__clear_textual_data(text=domain_str, min_len=2)
         return None
 
     def _extract_definition(self, comment: str) -> Optional[str]:
@@ -272,7 +293,7 @@ class CommentParser:
         The standard format places the definition after a `##D`, `##W` or
         `##S` tag, e.g.:
 
-            ##D:   a small, domesticated carnivorous mammal
+            ##D: a small, domesticated carnivorous mammal
 
         In practice many comments omit those tags – the definition is simply the
         raw text of the comment.  When the regular `definition_pattern` does
@@ -291,7 +312,7 @@ class CommentParser:
         # Try regex “##D/##W/##S” extraction.
         match = re.search(self.definition_pattern, comment)
         if match:
-            return self.__clear_textual_data(text=match.group(1).strip())
+            return self.__clear_textual_data(text=match.group(1).strip(), min_len=15)
 
         # No regex tag -> fall back to the entire comment.
         #    This is useful for legacy entries that never received a tag.
@@ -425,10 +446,14 @@ class CommentParser:
         match = re.search(self.external_url_pattern, comment)
         if match:
             url = match.group(1).strip()
+            if url and len(url):
+                url = url.replace("http://", "https://")
             return ExternalUrlDescription(url=url)
         return None
 
-    def __clear_textual_data(self, text: str or None) -> Optional[str]:
+    def __clear_textual_data(
+        self, text: str | None, min_len: Optional[int] = None
+    ) -> Optional[str]:
         """
         Clean and normalize textual data by removing unwanted phrases and characters.
 
@@ -439,6 +464,8 @@ class CommentParser:
 
         Args:
             text: Input text string to be cleaned, or None
+            min_len: (Optional) Minimum length of text to validate
+            if not given, then default `self.MIN_EXAMPLE_LENGTH` will be used.
 
         Returns:
             Optional[str]: Cleaned text string, or None if input is empty/invalid
@@ -457,9 +484,11 @@ class CommentParser:
         for c in self.STRIP_CHARS_FROM_TEXTUAL_DATA:
             text = text.strip(c)
 
-        return self.__return_str_or_none(text=text.strip())
+        return self.__return_str_or_none(text=text.strip(), min_len=min_len)
 
-    def __return_str_or_none(self, text: str) -> Optional[str]:
+    def __return_str_or_none(
+        self, text: str, min_len: Optional[int] = None
+    ) -> Optional[str]:
         """
         Validate and filter text based on predefined criteria.
 
@@ -471,6 +500,8 @@ class CommentParser:
 
         Args:
             text: Input text string to validate
+            min_len: (Optional) Minimum length of text to validate
+            if not given, then default `self.MIN_EXAMPLE_LENGTH` will be used.
 
         Returns:
             Optional[str]: Original text if it passes all validation checks,
@@ -491,7 +522,8 @@ class CommentParser:
             if pg == text:
                 return None
 
-        if len(text) < self.MIN_EXAMPLE_LENGTH:
+        min_len = min_len if min_len else self.MIN_EXAMPLE_LENGTH
+        if len(text) < min_len:
             return None
 
         return text

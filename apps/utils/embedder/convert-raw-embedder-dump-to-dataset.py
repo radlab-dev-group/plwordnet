@@ -32,6 +32,11 @@ from rdl_ml_utils.handlers.prompt_handler import PromptHandler
 from rdl_ml_utils.utils.openapi_queue_manager import OpenAPIQueue
 
 
+TRANSLATIONS_TO_CACHE = 1000
+
+g_batch_number = 0
+g_batch_to_store = {}
+
 OPEN_API = None
 GLOBAL_CORRECTED_TEXTS = {}
 GLOBAL_LOCK_CORRECTED_TEXTS = threading.Lock()
@@ -82,11 +87,24 @@ def _generate_with_retries(
     return None
 
 
+def store_cache_batch(workdir: str):
+    global g_batch_number
+    global g_batch_to_store
+
+    out_f_path = os.path.join(workdir, f"{g_batch_number:05}.json")
+    print(f" ~> storing correct text to cache file: {out_f_path}")
+    with open(out_f_path, "w") as f:
+        json.dump(g_batch_to_store, f, indent=2, ensure_ascii=False)
+        g_batch_to_store = {}
+        g_batch_number += 1
+
+
 def pre_correct_samples_in_main_process(
     samples: List[Dict[str, Any]],
     prompts_dir: str,
     prompt_name: str,
     max_workers: int = 16,
+    workdir: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Pre-correct unique text fields in samples using the global
@@ -112,6 +130,10 @@ def pre_correct_samples_in_main_process(
         The key/name of the prompt to use as the system prompt for correction.
     max_workers : int, optional
         Maximum number of threads used for parallel correction (default: 16).
+    workdir: str, optional
+        Working directory, if set, then each 1k corrected texts will be stored
+        in the cache file. If a `workdir/translate.cache` file exists, then it will
+        be loaded and these translations will not be corrected.
 
     Returns
     -------
@@ -137,6 +159,8 @@ def pre_correct_samples_in_main_process(
         raise RuntimeError(
             "OPEN_API must be initialized in main process for pre-correction"
         )
+
+    os.makedirs(workdir, exist_ok=True)
 
     with PromptHandler(base_dir=prompts_dir) as prompt_handler:
         prompt_str = prompt_handler.get_prompt(key=prompt_name)
@@ -164,6 +188,9 @@ def pre_correct_samples_in_main_process(
             res = txt
         with lock_map:
             corrected_map[txt] = res
+            g_batch_to_store[txt] = res
+            if len(g_batch_to_store) >= TRANSLATIONS_TO_CACHE:
+                store_cache_batch(workdir)
 
     max_workers = max(1, max_workers)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -707,6 +734,7 @@ if __name__ == "__main__":
             prompts_dir=args.prompts_dir,
             prompt_name=args.prompt_name,
             max_workers=len(o_configs),
+            workdir="./work_dir_cache"
         )
 
     print("Converting samples...")

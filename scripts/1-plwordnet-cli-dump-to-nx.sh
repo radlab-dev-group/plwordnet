@@ -13,10 +13,9 @@ plwordnet-cli \
   --show-progress-bar \
   --nx-graph-dir="${NX_GRAPH_DIR}" \
   --convert-to-nx-graph \
-  --extract-wikipedia-articles
- 
-#\
-#  --correct-texts \
-#  --prompts-dir=resources/prompts \
-#  --prompt-name="ollama/correct_text" \
-#  --openapi-configs-dir=resources/configs/ollama/
+  --extract-wikipedia-articles \
+  --workers-count=16 \
+  --correct-texts \
+  --prompts-dir=resources/prompts \
+  --prompt-name="ollama/correct_text" \
+  --openapi-configs-dir=resources/configs/ollama/

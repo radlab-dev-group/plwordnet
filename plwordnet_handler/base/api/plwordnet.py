@@ -1,6 +1,8 @@
 from tqdm import tqdm
 from typing import Optional, List, Dict
 
+import concurrent.futures
+
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.api.plwordnet_i import PlWordnetAPIBase
@@ -39,6 +41,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
         extract_wiki_articles: bool = False,
         use_memory_cache: bool = False,
         show_progress_bar: bool = False,
+        workers_count: int = 10,
         prompts_dir: Optional[str] = None,
         prompt_name_clear_text: Optional[str] = None,
         openapi_configs_dir: Optional[str] = None,
@@ -50,6 +53,8 @@ class PlWordnetAPI(PlWordnetAPIBase):
              extract_wiki_articles: whether to extract wiki articles
              use_memory_cache: whether to use memory caching
              show_progress_bar: whether to show tqdm progress bar
+             workers_count: (int, default 10) number of workers
+             used to extract wikipedia context.
              prompts_dir: str (Optional: None)
                 Directory containing prompt files;
                 used by PromptHandler to load the prompt.
@@ -64,6 +69,8 @@ class PlWordnetAPI(PlWordnetAPIBase):
         self.use_memory_cache = use_memory_cache
         self.show_progress_bar = show_progress_bar
         self.extract_wiki_articles = extract_wiki_articles
+
+        self.workers_count = workers_count
 
         self.prompts_dir = prompts_dir
         self.prompt_name_clear_text = prompt_name_clear_text
@@ -127,9 +134,19 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         lu_list = self.connector.get_lexical_units(limit=limit)
         if self.extract_wiki_articles:
-            lu_list = self.__add_wiki_context(
-                lu_list=lu_list, force_download_content=True, fix_content=True
-            )
+            if self.workers_count > 1:
+                lu_list = self.__add_wiki_context_parallel(
+                    lu_list=lu_list,
+                    force_download_content=True,
+                    fix_content=True,
+                    workers_count=self.workers_count,
+                )
+            else:
+                lu_list = self.__add_wiki_context(
+                    lu_list=lu_list,
+                    force_download_content=True,
+                    fix_content=True,
+                )
 
         if self.use_memory_cache:
             self.__mem__cache_["get_lexical_units"] = lu_list
@@ -370,6 +387,59 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 continue
             lu.comment.external_url_description.content = content
         return lu_list
+
+    def __add_wiki_context_parallel(
+        self,
+        lu_list: List[LexicalUnit],
+        workers_count: int = 4,
+        force_download_content: bool = False,
+        fix_content: bool = False,
+    ) -> List[LexicalUnit]:
+        """
+        Enriches lexical units with Wikipedia content in parallel using threads.
+
+        The list of lexical units is split into `workers_count` chunks and each
+        chunk is processed by `__add_wiki_context` in a separate thread.
+
+        Args:
+            lu_list: List of lexical units to enrich.
+            workers_count: Number of worker threads to spawn.
+            force_download_content: Passed to `__add_wiki_context`.
+            fix_content: Passed to `__add_wiki_context`.
+
+        Returns:
+            List[LexicalUnit]: The combined list with Wikipedia content is added.
+        """
+        if not lu_list:
+            return []
+
+        workers = max(1, min(workers_count, len(lu_list)))
+
+        # Split the list into roughly equal chunks
+        chunk_size = (len(lu_list) + workers - 1) // workers
+        chunks = [
+            lu_list[i : i + chunk_size] for i in range(0, len(lu_list), chunk_size)
+        ]
+
+        results: List[LexicalUnit] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            # Submit each chunk to the executor
+            futures = [
+                executor.submit(
+                    self.__add_wiki_context,
+                    chunk,
+                    force_download_content,
+                    fix_content,
+                )
+                for chunk in chunks
+            ]
+
+            # Gather results while preserving original order
+            for future in concurrent.futures.as_completed(futures):
+                chunk_result = future.result()
+                if chunk_result:
+                    results.extend(chunk_result)
+        return results
 
     @staticmethod
     def _map_units_to_synsets(

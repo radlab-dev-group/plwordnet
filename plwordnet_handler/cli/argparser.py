@@ -116,6 +116,14 @@ def prepare_parser() -> argparse.ArgumentParser:
     )
 
     # -------------------------------------------------------------------------
+    parser.add_argument(
+        "--workers-count",
+        dest="workers_count",
+        type=int,
+        default=1,
+        help=f"Number of parallel workers i.e. during wikipedia extraction.",
+    )
+    # -------------------------------------------------------------------------
     # Test connection
     parser.add_argument(
         "--test-api",

@@ -394,6 +394,7 @@ def dump_to_networkx_file(
     db_config: str,
     out_dir_path: str,
     limit: Optional[int] = None,
+    workers_count: int = 10,
     show_progress_bar: Optional[bool] = True,
     extract_wikipedia_articles: Optional[bool] = False,
     log_level: Optional[str] = "INFO",
@@ -412,6 +413,8 @@ def dump_to_networkx_file(
         db_config (str): Path to the database configuration file
         out_dir_path (str): Directory path where NetworkX graph files will be stored
         limit (Optional[int]): Maximum number of records to process (None for no limit)
+        workers_count: (int, default 10) number of workers
+                used to extract wikipedia context.
         show_progress_bar (Optional[bool]): Whether to display progress
         indication during processing
         extract_wikipedia_articles (Optional[bool]): Whether to include
@@ -441,6 +444,7 @@ def dump_to_networkx_file(
                 db_config_path=db_config, log_level=log_level
             ),
             extract_wiki_articles=extract_wikipedia_articles,
+            workers_count=workers_count,
             use_memory_cache=True,
             show_progress_bar=show_progress_bar,
             prompts_dir=prompts_dir,

@@ -136,6 +136,7 @@ class CLIWrappers(CLIWrapperBase):
             db_config=self.args.db_config,
             out_dir_path=self.args.nx_graph_dir,
             limit=self.args.limit,
+            workers_count=self.args.workers_count,
             show_progress_bar=self.args.show_progress_bar,
             extract_wikipedia_articles=self.args.extract_wikipedia_articles,
             log_level=self.log_level,

@@ -397,6 +397,9 @@ def dump_to_networkx_file(
     show_progress_bar: Optional[bool] = True,
     extract_wikipedia_articles: Optional[bool] = False,
     log_level: Optional[str] = "INFO",
+    prompts_dir: Optional[str] = None,
+    prompt_name_correct_text: Optional[str] = None,
+    openapi_configs_dir: Optional[str] = None,
 ) -> bool:
     """
     Exports Polish Wordnet data from a MySQL database to NetworkX graph files.
@@ -414,7 +417,12 @@ def dump_to_networkx_file(
         extract_wikipedia_articles (Optional[bool]): Whether to include
         Wikipedia article data
         log_level: Logger level (INFO as default)
-
+        prompts_dir: str (Optional: None) Directory containing prompt files;
+            used by PromptHandler to load the prompt.
+        prompt_name_correct_text: str (Optional: None) The key/name of the prompt
+            to use it as the system prompt for i.e., Wikipedia content correction.
+        openapi_configs_dir: str (Optional: None) Directory
+            containing OpenAPI config files;
     Returns:
         Boolean: True for successful completion, False for error
 
@@ -428,15 +436,16 @@ def dump_to_networkx_file(
 
     try:
         # Use database connector for conversion
-        connector = PlWordnetAPIMySQLDbConnector(
-            db_config_path=db_config, log_level=log_level
-        )
-
         with PolishWordnet(
-            connector=connector,
+            connector=PlWordnetAPIMySQLDbConnector(
+                db_config_path=db_config, log_level=log_level
+            ),
             extract_wiki_articles=extract_wikipedia_articles,
             use_memory_cache=True,
             show_progress_bar=show_progress_bar,
+            prompts_dir=prompts_dir,
+            prompt_name=prompt_name_correct_text,
+            openapi_configs_dir=openapi_configs_dir,
         ) as pl_wn:
             logger.info("Converting to NetworkX MultiDiGraph...")
             g_mapper = GraphMapper(polish_wordnet=pl_wn, limit=limit)

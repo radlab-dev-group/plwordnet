@@ -39,6 +39,9 @@ class PlWordnetAPI(PlWordnetAPIBase):
         extract_wiki_articles: bool = False,
         use_memory_cache: bool = False,
         show_progress_bar: bool = False,
+        prompts_dir: Optional[str] = None,
+        prompt_name_clear_text: Optional[str] = None,
+        openapi_configs_dir: Optional[str] = None,
     ):
         """
         Args:
@@ -47,12 +50,24 @@ class PlWordnetAPI(PlWordnetAPIBase):
              extract_wiki_articles: whether to extract wiki articles
              use_memory_cache: whether to use memory caching
              show_progress_bar: whether to show tqdm progress bar
+             prompts_dir: str (Optional: None)
+                Directory containing prompt files;
+                used by PromptHandler to load the prompt.
+            prompt_name_clear_text: str (Optional: None)
+                The key/name of the prompt to use
+                as the system prompt for correction.
+            openapi_configs_dir: str (Optional: None)
+                Directory containing OpenAPI config files;
         """
         super().__init__(connector)
 
         self.use_memory_cache = use_memory_cache
         self.show_progress_bar = show_progress_bar
         self.extract_wiki_articles = extract_wiki_articles
+
+        self.prompts_dir = prompts_dir
+        self.prompt_name_clear_text = prompt_name_clear_text
+        self.openapi_configs_dir = openapi_configs_dir
 
         self.__mem__cache_ = {}
 
@@ -113,7 +128,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
         lu_list = self.connector.get_lexical_units(limit=limit)
         if self.extract_wiki_articles:
             lu_list = self.__add_wiki_context(
-                lu_list=lu_list, force_download_content=True
+                lu_list=lu_list, force_download_content=True, fix_content=True
             )
 
         if self.use_memory_cache:
@@ -280,7 +295,10 @@ class PlWordnetAPI(PlWordnetAPIBase):
         return rel_types
 
     def __add_wiki_context(
-        self, lu_list: List[LexicalUnit], force_download_content: bool = False
+        self,
+        lu_list: List[LexicalUnit],
+        force_download_content: bool = False,
+        fix_content: bool = False,
     ):
         """
         Enriches lexical units with Wikipedia content descriptions.
@@ -294,6 +312,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
             to enrich with Wiki content
             force_download_content (bool): If True, downloads content even
             if it already exists; if False, skips units that already have content
+            fix_content (bool): If True, fixes Wikipedia content (punctuation)
 
         Returns:
             List[LexicalUnit]: The same list of lexical units with
@@ -317,7 +336,12 @@ class PlWordnetAPI(PlWordnetAPIBase):
         if self.show_progress_bar:
             pbar = tqdm(total=len(lu_list), desc="Adding Wiki context")
 
-        extractor = WikipediaExtractor(max_sentences=self.MAX_WIKI_SENTENCES)
+        extractor = WikipediaExtractor(
+            max_sentences=self.MAX_WIKI_SENTENCES,
+            prompts_dir=self.prompts_dir,
+            clear_text_prompt_name=self.prompt_name_clear_text,
+            openapi_configs_dir=self.openapi_configs_dir,
+        )
 
         for lu in lu_list:
             if pbar:
@@ -339,7 +363,9 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 if not force_download_content:
                     continue
 
-            content = extractor.extract_main_description(wikipedia_url=url)
+            content = extractor.extract_main_description(
+                wikipedia_url=url, fix_content=fix_content
+            )
             if not content:
                 continue
             lu.comment.external_url_description.content = content

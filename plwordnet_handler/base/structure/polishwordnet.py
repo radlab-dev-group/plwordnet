@@ -21,6 +21,9 @@ class PolishWordnet:
         extract_wiki_articles: bool = False,
         use_memory_cache: bool = False,
         show_progress_bar: bool = False,
+        prompts_dir: Optional[str] = None,
+        prompt_name: Optional[str] = None,
+        openapi_configs_dir: Optional[str] = None,
     ):
         """
         Initialize PolishWordnet with PlWordnetAPI.
@@ -32,6 +35,14 @@ class PolishWordnet:
             extract_wiki_articles: Whether to extract Wikipedia articles.
             use_memory_cache: Whether to use memory cache.
             show_progress_bar: Whether to show a progress bar.
+            prompts_dir: str (Optional: None)
+                Directory containing prompt files;
+                used by PromptHandler to load the prompt.
+            prompt_name: str (Optional: None)
+                The key/name of the prompt to use
+                as the system prompt for correction.
+            openapi_configs_dir: str (Optional: None)
+                Directory containing OpenAPI config files;
         """
         # Create connector with provided or default configuration
         if connector is None:
@@ -51,6 +62,9 @@ class PolishWordnet:
             extract_wiki_articles=extract_wiki_articles,
             use_memory_cache=use_memory_cache,
             show_progress_bar=show_progress_bar,
+            prompts_dir=prompts_dir,
+            prompt_name_clear_text=prompt_name,
+            openapi_configs_dir=openapi_configs_dir,
         )
 
     def __getattr__(self, name):

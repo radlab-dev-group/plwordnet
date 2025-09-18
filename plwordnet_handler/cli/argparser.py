@@ -75,6 +75,39 @@ def prepare_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Extract Wikipedia articles as additional LU description",
     )
+
+    parser.add_argument(
+        "--correct-texts",
+        dest="correct_texts",
+        action="store_true",
+        default=False,
+        help="Optional flag to correct text (wikipedia content)",
+    )
+    parser.add_argument(
+        "--prompts-dir",
+        dest="prompts_dir",
+        type=str,
+        default=None,
+        help="Path to directory containing prompts files (*.prompt). "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--prompt-name-correct-text",
+        dest="prompt_name_correct_text",
+        type=str,
+        default=None,
+        help="Prompt name used to prepare correct version of text. "
+        "This option is required when --correct-texts",
+    )
+    parser.add_argument(
+        "--openapi-configs-dir",
+        dest="openapi_configs_dir",
+        type=str,
+        default=None,
+        help="Path to config with generative models available with OpenAPI. "
+        "This option is required when --correct-texts",
+    )
+
     parser.add_argument(
         "--show-progress-bar",
         dest="show_progress_bar",

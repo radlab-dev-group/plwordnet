@@ -448,6 +448,8 @@ class CommentParser:
             url = match.group(1).strip()
             if url and len(url):
                 url = url.replace("http://", "https://")
+                if "https://" not in url:
+                    url = f"https://{url}"
             return ExternalUrlDescription(url=url)
         return None
 

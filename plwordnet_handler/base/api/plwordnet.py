@@ -161,6 +161,9 @@ class PlWordnetAPI(PlWordnetAPIBase):
         #     openapi_configs_dir=self.openapi_configs_dir,
         # )
 
+        if self.extract_wiki_articles and self.corrector_handler is not None:
+            lu_list = self.__correct_wikipedia_content(lu_list=lu_list)
+
         if self.use_memory_cache:
             self.__mem__cache_["get_lexical_units"] = lu_list
 
@@ -324,6 +327,95 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         return rel_types
 
+    def __correct_wikipedia_content(
+        self, lu_list: List[LexicalUnit]
+    ) -> List[LexicalUnit]:
+        """
+        Clean and normalize Wikipedia content for a list of lexical units using
+        parallel correction. This private helper takes lexical units enriched with
+        Wikipedia content and:
+            - Validates that the configured correction backend
+              is available and has at least one worker.
+            - Deduplicates identical content strings to minimize correction calls.
+            - Applies content correction in parallel via a thread pool.
+            - Updates each lexical unit's external_url_description.content
+              with the corrected text, preserving order.
+
+        Args:
+            lu_list (List[LexicalUnit]): Lexical units whose Wikipedia content
+                (if present) should be corrected. Units without
+                content are left unchanged.
+
+        Returns:
+            List[LexicalUnit]: The same list with in-place updated
+            content fields where corrections were available.
+
+        Raises:
+            Exception: If the correction handler is misconfigured
+            (no workers available).
+
+        Notes:
+            - Modifies the provided lexical unit objects in place.
+            - Content strings are deduplicated before correction for efficiency.
+            - Parallelism is controlled by corrector_handler.max_workers.
+            - Units lacking external_url_description or content are returned unchanged.
+        """
+        if (
+            self.corrector_handler.max_workers is None
+            or self.corrector_handler.max_workers < 1
+        ):
+            raise Exception(
+                f"Max workers cannot be None or less than 1! "
+                f"Probably no services are found?"
+            )
+
+        if lu_list is None or not len(lu_list):
+            return lu_list
+
+        _to_clear = set()
+        for lu in lu_list:
+            wiki_url = lu.comment.external_url_description
+            if wiki_url is None:
+                continue
+            if wiki_url.content is None:
+                continue
+            _to_clear.add(wiki_url.content)
+
+        clr_texts_map: Dict[str, str] = {}
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.corrector_handler.max_workers
+        ) as executor:
+            futures = [
+                executor.submit(
+                    self._fix_content,
+                    _tstr,
+                )
+                for _tstr in _to_clear
+            ]
+            with tqdm(total=len(futures), desc="Cleaning texts") as pbar:
+                for future in concurrent.futures.as_completed(futures):
+                    _t_or, _t_clr = future.result()
+                    if _t_or and _t_clr:
+                        clr_texts_map[_t_or] = _t_clr
+                    pbar.update(1)
+
+            # for future in concurrent.futures.as_completed(futures):
+            #     _t_or, _t_clr = future.result()
+            #     if _t_or and _t_clr:
+            #         clr_texts_map[_t_or] = _t_clr
+
+        clr_lex_units = []
+        for lu in lu_list:
+            wiki_url = lu.comment.external_url_description
+            if wiki_url is None or wiki_url.content is None:
+                clr_lex_units.append(lu)
+                continue
+            lu.comment.external_url_description.content = clr_texts_map.get(
+                wiki_url.content, wiki_url.content
+            )
+            clr_lex_units.append(lu)
+        return clr_lex_units
+
     def __init_openapi_corrector_with_cache(self):
         """
         Initialize an OpenAPI handler with caching
@@ -347,14 +439,35 @@ class PlWordnetAPI(PlWordnetAPIBase):
             max_workers=None,
         )
 
-    def _fix_content(self, content_str: str) -> str:
+    def _fix_content(self, content_str: str):
+        """
+        Apply text correction to a single content string and return
+        the original–corrected pair. This helper validates the availability
+        of the correction backend and delegates the actual correction
+        to the configured handler.
+
+        Args:
+            content_str (str): Text to correct.
+            An empty string is treated as a no-op.
+
+        Returns:
+            Tuple[str, str]: A pair (original_text, corrected_text).
+            For empty input, returns ("", "").
+
+        Raises:
+            AssertionError: If the correction handler is not initialized.
+
+        Notes:
+            - Stateless and safe to call from concurrent executors.
+            - Does not mutate inputs; produces a new corrected string via the handler.
+        """
         assert (
             self.corrector_handler is not None
         ), "Corrector handler not initialized!"
 
         if not len(content_str):
-            return ""
-        return self.corrector_handler.generate(text_str=content_str)
+            return "", ""
+        return content_str, self.corrector_handler.generate(text_str=content_str)
 
     def __add_wiki_context(
         self,

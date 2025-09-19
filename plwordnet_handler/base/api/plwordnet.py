@@ -434,7 +434,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
         self.corrector_handler = OpenApiHandlerWithCache(
             prompts_dir=self.prompts_dir,
             prompt_name=self.prompt_name_clear_text,
-            workdir="./__cache/wikipedia_description/",
+            workdir="./__cache/wikipedia/clear/",
             openapi_configs_dir=self.openapi_configs_dir,
             max_workers=None,
         )

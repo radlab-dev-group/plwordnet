@@ -92,6 +92,34 @@ class CLIWrappers(CLIWrapperBase):
                     "--xlsx-relations-weights (path to relations weights)"
                 )
 
+        # Check if --correct-texts option is given
+        if args.correct_texts:
+            # Check prompts dir --prompts-dir is given
+            if args.prompts_dir is None or not len(args.prompts_dir):
+                raise TypeError("--prompt-dir is required with --correct-texts")
+
+            # Check prompts dir --prompt-name-correct-text is given
+            if args.prompt_name_correct_text is None or not len(
+                args.prompt_name_correct_text
+            ):
+                raise TypeError(
+                    "--prompt-name-correct-text is required with --correct-texts"
+                )
+
+            # Check prompts dir --openapi-configs-di
+            if args.openapi_configs_dir is None or not len(args.openapi_configs_dir):
+                raise TypeError(
+                    "--openapi-configs-di is required with --correct-texts"
+                )
+
+            # Check if dump_embedder_dataset_to_file is given,
+            # if not, then show a warning message
+            if args.dump_embedder_dataset_to_file is None:
+                self.logger.warning(
+                    "--dump-embedder-dataset-to-file not provided, "
+                    "--correct-texts option will be ignored with no effect."
+                )
+
         return True
 
     def dump_to_networkx_file(self) -> bool:
@@ -108,9 +136,13 @@ class CLIWrappers(CLIWrapperBase):
             db_config=self.args.db_config,
             out_dir_path=self.args.nx_graph_dir,
             limit=self.args.limit,
+            workers_count=self.args.workers_count,
             show_progress_bar=self.args.show_progress_bar,
             extract_wikipedia_articles=self.args.extract_wikipedia_articles,
             log_level=self.log_level,
+            prompts_dir=self.args.prompts_dir,
+            prompt_name_correct_text=self.args.prompt_name_correct_text,
+            openapi_configs_dir=self.args.openapi_configs_dir,
         )
 
     def dump_relation_types_to_file(self) -> bool:

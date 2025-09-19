@@ -1,6 +1,8 @@
 from tqdm import tqdm
 from typing import Optional, List, Dict
 
+import concurrent.futures
+
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.api.plwordnet_i import PlWordnetAPIBase
@@ -39,6 +41,10 @@ class PlWordnetAPI(PlWordnetAPIBase):
         extract_wiki_articles: bool = False,
         use_memory_cache: bool = False,
         show_progress_bar: bool = False,
+        workers_count: int = 10,
+        prompts_dir: Optional[str] = None,
+        prompt_name_clear_text: Optional[str] = None,
+        openapi_configs_dir: Optional[str] = None,
     ):
         """
         Args:
@@ -47,12 +53,36 @@ class PlWordnetAPI(PlWordnetAPIBase):
              extract_wiki_articles: whether to extract wiki articles
              use_memory_cache: whether to use memory caching
              show_progress_bar: whether to show tqdm progress bar
+             workers_count: (int, default 10) number of workers
+             used to extract wikipedia context.
+             prompts_dir: str (Optional: None)
+                Directory containing prompt files;
+                used by PromptHandler to load the prompt.
+            prompt_name_clear_text: str (Optional: None)
+                The key/name of the prompt to use
+                as the system prompt for correction.
+            openapi_configs_dir: str (Optional: None)
+                Directory containing OpenAPI config files;
         """
         super().__init__(connector)
 
         self.use_memory_cache = use_memory_cache
         self.show_progress_bar = show_progress_bar
         self.extract_wiki_articles = extract_wiki_articles
+
+        self.workers_count = workers_count
+
+        self.prompts_dir = prompts_dir
+        self.prompt_name_clear_text = prompt_name_clear_text
+        self.openapi_configs_dir = openapi_configs_dir
+
+        self.corrector_handler = None
+        if (
+            prompts_dir is not None
+            and prompt_name_clear_text is not None
+            and openapi_configs_dir is not None
+        ):
+            self.__init_openapi_corrector_with_cache()
 
         self.__mem__cache_ = {}
 
@@ -112,9 +142,27 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         lu_list = self.connector.get_lexical_units(limit=limit)
         if self.extract_wiki_articles:
-            lu_list = self.__add_wiki_context(
-                lu_list=lu_list, force_download_content=True
-            )
+            if self.workers_count > 1:
+                lu_list = self.__add_wiki_context_parallel(
+                    lu_list=lu_list,
+                    force_download_content=True,
+                    workers_count=self.workers_count,
+                )
+            else:
+                lu_list = self.__add_wiki_context(
+                    lu_list=lu_list,
+                    force_download_content=True,
+                )
+
+        # extractor = WikipediaExtractor(
+        #     max_sentences=self.MAX_WIKI_SENTENCES,
+        #     prompts_dir=self.prompts_dir,
+        #     clear_text_prompt_name=self.prompt_name_clear_text,
+        #     openapi_configs_dir=self.openapi_configs_dir,
+        # )
+
+        if self.extract_wiki_articles and self.corrector_handler is not None:
+            lu_list = self.__correct_wikipedia_content(lu_list=lu_list)
 
         if self.use_memory_cache:
             self.__mem__cache_["get_lexical_units"] = lu_list
@@ -279,8 +327,152 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         return rel_types
 
+    def __correct_wikipedia_content(
+        self, lu_list: List[LexicalUnit]
+    ) -> List[LexicalUnit]:
+        """
+        Clean and normalize Wikipedia content for a list of lexical units using
+        parallel correction. This private helper takes lexical units enriched with
+        Wikipedia content and:
+            - Validates that the configured correction backend
+              is available and has at least one worker.
+            - Deduplicates identical content strings to minimize correction calls.
+            - Applies content correction in parallel via a thread pool.
+            - Updates each lexical unit's external_url_description.content
+              with the corrected text, preserving order.
+
+        Args:
+            lu_list (List[LexicalUnit]): Lexical units whose Wikipedia content
+                (if present) should be corrected. Units without
+                content are left unchanged.
+
+        Returns:
+            List[LexicalUnit]: The same list with in-place updated
+            content fields where corrections were available.
+
+        Raises:
+            Exception: If the correction handler is misconfigured
+            (no workers available).
+
+        Notes:
+            - Modifies the provided lexical unit objects in place.
+            - Content strings are deduplicated before correction for efficiency.
+            - Parallelism is controlled by corrector_handler.max_workers.
+            - Units lacking external_url_description or content are returned unchanged.
+        """
+        if (
+            self.corrector_handler.max_workers is None
+            or self.corrector_handler.max_workers < 1
+        ):
+            raise Exception(
+                f"Max workers cannot be None or less than 1! "
+                f"Probably no services are found?"
+            )
+
+        if lu_list is None or not len(lu_list):
+            return lu_list
+
+        _to_clear = set()
+        for lu in lu_list:
+            wiki_url = lu.comment.external_url_description
+            if wiki_url is None:
+                continue
+            if wiki_url.content is None:
+                continue
+            _to_clear.add(wiki_url.content)
+
+        clr_texts_map: Dict[str, str] = {}
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=self.corrector_handler.max_workers
+        ) as executor:
+            futures = [
+                executor.submit(
+                    self._fix_content,
+                    _tstr,
+                )
+                for _tstr in _to_clear
+            ]
+            with tqdm(total=len(futures), desc="Cleaning texts") as pbar:
+                for future in concurrent.futures.as_completed(futures):
+                    _t_or, _t_clr = future.result()
+                    if _t_or and _t_clr:
+                        clr_texts_map[_t_or] = _t_clr
+                    pbar.update(1)
+
+            # for future in concurrent.futures.as_completed(futures):
+            #     _t_or, _t_clr = future.result()
+            #     if _t_or and _t_clr:
+            #         clr_texts_map[_t_or] = _t_clr
+
+        clr_lex_units = []
+        for lu in lu_list:
+            wiki_url = lu.comment.external_url_description
+            if wiki_url is None or wiki_url.content is None:
+                clr_lex_units.append(lu)
+                continue
+            lu.comment.external_url_description.content = clr_texts_map.get(
+                wiki_url.content, wiki_url.content
+            )
+            clr_lex_units.append(lu)
+        return clr_lex_units
+
+    def __init_openapi_corrector_with_cache(self):
+        """
+        Initialize an OpenAPI handler with caching
+        for Wikipedia description extraction.
+
+        Creates an :class:`OpenApiHandlerWithCache` instance configured
+        to load prompts from `prompts_dir` using `prompt_name` and to store
+        cached API responses in a dedicated work directory. `openapi_configs_dir`
+        points to the directory containing OpenAPI specification files
+        required by the handler.
+
+        The handler instance is stored in `self.api_handler` for later use.
+        """
+        from rdl_ml_utils.open_api.cache_api import OpenApiHandlerWithCache
+
+        self.corrector_handler = OpenApiHandlerWithCache(
+            prompts_dir=self.prompts_dir,
+            prompt_name=self.prompt_name_clear_text,
+            workdir="./__cache/wikipedia_description/",
+            openapi_configs_dir=self.openapi_configs_dir,
+            max_workers=None,
+        )
+
+    def _fix_content(self, content_str: str):
+        """
+        Apply text correction to a single content string and return
+        the original–corrected pair. This helper validates the availability
+        of the correction backend and delegates the actual correction
+        to the configured handler.
+
+        Args:
+            content_str (str): Text to correct.
+            An empty string is treated as a no-op.
+
+        Returns:
+            Tuple[str, str]: A pair (original_text, corrected_text).
+            For empty input, returns ("", "").
+
+        Raises:
+            AssertionError: If the correction handler is not initialized.
+
+        Notes:
+            - Stateless and safe to call from concurrent executors.
+            - Does not mutate inputs; produces a new corrected string via the handler.
+        """
+        assert (
+            self.corrector_handler is not None
+        ), "Corrector handler not initialized!"
+
+        if not len(content_str):
+            return "", ""
+        return content_str, self.corrector_handler.generate(text_str=content_str)
+
     def __add_wiki_context(
-        self, lu_list: List[LexicalUnit], force_download_content: bool = False
+        self,
+        lu_list: List[LexicalUnit],
+        force_download_content: bool = False,
     ):
         """
         Enriches lexical units with Wikipedia content descriptions.
@@ -344,6 +536,56 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 continue
             lu.comment.external_url_description.content = content
         return lu_list
+
+    def __add_wiki_context_parallel(
+        self,
+        lu_list: List[LexicalUnit],
+        workers_count: int = 4,
+        force_download_content: bool = False,
+    ) -> List[LexicalUnit]:
+        """
+        Enriches lexical units with Wikipedia content in parallel using threads.
+
+        The list of lexical units is split into `workers_count` chunks and each
+        chunk is processed by `__add_wiki_context` in a separate thread.
+
+        Args:
+            lu_list: List of lexical units to enrich.
+            workers_count: Number of worker threads to spawn.
+            force_download_content: Passed to `__add_wiki_context`.
+
+        Returns:
+            List[LexicalUnit]: The combined list with Wikipedia content is added.
+        """
+        if not lu_list:
+            return []
+
+        workers = max(1, min(workers_count, len(lu_list)))
+
+        # Split the list into roughly equal chunks
+        chunk_size = (len(lu_list) + workers - 1) // workers
+        chunks = [
+            lu_list[i : i + chunk_size] for i in range(0, len(lu_list), chunk_size)
+        ]
+
+        results: List[LexicalUnit] = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
+            # Submit each chunk to the executor
+            futures = [
+                executor.submit(
+                    self.__add_wiki_context,
+                    chunk,
+                    force_download_content,
+                )
+                for chunk in chunks
+            ]
+
+            # Gather results while preserving original order
+            for future in concurrent.futures.as_completed(futures):
+                chunk_result = future.result()
+                if chunk_result:
+                    results.extend(chunk_result)
+        return results
 
     @staticmethod
     def _map_units_to_synsets(

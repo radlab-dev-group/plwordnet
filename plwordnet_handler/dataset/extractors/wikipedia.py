@@ -1,7 +1,9 @@
 import re
+import os
 import json
-import requests
 import logging
+import requests
+import datetime
 
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse, parse_qs, unquote
@@ -12,7 +14,15 @@ class WikipediaExtractor:
     Extractor for fetching main description content from Wikipedia articles.
     """
 
-    def __init__(self, timeout: int = 10, max_sentences: int = 3):
+    CACHE_RESULTS = 500
+
+    def __init__(
+        self,
+        timeout: int = 10,
+        max_sentences: int = 3,
+        cache_dir: Optional[str] = None,
+        cache_results_size: Optional[int] = None,
+    ):
         """
         Initialize Wikipedia content extractor with optional content clear.
 
@@ -20,10 +30,19 @@ class WikipediaExtractor:
             timeout: Request timeout in seconds
             max_sentences: Maximum number of sentences
                            to extract from the main description
+            cache_dir: (Optional) Directory to cache results (extracted content)
+            cache_results_size: (Optional) Size of cache results (extracted content)
         """
         self.timeout = timeout
         self.max_sentences = max_sentences
         self.logger = logging.getLogger(__name__)
+
+        self.cache_dir = cache_dir or "__cache/wikipedia/raw"
+        os.makedirs(self.cache_dir, exist_ok=True)
+
+        self._cached_content = {}
+        self._content_batch = {}
+        self.cache_results_size = cache_results_size or self.CACHE_RESULTS
 
         # Session for connection reuse
         self.session = requests.Session()
@@ -34,6 +53,10 @@ class WikipediaExtractor:
                 "radlab-plwordnet; pawel@radlab.dev)"
             }
         )
+
+        loaded_cnt = self._load_cache_from_workdir()
+        if loaded_cnt:
+            print(f" ~> loaded {loaded_cnt} cached items from {self.cache_dir}")
 
     def extract_main_description(self, wikipedia_url: str) -> Optional[str]:
         """
@@ -46,6 +69,9 @@ class WikipediaExtractor:
             Main description text or None if extraction failed
         """
         self.logger.debug(f"Processing article {wikipedia_url}")
+        _cached = self._cached_content.get(wikipedia_url)
+        if _cached is not None:
+            return _cached
 
         try:
             article_title = self._extract_article_title(wikipedia_url=wikipedia_url)
@@ -69,6 +95,13 @@ class WikipediaExtractor:
                 return None
 
             main_description = self._extract_and_clean_description(content=content)
+
+            self._cached_content[wikipedia_url] = main_description
+            self._content_batch[wikipedia_url] = main_description
+            if len(self._content_batch) >= self.cache_results_size:
+                self._store_cache_batch(batch=self._content_batch)
+                self._content_batch.clear()
+
             return main_description
 
         except Exception as e:
@@ -316,6 +349,69 @@ class WikipediaExtractor:
 
         return description
 
+    def _store_cache_batch(self, batch):
+        """
+        Persist the current in-memory batch to a timestamped JSON file.
+
+        This method serializes the provided key-value pairs (input text -> corrected
+        text) to a file located in the configured working directory. The output
+        filename encodes a high-resolution timestamp:
+          {YYYYMMDD_HHMMSS}.{microseconds}.json
+
+        Notes
+        -----
+        - The working directory is expected to exist (created during initialization).
+        - JSON is written with indentation (2 spaces), and ensure_ascii=False to
+          preserve non-ASCII characters.
+        - Thread-safety: callers should guard concurrent invocations (e.g., via
+          `self.lock_map`) to avoid interleaved writes.
+
+        Parameters
+        ----------
+        batch : dict
+            Mapping of source strings to their corrected results to be persisted.
+
+        Returns
+        -------
+        None
+        """
+        date_now = datetime.datetime.now()
+        data_as_str = date_now.strftime("%Y%m%d_%H%M%S")
+        data_as_str += f".{date_now.microsecond:06d}"
+        out_f_path = os.path.join(self.cache_dir, f"{data_as_str}.json")
+
+        with open(out_f_path, "w") as f:
+            print(f" ~> storing content to cache file: {out_f_path}")
+            json.dump(batch, f, indent=2, ensure_ascii=False)
+
+    def _load_cache_from_workdir(self) -> int:
+        """
+        Scan workdir for .json cache files and load their contents
+        into self._correct_texts.
+
+        Returns
+        -------
+        int
+            Number of unique items loaded into the in-memory cache.
+        """
+        loaded = 0
+        workdir_content = sorted(os.listdir(self.cache_dir))
+        for f_name in workdir_content:
+            if not f_name.lower().endswith(".json"):
+                continue
+
+            fpath = os.path.join(self.cache_dir, f_name)
+            if not os.path.isfile(fpath):
+                continue
+
+            with open(fpath, "r") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                for k, v in data.items():
+                    self._cached_content[k] = v
+                    loaded += 1
+        return loaded
+
     def __enter__(self):
         """Context manager entry."""
         return self
@@ -323,6 +419,12 @@ class WikipediaExtractor:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
         self.close()
+
+    def __del__(self):
+        if self._content_batch is None or not len(self._content_batch):
+            return
+        self._store_cache_batch(batch=self._content_batch)
+        self._content_batch.clear()
 
 
 def is_wikipedia_url(url: str) -> bool:

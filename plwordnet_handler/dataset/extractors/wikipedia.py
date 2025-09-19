@@ -14,12 +14,12 @@ class WikipediaExtractor:
 
     def __init__(self, timeout: int = 10, max_sentences: int = 3):
         """
-        Initialize Wikipedia content extractor.
+        Initialize Wikipedia content extractor with optional content clear.
 
         Args:
             timeout: Request timeout in seconds
-            max_sentences: Maximum number of sentences to
-            extract from the main description
+            max_sentences: Maximum number of sentences
+                           to extract from the main description
         """
         self.timeout = timeout
         self.max_sentences = max_sentences
@@ -69,7 +69,6 @@ class WikipediaExtractor:
                 return None
 
             main_description = self._extract_and_clean_description(content=content)
-
             return main_description
 
         except Exception as e:
@@ -77,35 +76,6 @@ class WikipediaExtractor:
                 f"Error extracting description from {wikipedia_url}: {e}"
             )
             return None
-
-    def extract_multiple_descriptions(
-        self, wikipedia_urls: list[str]
-    ) -> Dict[str, Optional[str]]:
-        """
-        Extract descriptions from multiple Wikipedia URLs.
-
-        Args:
-            wikipedia_urls: List of Wikipedia URLs
-
-        Returns:
-            Dictionary mapping URLs to their extracted descriptions
-        """
-        results = {}
-
-        for url in wikipedia_urls:
-            try:
-                description = self.extract_main_description(wikipedia_url=url)
-                results[url] = description
-                if description:
-                    self.logger.info(
-                        f"Successfully extracted description for: {url}"
-                    )
-                else:
-                    self.logger.warning(f"Failed to extract description for: {url}")
-            except Exception as e:
-                self.logger.error(f"Error processing URL {url}: {e}")
-                results[url] = None
-        return results
 
     def get_article_info(self, wikipedia_url: str) -> Optional[Dict[str, Any]]:
         """

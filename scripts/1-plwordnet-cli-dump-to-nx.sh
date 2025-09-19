@@ -14,7 +14,7 @@ plwordnet-cli \
   --nx-graph-dir="${NX_GRAPH_DIR}" \
   --convert-to-nx-graph \
   --extract-wikipedia-articles \
-  --workers-count=16 \
+  --workers-count=32 \
   --correct-texts \
   --prompts-dir=resources/prompts \
   --prompt-name="ollama/correct_text" \

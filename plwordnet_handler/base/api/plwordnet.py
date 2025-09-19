@@ -76,6 +76,14 @@ class PlWordnetAPI(PlWordnetAPIBase):
         self.prompt_name_clear_text = prompt_name_clear_text
         self.openapi_configs_dir = openapi_configs_dir
 
+        self.corrector_handler = None
+        if (
+            prompts_dir is not None
+            and prompt_name_clear_text is not None
+            and openapi_configs_dir is not None
+        ):
+            self.__init_openapi_corrector_with_cache()
+
         self.__mem__cache_ = {}
 
     def get_lexical_unit(self, lu_id: int) -> Optional[LexicalUnit]:
@@ -138,15 +146,20 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 lu_list = self.__add_wiki_context_parallel(
                     lu_list=lu_list,
                     force_download_content=True,
-                    fix_content=True,
                     workers_count=self.workers_count,
                 )
             else:
                 lu_list = self.__add_wiki_context(
                     lu_list=lu_list,
                     force_download_content=True,
-                    fix_content=True,
                 )
+
+        # extractor = WikipediaExtractor(
+        #     max_sentences=self.MAX_WIKI_SENTENCES,
+        #     prompts_dir=self.prompts_dir,
+        #     clear_text_prompt_name=self.prompt_name_clear_text,
+        #     openapi_configs_dir=self.openapi_configs_dir,
+        # )
 
         if self.use_memory_cache:
             self.__mem__cache_["get_lexical_units"] = lu_list
@@ -311,11 +324,42 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         return rel_types
 
+    def __init_openapi_corrector_with_cache(self):
+        """
+        Initialize an OpenAPI handler with caching
+        for Wikipedia description extraction.
+
+        Creates an :class:`OpenApiHandlerWithCache` instance configured
+        to load prompts from `prompts_dir` using `prompt_name` and to store
+        cached API responses in a dedicated work directory. `openapi_configs_dir`
+        points to the directory containing OpenAPI specification files
+        required by the handler.
+
+        The handler instance is stored in `self.api_handler` for later use.
+        """
+        from rdl_ml_utils.open_api.cache_api import OpenApiHandlerWithCache
+
+        self.corrector_handler = OpenApiHandlerWithCache(
+            prompts_dir=self.prompts_dir,
+            prompt_name=self.prompt_name_clear_text,
+            workdir="./__cache/wikipedia_description/",
+            openapi_configs_dir=self.openapi_configs_dir,
+            max_workers=None,
+        )
+
+    def _fix_content(self, content_str: str) -> str:
+        assert (
+            self.corrector_handler is not None
+        ), "Corrector handler not initialized!"
+
+        if not len(content_str):
+            return ""
+        return self.corrector_handler.generate(text_str=content_str)
+
     def __add_wiki_context(
         self,
         lu_list: List[LexicalUnit],
         force_download_content: bool = False,
-        fix_content: bool = False,
     ):
         """
         Enriches lexical units with Wikipedia content descriptions.
@@ -329,7 +373,6 @@ class PlWordnetAPI(PlWordnetAPIBase):
             to enrich with Wiki content
             force_download_content (bool): If True, downloads content even
             if it already exists; if False, skips units that already have content
-            fix_content (bool): If True, fixes Wikipedia content (punctuation)
 
         Returns:
             List[LexicalUnit]: The same list of lexical units with
@@ -353,12 +396,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
         if self.show_progress_bar:
             pbar = tqdm(total=len(lu_list), desc="Adding Wiki context")
 
-        extractor = WikipediaExtractor(
-            max_sentences=self.MAX_WIKI_SENTENCES,
-            prompts_dir=self.prompts_dir,
-            clear_text_prompt_name=self.prompt_name_clear_text,
-            openapi_configs_dir=self.openapi_configs_dir,
-        )
+        extractor = WikipediaExtractor(max_sentences=self.MAX_WIKI_SENTENCES)
 
         for lu in lu_list:
             if pbar:
@@ -380,9 +418,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 if not force_download_content:
                     continue
 
-            content = extractor.extract_main_description(
-                wikipedia_url=url, fix_content=fix_content
-            )
+            content = extractor.extract_main_description(wikipedia_url=url)
             if not content:
                 continue
             lu.comment.external_url_description.content = content
@@ -393,7 +429,6 @@ class PlWordnetAPI(PlWordnetAPIBase):
         lu_list: List[LexicalUnit],
         workers_count: int = 4,
         force_download_content: bool = False,
-        fix_content: bool = False,
     ) -> List[LexicalUnit]:
         """
         Enriches lexical units with Wikipedia content in parallel using threads.
@@ -405,7 +440,6 @@ class PlWordnetAPI(PlWordnetAPIBase):
             lu_list: List of lexical units to enrich.
             workers_count: Number of worker threads to spawn.
             force_download_content: Passed to `__add_wiki_context`.
-            fix_content: Passed to `__add_wiki_context`.
 
         Returns:
             List[LexicalUnit]: The combined list with Wikipedia content is added.
@@ -429,7 +463,6 @@ class PlWordnetAPI(PlWordnetAPIBase):
                     self.__add_wiki_context,
                     chunk,
                     force_download_content,
-                    fix_content,
                 )
                 for chunk in chunks
             ]

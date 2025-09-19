@@ -12,14 +12,7 @@ class WikipediaExtractor:
     Extractor for fetching main description content from Wikipedia articles.
     """
 
-    def __init__(
-        self,
-        timeout: int = 10,
-        max_sentences: int = 3,
-        prompts_dir: Optional[str] = None,
-        clear_text_prompt_name: Optional[str] = None,
-        openapi_configs_dir: Optional[str] = None,
-    ):
+    def __init__(self, timeout: int = 10, max_sentences: int = 3):
         """
         Initialize Wikipedia content extractor with optional content clear.
 
@@ -27,14 +20,6 @@ class WikipediaExtractor:
             timeout: Request timeout in seconds
             max_sentences: Maximum number of sentences
                            to extract from the main description
-            prompts_dir : str (Optional: None)
-                Directory containing prompt files;
-                used by PromptHandler to load the prompt.
-            clear_text_prompt_name : str (Optional: None)
-                The key/name of the prompt to use
-                as the system prompt for correction.
-            openapi_configs_dir: str (Optional: None)
-                Directory containing OpenAPI config files;
         """
         self.timeout = timeout
         self.max_sentences = max_sentences
@@ -50,56 +35,12 @@ class WikipediaExtractor:
             }
         )
 
-        self.api_handler = None
-        if (
-            prompts_dir is not None
-            and clear_text_prompt_name is not None
-            and openapi_configs_dir is not None
-        ):
-            self.__init_openapi_handler_cache(
-                prompts_dir=prompts_dir,
-                prompt_name=clear_text_prompt_name,
-                openapi_configs_dir=openapi_configs_dir,
-            )
-
-    def __init_openapi_handler_cache(
-        self, prompts_dir, prompt_name, openapi_configs_dir
-    ):
-        """
-        Initialize an OpenAPI handler with caching
-        for Wikipedia description extraction.
-
-        Creates an :class:`OpenApiHandlerWithCache` instance configured
-        to load prompts from `prompts_dir` using `prompt_name` and to store
-        cached API responses in a dedicated work directory. `openapi_configs_dir`
-        points to the directory containing OpenAPI specification files
-        required by the handler.
-
-        Args:
-            prompts_dir (str): Directory containing prompt files used by the handler.
-            prompt_name (str): Identifier of the prompt to be loaded.
-            openapi_configs_dir (str): Directory with OpenAPI configuration files.
-
-        The handler instance is stored in `self.api_handler` for later use.
-        """
-        from rdl_ml_utils.open_api.cache_api import OpenApiHandlerWithCache
-
-        self.api_handler = OpenApiHandlerWithCache(
-            prompts_dir=prompts_dir,
-            prompt_name=prompt_name,
-            workdir="./__cache/wikipedia_description/",
-            openapi_configs_dir=openapi_configs_dir,
-        )
-
-    def extract_main_description(
-        self, wikipedia_url: str, fix_content: bool = False
-    ) -> Optional[str]:
+    def extract_main_description(self, wikipedia_url: str) -> Optional[str]:
         """
         Extract the main description from a Wikipedia article.
 
         Args:
             wikipedia_url: URL to Wikipedia article
-            fix_content (bool): If True, fixes Wikipedia content (punctuation)
 
         Returns:
             Main description text or None if extraction failed
@@ -128,8 +69,6 @@ class WikipediaExtractor:
                 return None
 
             main_description = self._extract_and_clean_description(content=content)
-            if fix_content and self.api_handler is not None:
-                return self._fix_content(content_str=main_description)
             return main_description
 
         except Exception as e:
@@ -137,35 +76,6 @@ class WikipediaExtractor:
                 f"Error extracting description from {wikipedia_url}: {e}"
             )
             return None
-
-    # def extract_multiple_descriptions(
-    #     self, wikipedia_urls: list[str]
-    # ) -> Dict[str, Optional[str]]:
-    #     """
-    #     Extract descriptions from multiple Wikipedia URLs.
-    #
-    #     Args:
-    #         wikipedia_urls: List of Wikipedia URLs
-    #
-    #     Returns:
-    #         Dictionary mapping URLs to their extracted descriptions
-    #     """
-    #     results = {}
-    #
-    #     for url in wikipedia_urls:
-    #         try:
-    #             description = self.extract_main_description(wikipedia_url=url)
-    #             results[url] = description
-    #             if description:
-    #                 self.logger.info(
-    #                     f"Successfully extracted description for: {url}"
-    #                 )
-    #             else:
-    #                 self.logger.warning(f"Failed to extract description for: {url}")
-    #         except Exception as e:
-    #             self.logger.error(f"Error processing URL {url}: {e}")
-    #             results[url] = None
-    #     return results
 
     def get_article_info(self, wikipedia_url: str) -> Optional[Dict[str, Any]]:
         """
@@ -183,9 +93,7 @@ class WikipediaExtractor:
             if not article_title or not language:
                 return None
 
-            description = self.extract_main_description(
-                wikipedia_url=wikipedia_url, fix_content=False
-            )
+            description = self.extract_main_description(wikipedia_url=wikipedia_url)
             return {
                 "url": wikipedia_url,
                 "title": article_title,
@@ -204,11 +112,6 @@ class WikipediaExtractor:
         """
         if self.session:
             self.session.close()
-
-    def _fix_content(self, content_str: str) -> str:
-        if not len(content_str):
-            return ""
-        return self.api_handler.generate(text_str=content_str)
 
     @staticmethod
     def _split_into_sentences(text: str) -> list[str]:

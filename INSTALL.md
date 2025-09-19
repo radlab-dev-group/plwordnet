@@ -53,3 +53,7 @@ bash scripts/1-plwordnet-cli-dump-to-nx.sh
 **UWAGA!** w skrypcie wykorzystywana jest lokalne `OpenAPI` do korekcji tekstów (poprawiona interpunkcja).
 Przy małej liczbie wątków poprawiających proces ten może być bardzo czasochłonny, dlatego zalecamy
 pobranie przygotowanego już grafu z wyekstrahwowamymi i poprawionymi już artykułami.
+
+
+# cdn.
+...

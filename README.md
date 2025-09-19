@@ -66,6 +66,9 @@ Learn more:
 - plwordnet_handler/README.md — resources management, graphs, queries, exports,
 - plwordnet_ml/README.md — embeddings, datasets, training workflows.
 
+## Reproduce a whole process
+If you want to reproduce the whole process of creating from scratch, look inside [INSTALL.md](INSTALL.md)
+
 ## License
 
 [LICENSE](LICENSE).

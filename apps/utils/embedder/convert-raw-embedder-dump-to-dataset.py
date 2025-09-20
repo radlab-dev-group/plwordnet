@@ -5,12 +5,7 @@ python3 plwordnet_ml/embedder/apps/convert-plwn-dump-to-dataset.py \
     --train-ratio=0.93 \
     --split-to-sentences \
     --n-workers=28 \
-    --batch-size=100 \
-    --correct-texts \
-    --prompts-dir=resources/prompts \
-    --prompt-name="ollama/correct_text" \
-    --openapi-configs-dir=resources/configs/ollama/
-
+    --batch-size=100
 """
 
 import os
@@ -19,13 +14,12 @@ import json
 import spacy
 import random
 import argparse
-import threading
 import multiprocessing
 
 from tqdm import tqdm
 from functools import partial
-from typing import List, Dict, Any, Optional
-from concurrent.futures import ProcessPoolExecutor, as_completed, ThreadPoolExecutor
+from typing import List, Dict, Any
+from concurrent.futures import ProcessPoolExecutor, as_completed
 
 
 g_batch_number = 0
@@ -104,10 +98,6 @@ class EmbedderDatasetConverter:
         spacy_model_name: str = "pl_core_news_sm",
         n_workers: int = None,
         batch_size: int = None,
-        correct_texts: bool = False,
-        prompts_dir: Optional[str] = None,
-        prompt_name: Optional[str] = None,
-        openapi_config_paths: Optional[List[str]] = None,
     ):
         """
         Initialize the dataset converter with configuration parameters.
@@ -137,15 +127,11 @@ class EmbedderDatasetConverter:
         self.output_dir = output_dir
         self.train_ratio = train_ratio
 
-        self.prompts_dir = prompts_dir
-        self.prompt_name = prompt_name
-        self.correct_texts = correct_texts
         self.split_to_sentences = split_to_sentences
 
         self.spacy_model_name = spacy_model_name
         self.n_workers = n_workers or multiprocessing.cpu_count()
         self.batch_size = batch_size
-        self.openapi_config_paths = openapi_config_paths
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
@@ -307,8 +293,7 @@ def parse_args():
 
 def check_args(app_args: argparse.Namespace):
     """
-    Validate command‑line arguments related to text correction.
-    Currently, doing nothing.
+    Validate command‑line arguments. Currently, doing nothing.
 
     Args:
         app_args: `argparse.Namespace` containing the parsed command‑line
@@ -331,10 +316,6 @@ if __name__ == "__main__":
         split_to_sentences=args.split_to_sentences,
         n_workers=args.n_workers,
         batch_size=args.batch_size,
-        correct_texts=False,
-        prompts_dir=args.prompts_dir,
-        prompt_name=args.prompt_name,
-        openapi_config_paths=None,
     )
 
     print("Loading jsonl...")

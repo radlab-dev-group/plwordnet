@@ -92,6 +92,17 @@ a `3-raw-embedder-to-proper-dataset.sh` to przeznaczenie. Wyjście `2-...` to og
 zaś wyjście z `3-raw-embedder-to-proper-dataset.sh` to gotowy zbiór danych, 
 z podziałem na dane testowe i ewaluacyjne z podziałem `--train-ratio=0.90`.
 Domyślnie zbiór dzielony jest na zdania (`--split-to-sentences`), które realizowane jest
-przez `--n-workers=32` workerów w batchach `--batch-size=500`. 
+przez `--n-workers=32` workerów w batchach `--batch-size=500`. Do **deduplikacji** danych,
+można wykorzystać skrypt
 
-...
+```bash
+nase scripts/4-deduplicate-embedder-dataset.sh
+```
+po tym procesie, posiadamy gotowy zbiór danych do wyuczenia embeddera. Zbiór:
+ - posiada relacje międzyjęzykowe
+ - przykłady negatywne
+ - podzielony jest na zdania
+ - zdeduplikowany na całym zbiorze
+
+---
+

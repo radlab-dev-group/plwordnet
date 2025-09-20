@@ -10,9 +10,5 @@ python3 apps/utils/embedder/convert-raw-embedder-dump-to-dataset.py \
     --output-dir="${OUTPUT_DIR}" \
     --train-ratio=0.90 \
     --split-to-sentences \
-    --n-workers=20 \
-    --batch-size=500 \
-    --correct-texts \
-    --prompts-dir=resources/prompts \
-    --prompt-name="ollama/correct_text" \
-    --openapi-configs-dir=resources/configs/ollama/
+    --n-workers=32 \
+    --batch-size=500

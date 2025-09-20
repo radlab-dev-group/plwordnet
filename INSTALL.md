@@ -61,5 +61,37 @@ artykuły z Wikipedii jak i ich wersje czyste są już przygotowane)
 
 ---
 
-# cdn.
+### Przygotowanie zbioru danych embeddera
+
+Pierwszy krok to zrzut dostępnych relacji z "sąsiadującymi" definicjami, komentarzami,
+anotacjami, emocjami itp. dla jednostek leksykalnych oraz synsetów. Ten zbiór zawierał będzie
+pary `{zdanie_1, zdanie_2}` z relacji `rel_i`. Do przygotowania **podstawowego zbioru** 
+można wykorzystać skrypt:
+```bash
+bash scripts/2-plwordnet-cli-dump-embedder-raw.sh
+```
+
+To co **ważne**, w skrypcie podana jest ścieżka do pliku z relacjami. Jeżeli pominąłeś krok 
+ wag relacji, możesz skopiować ten, dostępny na repozytorium 
+`resources/mappings/relation-types-weights-hist.xlsx`.
+
+Podczas tworzenia zbioru podstawowego określa się stosunek przykładów negatywnych (czyli tych bez relacji)
+do pozytywnych (z relacją). Wartość tę ustaswia się za pomocą argumentu `--embedder-low-high-ratio`
+(w skryocie ustawione na `2.0` - czyli dwa przykłady negatywne na każdy pozytywny).
+
+Po wykonaniu tego kroku, w pliku `--dump-embedder-dataset-to-file` zapisany zostanie podstawowy
+zbiór danych (w formacie `jsonl`), który należy zdeduplikować i przekonwertować na format do 
+uczenia embeddera. Do tego celu można wykorzystać skrypt:
+
+```bash
+bash scripts/3-raw-embedder-to-proper-dataset.sh
+```
+
+Róznica między plikami wyjściowymi z `2-plwordnet-cli-dump-embedder-raw.sh`
+a `3-raw-embedder-to-proper-dataset.sh` to przeznaczenie. Wyjście `2-...` to ogólne dane,
+zaś wyjście z `3-raw-embedder-to-proper-dataset.sh` to gotowy zbiór danych, 
+z podziałem na dane testowe i ewaluacyjne z podziałem `--train-ratio=0.90`.
+Domyślnie zbiór dzielony jest na zdania (`--split-to-sentences`), które realizowane jest
+przez `--n-workers=20` workerów w batchach `--batch-size=500`. 
+
 ...

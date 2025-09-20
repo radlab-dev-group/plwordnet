@@ -39,6 +39,7 @@ bash scripts/0-plwordnet-cli-prepare-relations.sh
 ```
 Ewentualnie modyfikując go do własnych potrzebb.
 
+---
 
 ### Przygotowanie grafu z artykułami z Wikipedii
 
@@ -54,6 +55,11 @@ bash scripts/1-plwordnet-cli-dump-to-nx.sh
 Przy małej liczbie wątków poprawiających proces ten może być bardzo czasochłonny, dlatego zalecamy
 pobranie przygotowanego już grafu z wyekstrahwowamymi i poprawionymi już artykułami.
 
+Jeżeli po budowie pokaże się komunikat typu: `... node hass no data ...`
+należy uruchomić jeszcze raz skrypt (aktualnie, cachowanie zawsze jest uruchomione, dlatego zarówno
+artykuły z Wikipedii jak i ich wersje czyste są już przygotowane)
+
+---
 
 # cdn.
 ...

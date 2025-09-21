@@ -1,7 +1,7 @@
-import logging
-
 from abc import ABC
 from typing import Optional, List, Dict, Any, Tuple
+
+from rdl_ml_utils.utils.logger import prepare_logger
 
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit, LexicalUnitMapper
 from plwordnet_handler.base.structure.elems.rel_type import (
@@ -24,7 +24,6 @@ from plwordnet_handler.base.structure.elems.lu_in_synset import (
 from plwordnet_handler.base.connectors.db.config import DbSQLConfig
 from plwordnet_handler.base.connectors.db.mysql import MySQLDbConnection
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
-from plwordnet_handler.utils.logger import prepare_logger
 
 
 class _PlWordnetAPIMySQLDbConnectorBase(PlWordnetConnectorInterface, ABC):

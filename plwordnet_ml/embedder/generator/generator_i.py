@@ -1,8 +1,9 @@
 from abc import abstractmethod, ABC
 from typing import Dict, Iterator, Any, Optional, List
 
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
-from plwordnet_handler.utils.logger import prepare_logger
 from plwordnet_ml.embedder.generator.strategy import (
     EmbeddingBuildStrategy,
     StrategyProcessor,

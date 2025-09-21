@@ -6,7 +6,8 @@ import json
 
 from typing import Optional, List
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.structure.elems.rel_type import SYNONYMY_ID
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.milvus.search_handler import (

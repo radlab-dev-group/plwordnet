@@ -1,4 +1,7 @@
+from typing import Optional
 from abc import ABC, abstractmethod
+from pymysql import NotSupportedError
+
 from pymilvus import (
     db,
     connections,
@@ -7,9 +10,6 @@ from pymilvus import (
     MilvusException,
     CollectionSchema,
 )
-from typing import Optional
-
-from pymysql import NotSupportedError
 
 from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig
 from plwordnet_handler.base.connectors.milvus.core.base_connector import (

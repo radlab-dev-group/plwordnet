@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
 
 
 class BiEncoderModelConfig:

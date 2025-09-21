@@ -3,11 +3,9 @@ import torch
 import spacy
 import threading
 
-from numpy import ndarray
 from tqdm import tqdm
+from numpy import ndarray
 from typing import List, Dict, Iterator, Any, Optional
-
-# from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet

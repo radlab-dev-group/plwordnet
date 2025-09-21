@@ -2,8 +2,8 @@ import os
 import json
 from typing import List, Optional, Dict
 
-from plwordnet_handler.utils.logger import prepare_logger
-from plwordnet_handler.base.structure.elems.lu import LexicalUnit
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.structure.elems.rel_type import RelationType
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 

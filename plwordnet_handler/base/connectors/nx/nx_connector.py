@@ -4,7 +4,8 @@ import networkx as nx
 from pathlib import Path
 from typing import Optional, List, Any
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.connectors.connector_data import GraphMapperData
 from plwordnet_handler.base.structure.elems.synset import Synset, SynsetMapper
 from plwordnet_handler.base.structure.elems.lu_in_synset import LexicalUnitAndSynset

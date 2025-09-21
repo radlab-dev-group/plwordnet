@@ -5,7 +5,8 @@ import networkx as nx
 
 from typing import Optional, List, Any
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.elems.comment import ParsedComment

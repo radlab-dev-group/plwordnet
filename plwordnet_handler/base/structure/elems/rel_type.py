@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 
 from plwordnet_handler.base.structure.elems.general_mapper import GeneralMapper
 

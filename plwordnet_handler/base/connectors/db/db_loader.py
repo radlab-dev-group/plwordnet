@@ -1,7 +1,8 @@
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.connectors.db.db_connector import (
     PlWordnetAPIMySQLDbConnector,
 )
-from plwordnet_handler.utils.logger import prepare_logger
 
 
 def connect_to_mysql_database(

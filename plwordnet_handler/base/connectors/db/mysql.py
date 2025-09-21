@@ -1,11 +1,10 @@
-import logging
 import mysql.connector
 
 from abc import ABC
 from mysql.connector import Error
 from typing import Optional, Dict, Any, List, Tuple
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
 
 
 class MySQLConnectionI(ABC):

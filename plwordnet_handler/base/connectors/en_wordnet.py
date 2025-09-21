@@ -240,10 +240,10 @@ class EnglishWordnetConnector:
             * ``None`` – the function returns ``None``.
             * a string – the value is lower‑cased and returned unchanged.
             * an integer – interpreted as a WordNet POS code where
-              5 → `'v'` (verb),
-              6 → `'n'` (noun),
-              7 → `'r'` (adverb),
-              8 → `'a'` (adjective).
+              5 -> `'v'` (verb),
+              6 -> `'n'` (noun),
+              7 -> `'r'` (adverb),
+              8 -> `'a'` (adjective).
 
         Any other integer raises ``NotImplementedError``.
 

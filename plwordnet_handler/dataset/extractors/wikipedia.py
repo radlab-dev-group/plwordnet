@@ -1,12 +1,13 @@
 import re
 import os
 import json
-import logging
 import requests
 import datetime
 
 from typing import Optional, Dict, Any
 from urllib.parse import urlparse, parse_qs, unquote
+
+from rdl_ml_utils.utils.logger import prepare_logger
 
 
 class WikipediaExtractor:
@@ -22,6 +23,7 @@ class WikipediaExtractor:
         max_sentences: int = 3,
         cache_dir: Optional[str] = None,
         cache_results_size: Optional[int] = None,
+        logger_file: Optional[str] = None,
     ):
         """
         Initialize Wikipedia content extractor with optional content clear.
@@ -35,7 +37,10 @@ class WikipediaExtractor:
         """
         self.timeout = timeout
         self.max_sentences = max_sentences
-        self.logger = logging.getLogger(__name__)
+        self.logger = prepare_logger(
+            logger_name=__name__,
+            logger_file_name=logger_file or "wiki-extractor.log",
+        )
 
         self.cache_dir = cache_dir or "__cache/wikipedia/raw"
         os.makedirs(self.cache_dir, exist_ok=True)

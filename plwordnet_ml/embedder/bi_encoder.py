@@ -3,7 +3,8 @@ import torch
 from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_ml.embedder.model_config import BiEncoderModelConfig
 
 

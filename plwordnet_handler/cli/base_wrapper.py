@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector

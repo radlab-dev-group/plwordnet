@@ -1,4 +1,4 @@
-from plwordnet_handler.utils.logger import prepare_logger
+from rdl_ml_utils.utils.logger import prepare_logger
 
 from plwordnet_ml.cli.argparser import prepare_parser
 from plwordnet_ml.cli.wrappers import CLIMilvusWrappers, Constants

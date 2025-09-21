@@ -1,7 +1,8 @@
 from typing import Optional
 
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.base.connectors.nx.nx_connector import PlWordnetAPINxConnector
-from plwordnet_handler.utils.logger import prepare_logger
 
 
 def connect_to_networkx_graphs(

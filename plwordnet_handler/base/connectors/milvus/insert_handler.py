@@ -1,7 +1,7 @@
 import numpy as np
 
-from typing import Dict, Any, List, Union
 from pymilvus import MilvusException
+from typing import Dict, Any, List, Union
 
 from plwordnet_handler.base.connectors.milvus.core.schema import MAX_TEXT_LEN
 from plwordnet_handler.base.connectors.milvus.core.config import MilvusConfig

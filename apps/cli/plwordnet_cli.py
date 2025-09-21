@@ -1,9 +1,9 @@
 import sys
 
+from rdl_ml_utils.utils.logger import prepare_logger
+
 from plwordnet_handler.cli.wrappers import CLIWrappers
 from plwordnet_handler.cli.argparser import prepare_parser
-
-from plwordnet_handler.utils.logger import prepare_logger
 
 
 class Constants:

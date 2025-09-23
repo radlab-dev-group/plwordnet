@@ -383,11 +383,13 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         _to_clear = set()
         for lu_syn in lu_syn_list:
+            if lu_syn.comment is None:
+                continue
+
             wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None:
                 continue
-            if wiki_url.content is None:
-                continue
+
             _to_clear.add(wiki_url.content)
 
         clr_texts_map: Dict[str, str] = {}

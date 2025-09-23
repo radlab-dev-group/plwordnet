@@ -96,7 +96,7 @@ przez `--n-workers=32` workerów w batchach `--batch-size=500`. Do **deduplikacj
 można wykorzystać skrypt
 
 ```bash
-nase scripts/4-deduplicate-embedder-dataset.sh
+bash scripts/4-deduplicate-embedder-dataset.sh
 ```
 po tym procesie, posiadamy gotowy zbiór danych do wyuczenia embeddera. Zbiór:
  - posiada relacje międzyjęzykowe

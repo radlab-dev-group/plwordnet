@@ -63,12 +63,15 @@ class WikipediaExtractor:
         if loaded_cnt:
             print(f" ~> loaded {loaded_cnt} cached items from {self.cache_dir}")
 
-    def extract_main_description(self, wikipedia_url: str) -> Optional[str]:
+    def extract_main_description(
+        self, wikipedia_url: str, elem_type: Optional[str] = ""
+    ) -> Optional[str]:
         """
         Extract the main description from a Wikipedia article.
 
         Args:
             wikipedia_url: URL to Wikipedia article
+            elem_type: Additional "debug" info to show
 
         Returns:
             Main description text or None if extraction failed
@@ -94,7 +97,7 @@ class WikipediaExtractor:
                 return None
 
             content = self._fetch_article_content(
-                article_title=article_title, language=language
+                article_title=article_title, language=language, elem_type=elem_type
             )
             if not content:
                 return None
@@ -276,7 +279,7 @@ class WikipediaExtractor:
             return None
 
     def _fetch_article_content(
-        self, article_title: str, language: str
+        self, article_title: str, language: str, elem_type: str
     ) -> Optional[str]:
         """
         Fetch article content using Wikipedia API.
@@ -284,6 +287,7 @@ class WikipediaExtractor:
         Args:
             article_title: Title of the Wikipedia article
             language: Language code
+            elem_type: Additional info to show in debug
 
         Returns:
             Article content or None if fetch failed
@@ -308,29 +312,38 @@ class WikipediaExtractor:
             data = response.json()
             pages = data.get("query", {}).get("pages", {})
             if not pages:
-                self.logger.warning(f"No pages found for title: {article_title}")
+                self.logger.warning(
+                    f"[{elem_type}] No pages found for title: {article_title}"
+                )
                 return None
 
             # Get the first (and should be only) a page
             page_id = next(iter(pages))
             page_data = pages[page_id]
             if "missing" in page_data:
-                self.logger.warning(f"Page not found: {article_title}")
+                self.logger.warning(f"[{elem_type}] Page not found: {article_title}")
                 return None
             extract = page_data.get("extract", "")
             if not extract:
-                self.logger.warning(f"No extract found for: {article_title}")
+                self.logger.warning(
+                    f"[{elem_type}] No extract found for: {article_title}"
+                )
                 return None
             return extract
         except requests.RequestException as e:
-            self.logger.error(f"Network error fetching article {article_title}: {e}")
+            self.logger.error(
+                f"[{elem_type}] Network error fetching article {article_title}: {e}"
+            )
             return None
         except json.JSONDecodeError as e:
-            self.logger.error(f"JSON decode error for article {article_title}: {e}")
+            self.logger.error(
+                f"[{elem_type}] JSON decode error for article {article_title}: {e}"
+            )
             return None
         except Exception as e:
             self.logger.error(
-                f"Unexpected error fetching article {article_title}: {e}"
+                f"[{elem_type}] Unexpected error fetching article "
+                f"{article_title}: {e}"
             )
             return None
 

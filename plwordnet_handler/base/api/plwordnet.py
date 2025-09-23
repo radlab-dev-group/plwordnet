@@ -383,11 +383,13 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         _to_clear = set()
         for lu_syn in lu_syn_list:
+            if lu_syn.comment is None:
+                continue
+
             wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None:
                 continue
-            if wiki_url.content is None:
-                continue
+
             _to_clear.add(wiki_url.content)
 
         clr_texts_map: Dict[str, str] = {}
@@ -410,10 +412,14 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         clr_lu_or_synsets = []
         for lu_syn in lu_syn_list:
+            if lu_syn.comment is None:
+                continue
+
             wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None or wiki_url.content is None:
                 clr_lu_or_synsets.append(lu_syn)
                 continue
+
             lu_syn.comment.external_url_description.content = clr_texts_map.get(
                 wiki_url.content, wiki_url.content
             )
@@ -469,7 +475,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
             self.corrector_handler is not None
         ), "Corrector handler not initialized!"
 
-        if not len(content_str):
+        if content_str is None or not len(content_str):
             return "", ""
         return content_str, self.corrector_handler.generate(text_str=content_str)
 

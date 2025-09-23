@@ -141,33 +141,37 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 return self.__mem__cache_["get_lexical_units"]
 
         lu_list = self.connector.get_lexical_units(limit=limit)
-        if self.extract_wiki_articles:
-            if self.workers_count > 1:
-                lu_list = self.__add_wiki_context_parallel(
-                    lu_list=lu_list,
-                    force_download_content=True,
-                    workers_count=self.workers_count,
-                )
-            else:
-                lu_list = self.__add_wiki_context(
-                    lu_list=lu_list,
-                    force_download_content=True,
-                )
-
-        # extractor = WikipediaExtractor(
-        #     max_sentences=self.MAX_WIKI_SENTENCES,
-        #     prompts_dir=self.prompts_dir,
-        #     clear_text_prompt_name=self.prompt_name_clear_text,
-        #     openapi_configs_dir=self.openapi_configs_dir,
-        # )
-
-        if self.extract_wiki_articles and self.corrector_handler is not None:
-            lu_list = self.__correct_wikipedia_content(lu_list=lu_list)
-
+        lu_list = self._extract_wiki_articles_if_needed(
+            lu_syn_list=lu_list, elem_type="lu"
+        )
         if self.use_memory_cache:
             self.__mem__cache_["get_lexical_units"] = lu_list
 
         return lu_list
+
+    def _extract_wiki_articles_if_needed(
+        self,
+        lu_syn_list: List[LexicalUnit | Synset],
+        elem_type: Optional[str] = None,
+    ) -> List[LexicalUnit | Synset]:
+        if self.extract_wiki_articles:
+            if self.workers_count > 1:
+                lu_syn_list = self.__add_wiki_context_parallel(
+                    lu_syn_list=lu_syn_list,
+                    force_download_content=True,
+                    workers_count=self.workers_count,
+                    elem_type=elem_type,
+                )
+            else:
+                lu_syn_list = self.__add_wiki_context(
+                    lu_syn_list=lu_syn_list,
+                    force_download_content=True,
+                    elem_type=elem_type,
+                )
+        if self.extract_wiki_articles and self.corrector_handler is not None:
+            lu_syn_list = self.__correct_wikipedia_content(lu_syn_list=lu_syn_list)
+
+        return lu_syn_list
 
     def get_lexical_relations(
         self, limit: Optional[int] = None
@@ -244,6 +248,10 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 return self.__mem__cache_["get_synsets"]
 
         syn_list = self.connector.get_synsets(limit=limit)
+        syn_list = self._extract_wiki_articles_if_needed(
+            lu_syn_list=syn_list, elem_type="synset"
+        )
+
         if self.use_memory_cache:
             self.__mem__cache_["get_synsets"] = syn_list
 
@@ -328,11 +336,11 @@ class PlWordnetAPI(PlWordnetAPIBase):
         return rel_types
 
     def __correct_wikipedia_content(
-        self, lu_list: List[LexicalUnit]
+        self, lu_syn_list: List[LexicalUnit | Synset]
     ) -> List[LexicalUnit]:
         """
-        Clean and normalize Wikipedia content for a list of lexical units using
-        parallel correction. This private helper takes lexical units enriched with
+        Clean and normalize Wikipedia content for a list of LU/synset using
+        parallel correction. This private helper takes lu/synset enriched with
         Wikipedia content and:
             - Validates that the configured correction backend
               is available and has at least one worker.
@@ -342,12 +350,12 @@ class PlWordnetAPI(PlWordnetAPIBase):
               with the corrected text, preserving order.
 
         Args:
-            lu_list (List[LexicalUnit]): Lexical units whose Wikipedia content
-                (if present) should be corrected. Units without
-                content are left unchanged.
+            lu_syn_list (List[LexicalUnit | Synset]): Lexical units (or Synsets)
+                whose Wikipedia content (if present) should be corrected.
+                Units without content are left unchanged.
 
         Returns:
-            List[LexicalUnit]: The same list with in-place updated
+            List[LexicalUnit | Synset]: The same list with in-place updated
             content fields where corrections were available.
 
         Raises:
@@ -369,12 +377,12 @@ class PlWordnetAPI(PlWordnetAPIBase):
                 f"Probably no services are found?"
             )
 
-        if lu_list is None or not len(lu_list):
-            return lu_list
+        if lu_syn_list is None or not len(lu_syn_list):
+            return lu_syn_list
 
         _to_clear = set()
-        for lu in lu_list:
-            wiki_url = lu.comment.external_url_description
+        for lu_syn in lu_syn_list:
+            wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None:
                 continue
             if wiki_url.content is None:
@@ -399,22 +407,17 @@ class PlWordnetAPI(PlWordnetAPIBase):
                         clr_texts_map[_t_or] = _t_clr
                     pbar.update(1)
 
-            # for future in concurrent.futures.as_completed(futures):
-            #     _t_or, _t_clr = future.result()
-            #     if _t_or and _t_clr:
-            #         clr_texts_map[_t_or] = _t_clr
-
-        clr_lex_units = []
-        for lu in lu_list:
-            wiki_url = lu.comment.external_url_description
+        clr_lu_or_synsets = []
+        for lu_syn in lu_syn_list:
+            wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None or wiki_url.content is None:
-                clr_lex_units.append(lu)
+                clr_lu_or_synsets.append(lu_syn)
                 continue
-            lu.comment.external_url_description.content = clr_texts_map.get(
+            lu_syn.comment.external_url_description.content = clr_texts_map.get(
                 wiki_url.content, wiki_url.content
             )
-            clr_lex_units.append(lu)
-        return clr_lex_units
+            clr_lu_or_synsets.append(lu_syn)
+        return clr_lu_or_synsets
 
     def __init_openapi_corrector_with_cache(self):
         """
@@ -471,78 +474,84 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
     def __add_wiki_context(
         self,
-        lu_list: List[LexicalUnit],
+        lu_syn_list: List[LexicalUnit | Synset],
         force_download_content: bool = False,
+        elem_type: Optional[str] = None,
     ):
         """
-        Enriches lexical units with Wikipedia content descriptions.
+        Enriches lexical units (or Synsets) with Wikipedia content descriptions.
 
-        This private method processes a list of lexical units and adds Wikipedia
+        This private method processes a list of lu/synsets and adds Wikipedia
         content to their external URL descriptions when available. It extracts
-        the main description from Wikipedia pages linked to each lexical unit.
+        the main description from Wikipedia pages linked to given list of elements.
 
         Args:
-            lu_list (List[LexicalUnit]): List of lexical units
+            lu_syn_list (List[LexicalUnit | Synset]): List of lexical units or synsets
             to enrich with Wiki content
             force_download_content (bool): If True, downloads content even
             if it already exists; if False, skips units that already have content
+            elem_type (str): Type of processed element (synset or lu)
 
         Returns:
-            List[LexicalUnit]: The same list of lexical units with
-            added Wikipedia content
+            List[LexicalUnit | Synset]: The same list of lexical units (or synset)
+            with added Wikipedia content
 
         Side effects:
             - Modifies the content field of external_url_description
-            for each lexical unit
+            for each lexical unit/synset
             - Shows a progress bar if show_progress_bar is enabled
-            - Logs processing information for each lexical unit
+            - Logs processing information for each lexical unit/synset
             when a progress bar is disabled
 
         Processing logic:
-            - Skips lexical units without external URL descriptions
-            - Skips lexical units with empty or whitespace-only URLs
-            - Skips lexical units that already have content
+            - Skips elements without external URL descriptions
+            - Skips elements with empty or whitespace-only URLs
+            - Skips elements that already have content
             (unless force_download_content is True)
             - Uses WikipediaExtractor to fetch content with a sentence limit
         """
         pbar = None
         if self.show_progress_bar:
-            pbar = tqdm(total=len(lu_list), desc="Adding Wiki context")
+            pbar = tqdm(total=len(lu_syn_list), desc="Adding Wiki context")
 
         extractor = WikipediaExtractor(max_sentences=self.MAX_WIKI_SENTENCES)
 
-        for lu in lu_list:
+        for lu_syn in lu_syn_list:
             if pbar:
                 pbar.update(1)
             else:
                 self.logger.info(
-                    f"str(lu) -> has url {lu.comment.external_url_description}"
+                    f"[{elem_type}] {str(lu_syn)} -> "
+                    f"has url {lu_syn.comment.external_url_description}"
                 )
 
-            if not lu.comment.external_url_description:
+            if not lu_syn.comment.external_url_description:
                 continue
 
-            url = lu.comment.external_url_description.url
+            url = lu_syn.comment.external_url_description.url
             if not url or not len(url.strip()):
                 continue
 
-            content = lu.comment.external_url_description.content
+            content = lu_syn.comment.external_url_description.content
             if content and content.strip():
                 if not force_download_content:
                     continue
 
-            content = extractor.extract_main_description(wikipedia_url=url)
+            content = extractor.extract_main_description(
+                wikipedia_url=url, elem_type=elem_type
+            )
             if not content:
                 continue
-            lu.comment.external_url_description.content = content
-        return lu_list
+            lu_syn.comment.external_url_description.content = content
+        return lu_syn_list
 
     def __add_wiki_context_parallel(
         self,
-        lu_list: List[LexicalUnit],
+        lu_syn_list: List[LexicalUnit | Synset],
         workers_count: int = 4,
         force_download_content: bool = False,
-    ) -> List[LexicalUnit]:
+        elem_type: Optional[str] = None,
+    ) -> List[LexicalUnit | Synset]:
         """
         Enriches lexical units with Wikipedia content in parallel using threads.
 
@@ -550,32 +559,32 @@ class PlWordnetAPI(PlWordnetAPIBase):
         chunk is processed by `__add_wiki_context` in a separate thread.
 
         Args:
-            lu_list: List of lexical units to enrich.
+            lu_syn_list: List of lexical units to enrich.
             workers_count: Number of worker threads to spawn.
             force_download_content: Passed to `__add_wiki_context`.
+            elem_type: One of {synset, lu}
 
         Returns:
             List[LexicalUnit]: The combined list with Wikipedia content is added.
         """
-        if not lu_list:
+        if not lu_syn_list:
             return []
 
-        workers = max(1, min(workers_count, len(lu_list)))
+        workers = max(1, min(workers_count, len(lu_syn_list)))
 
         # Split the list into roughly equal chunks
-        chunk_size = (len(lu_list) + workers - 1) // workers
+        chunk_size = (len(lu_syn_list) + workers - 1) // workers
         chunks = [
-            lu_list[i : i + chunk_size] for i in range(0, len(lu_list), chunk_size)
+            lu_syn_list[i : i + chunk_size]
+            for i in range(0, len(lu_syn_list), chunk_size)
         ]
 
-        results: List[LexicalUnit] = []
+        results: List[LexicalUnit | Synset] = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as executor:
             # Submit each chunk to the executor
             futures = [
                 executor.submit(
-                    self.__add_wiki_context,
-                    chunk,
-                    force_download_content,
+                    self.__add_wiki_context, chunk, force_download_content, elem_type
                 )
                 for chunk in chunks
             ]

@@ -412,10 +412,14 @@ class PlWordnetAPI(PlWordnetAPIBase):
 
         clr_lu_or_synsets = []
         for lu_syn in lu_syn_list:
+            if lu_syn.comment is None:
+                continue
+
             wiki_url = lu_syn.comment.external_url_description
             if wiki_url is None or wiki_url.content is None:
                 clr_lu_or_synsets.append(lu_syn)
                 continue
+
             lu_syn.comment.external_url_description.content = clr_texts_map.get(
                 wiki_url.content, wiki_url.content
             )

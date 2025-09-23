@@ -3,6 +3,8 @@ from typing import Optional, List, Dict
 
 import concurrent.futures
 
+from rdl_ml_utils.utils.wikipedia import WikipediaExtractor
+
 from plwordnet_handler.base.structure.elems.synset import Synset
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.api.plwordnet_i import PlWordnetAPIBase
@@ -11,7 +13,6 @@ from plwordnet_handler.base.structure.elems.synset_relation import SynsetRelatio
 from plwordnet_handler.base.structure.elems.lu_relations import LexicalUnitRelation
 from plwordnet_handler.base.structure.elems.lu_in_synset import LexicalUnitAndSynset
 from plwordnet_handler.base.connectors.connector_i import PlWordnetConnectorInterface
-from plwordnet_handler.dataset.extractors.wikipedia import WikipediaExtractor
 
 
 class PlWordnetAPI(PlWordnetAPIBase):
@@ -525,7 +526,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
                     f"has url {lu_syn.comment.external_url_description}"
                 )
 
-            if not lu_syn.comment.external_url_description:
+            if not lu_syn.comment or not lu_syn.comment.external_url_description:
                 continue
 
             url = lu_syn.comment.external_url_description.url

@@ -20,7 +20,7 @@ mysql -u USER -p wordnet_work < wordnet_work_4_5.sql
 
 ## Tworzenie podstawowych struktur
 
-### Przygotowanie pliku z wagami relacji
+### 1. Przygotowanie pliku z wagami relacji
 
 Pierwszym krokiem jest przygotowanie pliku XLSX z wykazem relacji.  Relacje potrzebne są w procesie 
 budowy zbioru embeddera (i konwersji do grafu). Dla każdej relacji przypisana powinna być waga.
@@ -41,7 +41,7 @@ Ewentualnie modyfikując go do własnych potrzebb.
 
 ---
 
-### Przygotowanie grafu z artykułami z Wikipedii
+### 2. Przygotowanie grafu z artykułami z Wikipedii
 
 **UWAGA!** ten krok można pominąć instalując zależności aplikacji (`FULL/TEST_GRAPH`).
 
@@ -61,7 +61,7 @@ artykuły z Wikipedii jak i ich wersje czyste są już przygotowane)
 
 ---
 
-### Przygotowanie zbioru danych embeddera
+### 3. Przygotowanie zbioru danych embeddera
 
 Pierwszy krok to zrzut dostępnych relacji z "sąsiadującymi" definicjami, komentarzami,
 anotacjami, emocjami itp. dla jednostek leksykalnych oraz synsetów. Ten zbiór zawierał będzie
@@ -96,7 +96,7 @@ przez `--n-workers=32` workerów w batchach `--batch-size=500`. Do **deduplikacj
 można wykorzystać skrypt
 
 ```bash
-nase scripts/4-deduplicate-embedder-dataset.sh
+bash scripts/4-deduplicate-embedder-dataset.sh
 ```
 po tym procesie, posiadamy gotowy zbiór danych do wyuczenia embeddera. Zbiór:
  - posiada relacje międzyjęzykowe
@@ -106,3 +106,19 @@ po tym procesie, posiadamy gotowy zbiór danych do wyuczenia embeddera. Zbiór:
 
 ---
 
+### 4. Uczenie embeddera
+
+Posiadając już przygotowany zbiór danych z wcześniejszych kroków można przystąpić
+do trenowania modelu `bi-encodera`. W naszym przypadku jako podstawowy model
+wykorzystaliśmy modele `EuroBERT/EuroBERT-610m` oraz `EuroBERT/EuroBERT-2.1B`. 
+
+W katalogu `plwordnet_ml/training_scripts` znajdują się skrypty uczące:
+
+ - `run_train_biencoder_eurobert_0.61b.sh` - uczenie modelu EuroBERT w architekturze 610m parametrów
+ - `run_train_biencoder_eurobert_2.1b.sh` - EuroBERT w architekturze 2.1b parametrów
+
+wykorzystują one kod trenera z modułu `plwordnet_ml/embedder/trainer/train-bi-encoder.py`.
+
+Trenowanie modeli od początku jest dość czasochłonne, dlatego zalecamy pobranie
+wytrenowanych wag modeli z naszego huggingface, aktualnie udostępniamy wagi dla modelu 610m parametrów:
+[radlab/semantic-euro-bert-encoder-v1](https://huggingface.co/radlab/semantic-euro-bert-encoder-v1).

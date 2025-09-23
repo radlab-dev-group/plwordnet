@@ -458,6 +458,6 @@ def dump_to_networkx_file(
             g_mapper.store_to_dir(out_dir_path=out_dir_path)
         logger.info("NetworkX graph generation completed successfully")
         return True
-    except Exception as e:
-        logger.error(f"Error during NetworkX graph generation: {e}")
+    except Exception:
+        logger.exception(f"Error during NetworkX graph generation")
     return False

@@ -35,14 +35,16 @@ class Synset(GeneralElem):
             TypeError: If data types don't match expected types
         """
         try:
-            comment = data["comment"]
+            # Here we specially reverse the definition with a comment
+            # to maintain consistency between the synset and the lexical units
+            comment = data["definition"]
             if type(comment) is str:
                 comment = parse_plwordnet_comment(comment)
 
             return cls(
                 ID=int(data["ID"]),
                 split=int(data["split"]),
-                definition=str(data["definition"]),
+                definition=str(data["comment"]),
                 isabstract=int(data["isabstract"]),
                 status=int(data["status"]),
                 comment=comment,

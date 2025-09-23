@@ -471,7 +471,7 @@ class PlWordnetAPI(PlWordnetAPIBase):
             self.corrector_handler is not None
         ), "Corrector handler not initialized!"
 
-        if not len(content_str):
+        if content_str is None or not len(content_str):
             return "", ""
         return content_str, self.corrector_handler.generate(text_str=content_str)
 

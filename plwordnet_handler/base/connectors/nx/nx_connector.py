@@ -197,7 +197,9 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         try:
             node_data = (
-                self.graphs[GraphMapperData.G_SYN].nodes[syn_id].get("data", {})
+                self.graphs[GraphMapperData.G_SYN]
+                .nodes(data=True)[syn_id]
+                .get("data", {})
             )
             if node_data and len(node_data):
                 return SynsetMapper().map_from_dict(data=node_data)
@@ -541,7 +543,7 @@ class PlWordnetAPINxConnector(PlWordnetConnectorInterface):
 
         Returns:
             Optional[List[LexicalUnit | Synset | LexicalUnitAndSynset]]: List of
-            mapped objects if successful, None if not connected or an error occurs
+            mapped objects if successful, None if not connected, or an error occurs
 
         Note:
             This method serves as a wrapper that adds connection validation and

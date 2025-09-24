@@ -123,3 +123,10 @@ wykorzystują one kod trenera z modułu `plwordnet_ml/embedder/trainer/train-bi-
 Trenowanie modeli od początku jest dość czasochłonne, dlatego zalecamy pobranie
 wytrenowanych wag modeli z naszego huggingface, aktualnie udostępniamy wagi dla modelu 610m parametrów:
 [radlab/semantic-euro-bert-encoder-v1](https://huggingface.co/radlab/semantic-euro-bert-encoder-v1).
+
+### 5. Przygotowanie embeddingów dla znaczeń
+
+**Przygotowanie podstawowych embeddingów**
+
+**Przygotowanie fake-embeddingów**
+

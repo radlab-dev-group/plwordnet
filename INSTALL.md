@@ -80,8 +80,8 @@ do pozytywnych (z relacją). Wartość tę ustaswia się za pomocą argumentu `-
 (w skryocie ustawione na `2.0` - czyli dwa przykłady negatywne na każdy pozytywny).
 
 Po wykonaniu tego kroku, w pliku `--dump-embedder-dataset-to-file` zapisany zostanie podstawowy
-zbiór danych (w formacie `jsonl`), który należy zdeduplikować i przekonwertować na format do 
-uczenia embeddera. Do tego celu można wykorzystać skrypt:
+zbiór danych (w formacie `jsonl`), który należy zdeduplikować, oczyścić z ewentualnych "śmieci" 
+i przekonwertować na format do uczenia embeddera. Do tego celu można wykorzystać skrypt:
 
 ```bash
 bash scripts/3-raw-embedder-to-proper-dataset.sh
@@ -103,6 +103,7 @@ po tym procesie, posiadamy gotowy zbiór danych do wyuczenia embeddera. Zbiór:
  - przykłady negatywne
  - podzielony jest na zdania
  - zdeduplikowany na całym zbiorze
+ - wybierze tylko takie przykłady, w których oba teksty mają co najmniej 25 znaków
 
 ---
 

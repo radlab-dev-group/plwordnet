@@ -95,6 +95,55 @@ class DatasetDeduplicator:
 
         return deduplicated_test, deduplicated_train
 
+    @staticmethod
+    def _remove_short_examples(
+        test_data: Optional[List[Dict]],
+        train_data: Optional[List[Dict]],
+        min_text_length: int = 25,
+    ) -> Tuple[list, list]:
+        """
+        Remove examples that contain short sentences.
+
+        This helper filters out any entry whose ``sentence1`` or ``sentence2``
+        fields are shorter than ``min_text_length`` characters (default is 25).
+        It processes both the test and train datasets independently and
+        returns new lists that contain only the examples meeting the length
+        requirement.
+
+        Args:
+            test_data: A list of dictionaries representing the test set examples.
+                Each dictionary should have ``sentence1`` and ``sentence2`` keys.
+                If ``None`` is provided, it is treated as an empty list.
+            train_data: A list of dictionaries representing the training set
+                examples, with the same expected structure as ``test_data``.
+                ``None`` is also treated as an empty list.
+            min_text_length: Minimum number of characters required for each
+                sentence. Sentences shorter than this value are discarded.
+
+        Returns:
+            Tuple[List[Dict], List[Dict]]: ``(filtered_test, filtered_train)`` —
+            two lists containing the retained examples from the respective
+            input datasets.
+        """
+        clr_test = []
+        clr_train = []
+
+        for item in test_data:
+            if len(item.get("sentence1", "")) < min_text_length:
+                continue
+            if len(item.get("sentence2", "")) < min_text_length:
+                continue
+            clr_test.append(item)
+
+        for item in train_data:
+            if len(item.get("sentence1", "")) < min_text_length:
+                continue
+            if len(item.get("sentence2", "")) < min_text_length:
+                continue
+            clr_train.append(item)
+
+        return clr_test, clr_train
+
     def run(self):
         """
         Executes the full deduplication process: loading, processing, and saving.
@@ -114,13 +163,17 @@ class DatasetDeduplicator:
         print("-" * 30)
 
         print("Performing deduplication...")
-        deduplicated_test, deduplicated_train = self._perform_deduplication(
-            test_data, train_data
+        clear_test, clear_train = self._perform_deduplication(
+            test_data=test_data, train_data=train_data
         )
 
-        final_test_count = len(deduplicated_test)
-        final_train_count = len(deduplicated_train)
+        print("Removing short examples...")
+        clear_test, clear_train = self._remove_short_examples(
+            test_data=clear_test, train_data=clear_train
+        )
 
+        final_test_count = len(clear_test)
+        final_train_count = len(clear_train)
         print("-" * 30)
         print("Deduplication finished.")
         print(
@@ -133,8 +186,8 @@ class DatasetDeduplicator:
         )
         print("-" * 30)
 
-        self._save_json_data(self.output_test_path, deduplicated_test)
-        self._save_json_data(self.output_train_path, deduplicated_train)
+        self._save_json_data(self.output_test_path, clear_test)
+        self._save_json_data(self.output_train_path, clear_train)
 
         print("\nProcess complete!")
 

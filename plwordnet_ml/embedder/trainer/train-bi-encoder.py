@@ -35,7 +35,7 @@ def main(argv=None):
         description="plWordnet semantic embeddings Trainer",
     ).parse_args()
 
-    train_batch_size = 10
+    train_batch_size = 28
     training_handler = TrainingHandler(
         train_dataset_file_path=args.train_file,
         eval_dataset_file_path=args.valid_file,
@@ -58,11 +58,11 @@ def main(argv=None):
         weight_decay=0.01,
         adam_epsilon=1e-6,
         max_grad_norm=5.0,
-        warmup_steps=20000,
+        warmup_steps=90000,
         load_best_model_at_end=True,
         logging_steps=20,
         eval_strategy="steps",
-        eval_steps=50000,
+        eval_steps=30000,
         disable_tqdm=False,
         logging_first_step=False,
         fp16=True,
@@ -70,7 +70,7 @@ def main(argv=None):
         report_to=report_to,
         save_total_limit=5,
         save_strategy="steps",
-        save_steps=50000,
+        save_steps=30000,
         logging_strategy="steps",
         optim="adamw_torch_fused",
     )

@@ -35,7 +35,7 @@ def main(argv=None):
         description="plWordnet semantic embeddings Trainer",
     ).parse_args()
 
-    train_batch_size = 28
+    train_batch_size = 32
     training_handler = TrainingHandler(
         train_dataset_file_path=args.train_file,
         eval_dataset_file_path=args.valid_file,
@@ -52,7 +52,7 @@ def main(argv=None):
         num_train_epochs=5,
         per_device_train_batch_size=train_batch_size,
         per_device_eval_batch_size=train_batch_size,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=3,
         learning_rate=5e-6,
         warmup_ratio=0.1,
         weight_decay=0.01,

@@ -62,7 +62,7 @@ def main(argv=None):
         load_best_model_at_end=True,
         logging_steps=20,
         eval_strategy="steps",
-        eval_steps=30000,
+        eval_steps=40000,
         disable_tqdm=False,
         logging_first_step=False,
         fp16=True,
@@ -70,7 +70,7 @@ def main(argv=None):
         report_to=report_to,
         save_total_limit=5,
         save_strategy="steps",
-        save_steps=30000,
+        save_steps=40000,
         logging_strategy="steps",
         optim="adamw_torch_fused",
     )

@@ -126,7 +126,70 @@ wytrenowanych wag modeli z naszego huggingface, aktualnie udostępniamy wagi dla
 
 ### 5. Przygotowanie embeddingów dla znaczeń
 
-**Przygotowanie podstawowych embeddingów**
+Po wytrenowaniu embeddera (lub wykorzystaniu już wytrenowanego -- zalecane)
+można przystapić do tworzenia reprezentacji wektorowych dla znaczeń. 
 
-**Przygotowanie fake-embeddingów**
+**UWAGA** można pominąć kroki podane niżej, jeżeli wykorzysta się skrypt
+```bash
+bash scripts/6-plwordnet-milvus-full-init.sh
+```
 
+
+**Przygotowanie bazy semantycznej**
+
+Na początku należy zainicjalizować bazę danych semantyczną, można to zrobić przy pomocy CLI `plwordnet-milvus`:
+
+```bash
+plwordnet-milvus 
+    --log-level=DEBUG
+    --milvus-config=resources/milvus-config.json 
+    --prepare-database
+```
+
+powinien pojawić się log typu:
+
+
+```text
+2025-10-19 15:42:10,922 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:73- Connected to default Milvus database at 192.168.100.67:19533
+2025-10-19 15:42:11,123 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:186- Created database: slowosiec_4_5_20250926_o78zalgm
+2025-10-19 15:42:11,127 - plwordnet_handler.base.connectors.milvus.initializer - INFO - base_connector.py:95- Connected to Milvus at 192.168.100.67:19533
+2025-10-19 15:42:12,259 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:297- Created collection: base_synset_embeddings
+2025-10-19 15:42:13,611 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:318- Created collection: base_lu_embeddings
+2025-10-19 15:42:14,502 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:340- Created collection: base_lu_examples_embeddings
+2025-10-19 15:42:21,612 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:240- Created IVF_FLAT indexes on collections
+2025-10-19 15:42:21,612 - plwordnet_handler.base.connectors.milvus.initializer - INFO - initializer.py:162- Milvus WordNet handler initialized successfully
+2025-10-19 15:42:21,620 - plwordnet_handler.base.connectors.milvus.initializer - INFO - base_connector.py:95- Connected to Milvus at 192.168.100.67:19533
+```
+
+**Przygotowanie podstawowych (i fake) embeddingów**
+
+```bash
+# prepare database
+plwordnet-milvus \
+  --log-level=DEBUG \
+  --milvus-config resources/configs/milvus-config.json \
+  --prepare-database
+
+
+# Base and fake embeddings
+plwordnet-milvus \
+  --milvus-config=resources/configs/milvus-config.json \
+  --embedder-config=resources/configs/embedder-config.json \
+  --nx-graph-dir="resources/plwordnet_4_5/full/graphs/full/nx/graphs/" \
+  --device="cuda:1" \
+  --log-level=INFO \
+  --prepare-base-embeddings-lu \
+  --prepare-base-embeddings-synset \
+  --prepare-base-mean-empty-embeddings-lu
+```
+
+
+### 6. Przygotowanie datasetu do RelGAT trainera
+plwordnet-milvus \
+  --milvus-config=resources/configs/milvus-config-pk.json \
+  --nx-graph-dir="resources/plwordnet_4_5/full/graphs/full/nx/graphs/" \
+  --relgat-mapping-directory="resources/plwordnet_4_5/full/relgat/aligned-dataset-identifiers/o78zalgm" \
+  --relgat-dataset-directory="resources/plwordnet_4_5/full/relgat/aligned-dataset-identifiers/o78zalgm/dataset_syn_two_way" \
+  --log-level=DEBUG \
+  --export-relgat-dataset \
+  --export-relgat-mapping

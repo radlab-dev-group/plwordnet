@@ -185,6 +185,8 @@ plwordnet-milvus \
 
 
 ### 6. Przygotowanie datasetu do RelGAT trainera
+
+```bash
 plwordnet-milvus \
   --milvus-config=resources/configs/milvus-config-pk.json \
   --nx-graph-dir="resources/plwordnet_4_5/full/graphs/full/nx/graphs/" \
@@ -193,3 +195,4 @@ plwordnet-milvus \
   --log-level=DEBUG \
   --export-relgat-dataset \
   --export-relgat-mapping
+```

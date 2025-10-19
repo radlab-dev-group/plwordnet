@@ -1,19 +1,19 @@
 #!/bin/bash
 
-NOT TESTED
-exit 1
-#
-#plwordnet-milvus \
-#  --milvus-config=resources/milvus-config-pk.json \
-#  --embedder-config=resources/embedder-config.json \
-#  --nx-graph-dir=/path/to/plwordnet/graphs \
-#  --relgat-mapping-directory=resources/aligned-dataset-identifiers/ \
-#  --relgat-dataset-directory=resources/aligned-dataset-identifiers/dataset \
-#  --device="cuda:1" \
-#  --log-level=INFO \
-#  --prepare-database \
-#  --prepare-base-embeddings-lu \
-#  --prepare-base-mean-empty-embeddings-lu \
-#  --prepare-base-embeddings-synset \
-#  --export-relgat-dataset \
-#  --export-relgat-mapping
+# prepare database
+plwordnet-milvus \
+  --log-level=DEBUG \
+  --milvus-config=../resources/configs/milvus-config-pk.json \
+  --prepare-database
+
+
+# Base and fake embeddings
+plwordnet-milvus \
+  --milvus-config=../resources/configs/milvus-config-pk.json \
+  --embedder-config=../resources/configs/embedder-config.json \
+  --nx-graph-dir=../resources/plwordnet_4_5/full/graphs/full/nx/graphs/ \
+  --device="cuda:1" \
+  --log-level=INFO \
+  --prepare-base-embeddings-lu \
+  --prepare-base-embeddings-synset \
+  --prepare-base-mean-empty-embeddings-lu

@@ -1,5 +1,5 @@
 {
-  "active": "wtcsnxj9",
+  "active": "o78zalgm",
   "models": {
     "wtcsnxj9":{
       "model_name": "Semantic-v0.2-wtcsnxj9",
@@ -7,6 +7,14 @@
       "model_path": "/mnt/data2/llms/models/radlab-open/embedders/semantic-euro-bert-encoder/v0.2/EuroBERT-610m/20250812_021454_embedder_sentsplit_train-0.93/semantic-euro-bert-encoder-v1",
       "hf_model": "radlab/semantic-euro-bert-encoder-v1",
       "comment": "Model z synonimią i z datasetem z WIKI z podziałem na zdania.",
+      "vec_size": 1152
+    },
+    "o78zalgm":{
+      "model_name": "Semantic-v0.3-o78zalgm",
+      "wandb_url": "http://192.168.100.61:8080/pkedzia/plWordnet-semantic-embeddings/runs/o78zalgm",
+      "model_path": "/mnt/data2/llms/models/radlab-open/embedders/semantic-euro-bert-encoder/v0.3/EuroBERT-610m/biencoder/20250926_204413_20250924/plwn_4_5_embedder_dataset/checkpoint-1155665",
+      "hf_model": "",
+      "comment": "Model z synonimią i z datasetem z WIKI z podziałem na zdania, dwujęzyczny (pl + en)",
       "vec_size": 1152
     }
   }

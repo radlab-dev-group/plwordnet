@@ -1,12 +1,11 @@
 #!/bin/bash
 
-NOT TESTED
-exit 1
-#
-#plwordnet-milvus \
-#  --milvus-config=../resources/milvus-config-pk.json \
-#  --nx-graph-dir=/mnt/data2/data/resources/plwordnet_handler/20250811/slowosiec_full/nx/graphs \
-#  --relgat-mapping-directory=/mnt/data2/data/resources/plwordnet_handler/relgat/aligned-dataset-identifiers/wtcsnxj9 \
-#  --relgat-dataset-directory=/mnt/data2/data/resources/plwordnet_handler/relgat/aligned-dataset-identifiers/wtcsnxj9/dataset_syn_two_way \
-#  --log-level=DEBUG \
-#  --export-relgat-dataset
+plwordnet-milvus \
+  --milvus-config=resources/configs/milvus-config-pk.json \
+  --embedder-config=resources/configs/embedder-config.json \
+  --nx-graph-dir="resources/plwordnet_4_5/full/graphs/full/nx/graphs/" \
+  --relgat-mapping-directory="resources/plwordnet_4_5/full/relgat/aligned-dataset-identifiers/o78zalgm" \
+  --relgat-dataset-directory="resources/plwordnet_4_5/full/relgat/aligned-dataset-identifiers/o78zalgm/dataset_syn_two_way" \
+  --log-level=DEBUG \
+  --export-relgat-dataset \
+  --export-relgat-mapping

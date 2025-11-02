@@ -6,6 +6,7 @@ import threading
 from tqdm import tqdm
 from numpy import ndarray
 from typing import List, Dict, Iterator, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from plwordnet_handler.base.structure.elems.lu import LexicalUnit
 from plwordnet_handler.base.structure.polishwordnet import PolishWordnet
@@ -105,46 +106,64 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
                 unique_texts=unique_texts,
             )
         else:
-            # yield from self.__run_multithreading(
-            #     all_lexical_units=all_lexical_units,
-            #     split_to_sentences=split_to_sentences,
-            # )
+            yield from self.__run_multithreading(
+                all_lexical_units=all_lexical_units,
+                split_to_sentences=split_to_sentences,
+                unique_texts=unique_texts,
+            )
             raise NotImplementedError("Multiprocessing not yet supported")
 
-    # def __run_multithreading(
-    #     self, all_lexical_units: List, split_to_sentences: bool
-    # ):
-    #     lu_wo_texts = []
-    #     # Use ThreadPoolExecutor for parallel processing
-    #     with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-    #         with tqdm(
-    #             total=len(all_lexical_units),
-    #             desc="Generating embeddings from lexical units",
-    #         ) as pbar:
-    #             # 1. Submit tasks to the thread pool
-    #             future_to_lu = {
-    #                 executor.submit(
-    #                     self._process_single_lu, lu, split_to_sentences
-    #                 ): lu
-    #                 for lu in all_lexical_units
-    #             }
-    #
-    #             # 2. Process completed tasks as they finish
-    #             for future in as_completed(future_to_lu):
-    #                 lu = future_to_lu[future]
-    #                 try:
-    #                     result = future.result()
-    #                     if result is None:
-    #                         lu_wo_texts.append(lu)
-    #                     else:
-    #                         yield from result
-    #                 except Exception as exc:
-    #                     self.logger.error(f"LU {lu} generated an exception: {exc}")
-    #
-    #                 pbar.update(1)
-    #
-    #     self.logger.info("Finished generating embeddings")
-    #     self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
+    def __run_multithreading(
+        self,
+        all_lexical_units: List,
+        split_to_sentences: bool,
+        unique_texts: bool = False,
+    ):
+        """
+        Run the embedding generation using multiple threads.
+
+        The lexical units list is divided into ``self.max_workers`` chunks.
+        Each chunk is processed in its own thread by calling
+        ``_generate_in_single_thread``.  Results from all threads are yielded
+        in the order they become available.
+
+        Args:
+            all_lexical_units: Full list of lexical units to process.
+            split_to_sentences: Whether to split external URL descriptions into
+                individual sentences.
+            unique_texts: Whether to generate embeddings only for unique texts.
+
+        Yields:
+            The same dictionaries produced by ``_generate_in_single_thread``.
+        """
+        total = len(all_lexical_units)
+        if total == 0:
+            return
+
+        chunk_size = max(1, total // self.max_workers)
+        chunks = [
+            all_lexical_units[i : i + chunk_size]
+            for i in range(0, total, chunk_size)
+        ]
+
+        def worker(chunk):
+            return list(
+                self._generate_in_single_thread(
+                    all_lexical_units=chunk,
+                    split_to_sentences=split_to_sentences,
+                    unique_texts=unique_texts,
+                )
+            )
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            future_to_chunk = {
+                executor.submit(worker, chunk): chunk for chunk in chunks
+            }
+            for future in as_completed(future_to_chunk):
+                # ``future.result()``
+                #   returns the list of generated items for this chunk
+                for item in future.result():
+                    yield item
 
     def _generate_in_single_thread(
         self,

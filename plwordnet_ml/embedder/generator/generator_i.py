@@ -62,6 +62,8 @@ class _AnySemanticEmbeddingGeneratorBase(ABC):
             logger_file_name=log_filename,
         )
 
+        self._added_texts = []
+
     @abstractmethod
     def generate(
         self, split_to_sentences: Optional[bool] = None

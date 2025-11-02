@@ -266,3 +266,56 @@ class MilvusWordNetInsertHandler(MilvusBaseConnector):
         """
         config = MilvusConfig.from_json_file(config_path)
         return cls(config=config)
+
+    def get_all_lu_examples(self, limit: int = 0) -> List[Dict[str, Any]]:
+        """
+        Retrieve **all** lexical unit examples from the LU examples collection.
+
+        Args:
+            limit: Optional maximum number of examples to return.
+                   ``0`` (default) means no explicit limit – all records are fetched.
+                   Use with caution on very large collections.
+
+        Returns:
+            List of dictionaries, each containing:
+                - id: Lexical Unit ID
+                - embedding: Embedding vector (list of floats)
+                - example: Example text (truncated to ``MAX_TEXT_LEN``)
+                - model_name: Name of the model used
+                - type: (optional) type field stored in the collection
+                - strategy: (optional) strategy field stored in the collection
+        """
+        try:
+            collection = self._get_lu_examples_collection()
+            results = collection.query(
+                expr="",
+                output_fields=[
+                    "id",
+                    "embedding",
+                    "example",
+                    "model_name",
+                    "type",
+                    "strategy",
+                ],
+                limit=limit if limit > 0 else None,
+            )
+            return [
+                {
+                    "id": r.get("id"),
+                    "embedding": r.get("embedding"),
+                    "example": r.get("example"),
+                    "model_name": r.get("model_name"),
+                    "type": r.get("type"),
+                    "strategy": r.get("strategy"),
+                }
+                for r in results
+            ]
+
+        except MilvusException as e:
+            self.logger.error(f"Failed to retrieve all LU examples: {e}")
+            return []
+        except Exception as e:
+            self.logger.error(
+                f"Unexpected error during all LU examples retrieval: {e}"
+            )
+            return []

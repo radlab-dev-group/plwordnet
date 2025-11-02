@@ -241,7 +241,9 @@ class CLIMilvusWrappers(CLIWrapperBase):
             self.logger.error(e)
             return False
 
-    def prepare_base_embeddings_lu(self, batch_size: int = 1000):
+    def prepare_base_embeddings_lu(
+        self, batch_size: int = 1000, unique_texts: bool = False
+    ):
         """
         Generate and insert lexical units base semantic embeddings
         into the Milvus database.
@@ -254,6 +256,8 @@ class CLIMilvusWrappers(CLIWrapperBase):
         Args:
             batch_size: Number of embeddings to process in each batch.
             Defaults to 1000
+            unique_texts: Whether or not to generate embeddings only for unique texts
+            Defaults to False
 
         Raises:
             RuntimeError: If PlWordnet API or Milvus config is not initialized
@@ -281,19 +285,22 @@ class CLIMilvusWrappers(CLIWrapperBase):
             log_filename=Constants.LOG_FILENAME,
             spacy_model_name=Constants.SPACY_MODEL_NAME,
             strategy=EmbeddingBuildStrategy.MEAN,
-            max_workers=1,
+            max_workers=self.args.workers_count,
             accept_pos=Constants.ACCEPT_POS,
         )
 
-        self.logger.info("Retrieving embeddings for lu examples from Milvus DB...")
-        _done_texts = []
-        for lu_example in embedding_consumer.milvus.get_all_lu_examples():
-            _done_texts.append(lu_example["example"])
-        syn_emb_generator._added_texts = _done_texts
-        self.logger.info(
-            f"Found {len(_done_texts)} existing lu examples. "
-            f"These examples will be skipped and not be added twice"
-        )
+        if unique_texts:
+            self.logger.info(
+                "Retrieving embeddings for lu examples from Milvus DB..."
+            )
+            _done_texts = []
+            for lu_example in embedding_consumer.milvus.get_all_lu_examples():
+                _done_texts.append(lu_example["example"])
+            syn_emb_generator._added_texts = _done_texts
+            self.logger.info(
+                f"Found {len(_done_texts)} existing lu examples. "
+                f"These examples will be skipped and not be added twice"
+            )
 
         self.logger.info("Starting base-embeddings generation")
         for embeddings in syn_emb_generator.generate(split_to_sentences=True):

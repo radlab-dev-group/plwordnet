@@ -1,9 +1,11 @@
 from setuptools import setup, find_packages
 
+with open(".version", "r") as fh:
+    file_version = fh.read().strip()
 
 setup(
     name="plwordnet",
-    version="0.0.1",
+    version=file_version,
     packages=find_packages(exclude=("tests", "docs")),
     python_requires=">=3.10",
     entry_points={

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Workers count
-WORKERS_COUNT=2
+WORKERS_COUNT=1
 
 # Which device will be used to prepare embeddings
 CUDA_DEVICE="cuda:1"

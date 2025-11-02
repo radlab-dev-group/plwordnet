@@ -67,7 +67,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         self._local_spacy = threading.local()
 
     def generate(
-        self, split_to_sentences: Optional[bool] = False
+        self, split_to_sentences: Optional[bool] = False, unique_texts: bool = False
     ) -> Iterator[List[Dict[str, Any]]]:
         """
         Generate embeddings for all lexical units and lexical units examples
@@ -81,6 +81,8 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
             split_to_sentences (optional): Whether to split external URL
             descriptions, definitions, etc. into individual sentences
             for more granular embeddings
+            unique_texts: Whether or not to generate embeddings only for unique texts
+            Defaults to False
 
         Yields:
             Dict[str, Any]: Dictionary containing lexical unit data,
@@ -100,6 +102,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
             yield from self._generate_in_single_thread(
                 all_lexical_units=all_lexical_units,
                 split_to_sentences=split_to_sentences,
+                unique_texts=unique_texts,
             )
         else:
             # yield from self.__run_multithreading(
@@ -144,7 +147,10 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
     #     self.logger.info(f"Number of LUs without texts: {len(lu_wo_texts)}")
 
     def _generate_in_single_thread(
-        self, all_lexical_units: List, split_to_sentences: bool
+        self,
+        all_lexical_units: List,
+        split_to_sentences: bool,
+        unique_texts: bool = False,
     ):
         """
         Generate embeddings for lexical units using single-threaded processing.
@@ -157,6 +163,8 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
             all_lexical_units: List of lexical units to process
             split_to_sentences: Whether to split text content
             into individual sentences
+            unique_texts: Whether or not to generate embeddings only for unique texts
+            Defaults to False
 
         Yields:
             Generated embeddings for each successfully processed lexical unit
@@ -168,7 +176,9 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         ) as pbar:
             for lu in all_lexical_units:
                 pbar.update(1)
-                lu_embeddings = self._process_single_lu(lu, split_to_sentences)
+                lu_embeddings = self._process_single_lu(
+                    lu, split_to_sentences, unique_texts=unique_texts
+                )
                 if lu_embeddings is None:
                     lu_wo_examples.append(lu)
                     if len(lu_wo_examples) % 1000 == 0:

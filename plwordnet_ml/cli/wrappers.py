@@ -285,7 +285,7 @@ class CLIMilvusWrappers(CLIWrapperBase):
             log_filename=Constants.LOG_FILENAME,
             spacy_model_name=Constants.SPACY_MODEL_NAME,
             strategy=EmbeddingBuildStrategy.MEAN,
-            max_workers=1,
+            max_workers=self.args.workers_count,
             accept_pos=Constants.ACCEPT_POS,
         )
 

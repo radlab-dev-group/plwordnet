@@ -122,4 +122,12 @@ def prepare_parser() -> argparse.ArgumentParser:
         help="Device to use (cpu, cuda, cuda:0) - depends on machine",
     )
 
+    parser.add_argument(
+        "--workers-count",
+        dest="workers_count",
+        type=int,
+        default=1,
+        help="Number of worker processes. Default is 1 (no multithreading).",
+    )
+
     return parser

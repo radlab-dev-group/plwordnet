@@ -1,3 +1,5 @@
+import random
+
 import numpy
 import torch
 import spacy
@@ -139,6 +141,8 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         total = len(all_lexical_units)
         if total == 0:
             return
+
+        random.shuffle(all_lexical_units)
 
         chunk_size = max(1, total // self.max_workers)
         chunks = [

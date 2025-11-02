@@ -9,7 +9,7 @@ plwordnet-milvus \
 
 # Base and fake embeddings
 plwordnet-milvus \
-  --milvus-config=../resources/configs/milvus-config-pk.json \
+  --milvus-config=../resources/configs/milvus-config.json \
   --embedder-config=../resources/configs/embedder-config.json \
   --nx-graph-dir=../resources/plwordnet_4_5/full/graphs/full/nx/graphs/ \
   --device="cuda:1" \

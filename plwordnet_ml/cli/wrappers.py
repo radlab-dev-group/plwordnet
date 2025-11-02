@@ -35,7 +35,16 @@ from plwordnet_ml.embedder.generator.base_embeddings.lexical_unit import (
 class Constants:
     SPACY_MODEL_NAME = "pl_core_news_sm"
     LOG_FILENAME = "synset-embeddings.log"
-    ACCEPT_POS = [1, 2, 3, 4]
+    # Part of speech:
+    #   1 -- pl nouns
+    #   2 -- pl verbs
+    #   3 -- pl adjectives
+    #   4 -- pl adverbs
+    #   5 -- en nouns
+    #   6 -- en verbs
+    #   7 -- en adjectives
+    #   8 -- en adverbs
+    ACCEPT_POS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 
 class CLIMilvusWrappers(CLIWrapperBase):

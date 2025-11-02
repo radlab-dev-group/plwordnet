@@ -183,7 +183,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         self.logger.info(f"Number of LUs without examples: {len(lu_wo_examples)}")
 
     def _process_single_lu(
-        self, lu: LexicalUnit, split_to_sentences: bool
+        self, lu: LexicalUnit, split_to_sentences: bool, unique_texts: bool = False
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Process a single lexical unit and generate embeddings.
@@ -191,6 +191,8 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         Args:
             lu: LexicalUnit to process
             split_to_sentences: Whether to split sentences
+            unique_texts: Whether or not to generate embeddings only for unique texts
+            Defaults to False
 
         Returns:
             List of embedding dictionaries or None if no texts found
@@ -202,14 +204,15 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         if not len(possible_texts):
             return None
 
-        _possible_texts = []
-        for text in possible_texts:
-            if text in self._added_texts:
-                continue
-            _possible_texts.append(text)
+        _possible_texts = [] if unique_texts else possible_texts
+        if unique_texts:
+            for text in possible_texts:
+                if text in self._added_texts:
+                    continue
+                _possible_texts.append(text)
 
-        if not len(_possible_texts):
-            return None
+            if not len(_possible_texts):
+                return None
 
         self._added_texts.extend(_possible_texts)
 

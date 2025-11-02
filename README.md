@@ -1,4 +1,4 @@
-# RadLab PLWordNet
+# PLWordNet
 
 PLWordNet (Handler/ML) is a toolkit for working with the Polish semantic lexicon (Słowosieć/PLWordNet). 
 It provides:

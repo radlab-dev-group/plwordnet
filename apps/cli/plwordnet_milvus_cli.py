@@ -41,7 +41,9 @@ def main(argv=None):
 
     # If --prepare-base-embedding-lu is given
     if args.prepare_base_embeddings_lu:
-        cli_wrapper.prepare_base_embeddings_lu(batch_size=MILVUS_INSERT_BATCH_SIZE)
+        cli_wrapper.prepare_base_embeddings_lu(
+            batch_size=MILVUS_INSERT_BATCH_SIZE, unique_texts=False
+        )
 
     # If --prepare-base-mean-empty-embeddings
     if args.prepare_mean_empty_base_embeddings_lu:

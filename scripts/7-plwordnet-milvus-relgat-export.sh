@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # path to Milvus database configuration
-MILVUS_CONFIG="../resources/configs/milvus-config-pk.json"
+MILVUS_CONFIG="../resources/configs/milvus-config.json"
 
 # path to embedder configuration
 EMBEDDER_CONFIG="../resources/configs/embedder-config.json"

@@ -17,13 +17,17 @@ from setuptools.command.develop import develop
 from setuptools.command.egg_info import egg_info
 
 
+with open(".version", "r") as fh:
+    file_version = fh.read().strip()
+
+
 class _SetupConfiguration:
     REPO_URL = "https://github.com/radlab-dev-group/radlab-plwordnet"
 
     @dataclass
     class SetupConfig:
         module_name: str = "plwordnet-handler"
-        module_version: str = "1.5.2"
+        module_version: str = file_version
         handler_module_name: str = "plwordnet_handler"
         short_description: str = "Narzędzie do pracy ze Słowosiecią"
 

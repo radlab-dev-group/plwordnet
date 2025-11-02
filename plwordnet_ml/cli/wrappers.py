@@ -285,6 +285,16 @@ class CLIMilvusWrappers(CLIWrapperBase):
             accept_pos=Constants.ACCEPT_POS,
         )
 
+        self.logger.info("Retrieving embeddings for lu examples from Milvus DB...")
+        _done_texts = []
+        for lu_example in embedding_consumer.milvus.get_all_lu_examples():
+            _done_texts.append(lu_example["example"])
+        syn_emb_generator._added_texts = _done_texts
+        self.logger.info(
+            f"Found {len(_done_texts)} existing lu examples. "
+            f"These examples will be skipped and not be added twice"
+        )
+
         self.logger.info("Starting base-embeddings generation")
         for embeddings in syn_emb_generator.generate(split_to_sentences=True):
             for emb_dict in embeddings:

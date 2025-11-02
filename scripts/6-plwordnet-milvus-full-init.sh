@@ -3,7 +3,7 @@
 # prepare database
 plwordnet-milvus \
   --log-level=DEBUG \
-  --milvus-config=../resources/configs/milvus-config-pk.json \
+  --milvus-config=../resources/configs/milvus-config.json \
   --prepare-database
 
 

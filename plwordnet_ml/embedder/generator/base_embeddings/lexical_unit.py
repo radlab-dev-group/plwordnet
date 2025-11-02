@@ -202,24 +202,35 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
         if not len(possible_texts):
             return None
 
+        _possible_texts = []
+        for text in possible_texts:
+            if text in self._added_texts:
+                continue
+            _possible_texts.append(text)
+
+        if not len(_possible_texts):
+            return None
+
+        self._added_texts.extend(_possible_texts)
+
         embeddings = self.embedding_generator.generate_embeddings(
-            possible_texts,
+            _possible_texts,
             show_progress_bar=False,
             return_as_list=True,
             truncate_text_to_max_len=True,
         )
-        assert len(embeddings) == len(possible_texts)
+        assert len(embeddings) == len(_possible_texts)
         embeddings = [e.cpu().numpy() for e in embeddings]
 
         results = []
         results.extend(
             self._embedding_for_each_lu_example(
-                possible_texts=possible_texts, embeddings=embeddings, lu=lu
+                possible_texts=_possible_texts, embeddings=embeddings, lu=lu
             )
         )
         results.extend(
             self._embedding_from_lu_processor(
-                possible_texts=possible_texts, embeddings=embeddings, lu=lu
+                possible_texts=_possible_texts, embeddings=embeddings, lu=lu
             )
         )
         return results
@@ -283,9 +294,7 @@ class SemanticEmbeddingGeneratorLuAndExamples(_AnySemanticEmbeddingGeneratorBase
             "strategy": self.embedding_processor.strategy,
         }
 
-    def _get_lu_texts(
-        self, lu: LexicalUnit, split_to_sentences: bool
-    ) -> Optional[List[str]]:
+    def _get_lu_texts(self, lu: LexicalUnit, split_to_sentences: bool) -> List[str]:
         """
         Extract all available text content from a lexical unit's comment data.
 

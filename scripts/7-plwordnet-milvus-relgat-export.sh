@@ -1,7 +1,7 @@
 #!/bin/bash
 
 plwordnet-milvus \
-  --milvus-config=resources/configs/milvus-config-pk.json \
+  --milvus-config=resources/configs/milvus-config.json \
   --embedder-config=resources/configs/embedder-config.json \
   --nx-graph-dir="resources/plwordnet_4_5/full/graphs/full/nx/graphs/" \
   --relgat-mapping-directory="resources/plwordnet_4_5/full/relgat/aligned-dataset-identifiers/o78zalgm" \
